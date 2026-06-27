@@ -78,6 +78,7 @@ impl Writer {
             saved_cached: CachedExpressions::default(),
             gl450_ext_inst_id,
             temp_list: Vec::new(),
+            current_workgroup_size: None,
         })
     }
 
@@ -105,6 +106,7 @@ impl Writer {
             flags: self.flags,
             bounds_check_policies: self.bounds_check_policies,
             zero_initialize_workgroup_memory: self.zero_initialize_workgroup_memory,
+            current_workgroup_size: self.current_workgroup_size,
             capabilities_available: take(&mut self.capabilities_available),
             binding_map: take(&mut self.binding_map),
 
@@ -609,6 +611,7 @@ impl Writer {
 
         // Create a `BlockContext` for generating SPIR-V for the function's
         // body.
+        let current_wg_size = self.current_workgroup_size;
         let mut context = BlockContext {
             ir_module,
             ir_function,
@@ -623,6 +626,7 @@ impl Writer {
             expression_constness: crate::proc::ExpressionConstnessTracker::from_arena(
                 &ir_function.expressions,
             ),
+            current_workgroup_size: current_wg_size,
         };
 
         // fill up the pre-emitted and const expressions
@@ -750,6 +754,14 @@ impl Writer {
         debug_info: &Option<DebugInfoInner>,
     ) -> Result<Instruction, Error> {
         let mut interface_ids = Vec::new();
+        // Track 2: Set workgroup size for builtin range analysis
+        let wg_size = if entry_point.stage == crate::ShaderStage::Compute {
+            Some(entry_point.workgroup_size)
+        } else {
+            None
+        };
+        self.current_workgroup_size = wg_size;
+
         let function_id = self.write_function(
             &entry_point.function,
             info,

@@ -546,7 +546,7 @@ impl<'a> ExpressionContext<'a> {
         base: Handle<crate::Expression>,
         index: index::GuardedIndex,
     ) -> Option<index::IndexableLength> {
-        index::access_needs_check(base, index, self.module, self.function, self.info)
+        index::access_needs_check(base, index, self.module, self.function, self.info, None)
     }
 
     fn get_packed_vec_kind(

@@ -560,6 +560,9 @@ struct BlockContext<'w> {
 
     /// Tracks the constness of `Expression`s residing in `self.ir_function.expressions`
     expression_constness: crate::proc::ExpressionConstnessTracker,
+
+    /// Track 2: Workgroup size of the current entry point (for builtin range analysis).
+    current_workgroup_size: Option<[u32; 3]>,
 }
 
 impl BlockContext<'_> {
@@ -634,6 +637,9 @@ pub struct Writer {
 
     // Just a temporary list of SPIR-V ids
     temp_list: Vec<Word>,
+
+    /// Track 2: Workgroup size of the current entry point being processed.
+    current_workgroup_size: Option<[u32; 3]>,
 }
 
 bitflags::bitflags! {

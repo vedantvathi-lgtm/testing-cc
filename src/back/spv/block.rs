@@ -1743,7 +1743,7 @@ impl<'w> BlockContext<'w> {
         debug_info: Option<&DebugInfoInner>,
     ) -> Result<(), Error> {
         let mut block = Block::new(label_id);
-        for (statement, span) in naga_block.span_iter() {
+        for (statement_index, (statement, span)) in naga_block.span_iter().enumerate() {
             if let (Some(debug_info), false) = (
                 debug_info,
                 matches!(
@@ -2332,8 +2332,47 @@ impl<'w> BlockContext<'w> {
                             )
                         }
                     }
-                    self.writer
-                        .write_barrier(crate::Barrier::WORK_GROUP, &mut block);
+                    // Track 3-lite: Workgroup Post-Barrier Elision
+                    // Only emit the post-barrier if a subsequent statement writes
+                    // to workgroup memory or another wUL occurs.
+                    // Track 3-lite: Workgroup Post-Barrier Elision
+                    // Scan FORWARD from the statement AFTER this WUL to check if
+                    // any subsequent statement writes to workgroup memory.
+                    // Stop at the next barrier (it's a synchronization boundary).
+                    let needs_post = {
+                        let mut found = false;
+                        // Scan forward from the NEXT statement after this WUL.
+                        // statement_index is provided by the write_block loop.
+                        for stmt in naga_block.iter().skip(statement_index + 1) {
+                            match *stmt {
+                                // A barrier is a sync boundary; stop scanning
+                                crate::Statement::Barrier(_) => break,
+                                crate::Statement::WorkGroupUniformLoad { .. } => {
+                                    // Another wUL needs the post-barrier for ordering
+                                    found = true;
+                                    break;
+                                }
+                                crate::Statement::Store { pointer: p, .. } => {
+                                    if self.pointer_targets_workgroup(p) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                crate::Statement::Call { function: fh, .. } => {
+                                    if self.callee_takes_workgroup_ptr(fh) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        found
+                    };
+                    if needs_post {
+                        self.writer
+                            .write_barrier(crate::Barrier::WORK_GROUP, &mut block);
+                    }
                 }
                 crate::Statement::RayQuery { query, ref fun } => {
                     self.write_ray_query_function(query, fun, &mut block);
@@ -2369,5 +2408,53 @@ impl<'w> BlockContext<'w> {
 
         self.function.consume(block, termination);
         Ok(())
+    }
+}
+
+impl<'w> BlockContext<'w> {
+    /// Track 3-lite: Trace a pointer expression to see if it ultimately
+    /// targets a workgroup-addressed global variable.
+    fn pointer_targets_workgroup(&self, pointer: crate::Handle<crate::Expression>) -> bool {
+        // Track 3-lite: Conservative pointer tracing.
+        // If we can't prove the pointer does NOT target workgroup memory,
+        // we conservatively return true to keep the post-barrier.
+        let mut current = pointer;
+        loop {
+            match self.ir_function.expressions[current] {
+                crate::Expression::GlobalVariable(gv_handle) => {
+                    return self.ir_module.global_variables[gv_handle].space
+                        == crate::AddressSpace::WorkGroup;
+                }
+                crate::Expression::Access { base, .. }
+                | crate::Expression::AccessIndex { base, .. } => {
+                    current = base;
+                }
+                crate::Expression::Load { pointer } => {
+                    current = pointer;
+                }
+                // LocalVariable or FunctionArgument could hold a workgroup
+                // pointer loaded from elsewhere. Conservatively return true.
+                crate::Expression::LocalVariable(_) | crate::Expression::FunctionArgument(_) => {
+                    return true;
+                }
+                _ => return true,
+            }
+        }
+    }
+
+    /// Track 3-lite: Check if a called function has any parameter that is
+    /// a pointer into workgroup address space.
+    fn callee_takes_workgroup_ptr(&self, func_handle: crate::Handle<crate::Function>) -> bool {
+        let func = &self.ir_module.functions[func_handle];
+        for arg in &func.arguments {
+            if let crate::TypeInner::Pointer {
+                space: crate::AddressSpace::WorkGroup,
+                ..
+            } = self.ir_module.types[arg.ty].inner
+            {
+                return true;
+            }
+        }
+        false
     }
 }

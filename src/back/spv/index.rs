@@ -343,6 +343,17 @@ impl<'w> BlockContext<'w> {
         index: Handle<crate::Expression>,
         block: &mut Block,
     ) -> Result<BoundsCheckResult, Error> {
+        // Track 2: API-Constant Range Analysis
+        // If index is @builtin(local_invocation_index) and the array size
+        // equals workgroup_size, skip bounds check entirely.
+        if let Some(wg_size) = self.current_workgroup_size {
+            if crate::proc::index::builtin_index_provably_in_bounds(
+                base, index, self.ir_module, self.ir_function, self.fun_info, wg_size,
+            ) {
+                return Ok(BoundsCheckResult::Computed(self.cached[index]));
+            }
+        }
+
         let policy = self.writer.bounds_check_policies.choose_policy(
             base,
             &self.ir_module.types,

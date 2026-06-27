@@ -261,6 +261,7 @@ pub fn find_checked_indexes(
                             module,
                             function,
                             info,
+                            None,
                         )
                         .is_some()
                     {
@@ -295,6 +296,40 @@ pub fn find_checked_indexes(
     guarded_indices
 }
 
+
+/// Track 2: Check if `index` is a @builtin(local_invocation_index) that is
+/// provably in bounds for a `base` of the given workgroup_size.
+///
+/// This enables API-constant range analysis: when the array length equals the
+/// total workgroup size, local_invocation_index is mathematically guaranteed
+/// to be in [0, workgroup_size), so no bounds check is needed.
+pub fn builtin_index_provably_in_bounds(
+    base: Handle<crate::Expression>,
+    index: Handle<crate::Expression>,
+    module: &crate::Module,
+    function: &crate::Function,
+    info: &crate::valid::FunctionInfo,
+    workgroup_size: [u32; 3],
+) -> bool {
+    // Track 2: Check if `index` is a @builtin(local_invocation_index)
+    // function argument. In Naga IR, builtins live on FunctionArgument
+    // bindings, not on GlobalVariable.binding (which is Option<ResourceBinding>).
+    if let crate::Expression::FunctionArgument(arg_idx) = function.expressions[index] {
+        if let Some(ref binding) = function.arguments[arg_idx as usize].binding {
+            if let crate::Binding::BuiltIn(crate::BuiltIn::LocalInvocationIndex) = *binding {
+                let base_inner = info[base].ty.inner_with(&module.types);
+                if let Ok(length) = base_inner.indexable_length(module) {
+                    let total_wg: u32 = workgroup_size[0] * workgroup_size[1] * workgroup_size[2];
+                    if let crate::proc::index::IndexableLength::Known(len) = length {
+                        return len == total_wg;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Determine whether `index` is statically known to be in bounds for `base`.
 ///
 /// If we can't be sure that the index is in bounds, return the limit within
@@ -322,12 +357,24 @@ pub fn access_needs_check(
     module: &crate::Module,
     function: &crate::Function,
     info: &crate::valid::FunctionInfo,
+    workgroup_size: Option<[u32; 3]>,
 ) -> Option<IndexableLength> {
     let base_inner = info[base].ty.inner_with(&module.types);
     // Unwrap safety: `Err` here indicates unindexable base types and invalid
     // length constants, but `access_needs_check` is only used by back ends, so
     // validation should have caught those problems.
     let length = base_inner.indexable_length(module).unwrap();
+    // Track 2: API-Constant Range Analysis
+    // If index is @builtin(local_invocation_index) and the array size
+    // matches the workgroup size, the index is provably in bounds.
+    if let Some(wg_size) = workgroup_size {
+        if let GuardedIndex::Expression(expr) = index {
+            if builtin_index_provably_in_bounds(base, expr, module, function, info, wg_size) {
+                return None;
+            }
+        }
+    }
+
     index.try_resolve_to_constant(function, module);
     if let (&GuardedIndex::Known(index), &IndexableLength::Known(length)) = (&index, &length) {
         if index < length {
