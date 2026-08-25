@@ -353,6 +353,13 @@ impl BlockContext<'_> {
             return Ok(BoundsCheckResult::KnownInBounds(restricted));
         }
 
+        // Check if our bounds check elision pass proved this is safe
+        if let GuardedIndex::Expression(expr) = index {
+            if self.fun_info.safe_indices.contains(&expr) {
+                return Ok(BoundsCheckResult::Computed(self.cached[expr]));
+            }
+        }
+
         let index_id = match index {
             GuardedIndex::Known(value) => self.get_index_constant(value),
             GuardedIndex::Expression(expr) => self.cached[expr],
@@ -514,6 +521,13 @@ impl BlockContext<'_> {
     ) -> Result<BoundsCheckResult, Error> {
         // If the value of `index` is known at compile time, find it now.
         index.try_resolve_to_constant(&self.ir_function.expressions, self.ir_module);
+
+        // If our bounds check elision pass proved this index is safe, skip the check entirely.
+        if let GuardedIndex::Expression(expr) = index {
+            if self.fun_info.safe_indices.contains(&expr) {
+                return Ok(BoundsCheckResult::Computed(self.cached[expr]));
+            }
+        }
 
         let policy = self.writer.bounds_check_policies.choose_policy(
             base,

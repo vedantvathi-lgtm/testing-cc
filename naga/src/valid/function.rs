@@ -1939,6 +1939,7 @@ impl super::Validator {
                 }
             }
         }
+        crate::proc::bounds_check_elision::elide_bounds_checks(fun, module, &mut info);
         Ok(info)
     }
 }

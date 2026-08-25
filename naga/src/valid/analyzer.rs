@@ -248,6 +248,8 @@ pub struct FunctionInfo {
     pub uniformity: Uniformity,
     /// Function may kill the invocation.
     pub may_kill: bool,
+    /// Set of indices known to be safe
+    pub safe_indices: crate::FastHashSet<Handle<crate::Expression>>,
 
     /// All pairs of (texture, sampler) globals that may be used together in
     /// sampling operations by this function and its callees. This includes
@@ -1262,6 +1264,7 @@ impl ModuleInfo {
             available_stages: ShaderStages::all(),
             uniformity: Uniformity::new(),
             may_kill: false,
+            safe_indices: crate::FastHashSet::default(),
             sampling_set: crate::FastHashSet::default(),
             global_uses: vec![GlobalUse::empty(); module.global_variables.len()].into_boxed_slice(),
             expressions: vec![ExpressionInfo::new(); fun.expressions.len()].into_boxed_slice(),
@@ -1311,6 +1314,63 @@ impl ModuleInfo {
             if let Some(global) = info[handle].assignable_global {
                 if info.global_uses[global.index()].is_empty() {
                     info.global_uses[global.index()] = GlobalUse::QUERY;
+                }
+            }
+        }
+
+        // Populate safe_indices for provably-safe builtin-based indices
+        // This enables bounds check elision for cases like tile[lid] where
+        // tile has N elements and lid ∈ [0, workgroup_size) with N >= workgroup_size
+        {
+            // Find the function argument bound to local_invocation_index
+            let lid_arg = fun.arguments.iter().position(|arg| {
+                matches!(
+                    arg.binding,
+                    Some(crate::Binding::BuiltIn(
+                        crate::BuiltIn::LocalInvocationIndex
+                    ))
+                )
+            });
+
+            if let Some(lid_arg_idx) = lid_arg {
+                // Find workgroup size from entry point data
+                let wg_size = module.entry_points.iter().find_map(|ep| {
+                    if ep.function.name == fun.name {
+                        Some(ep.workgroup_size.iter().product::<u32>())
+                    } else {
+                        None
+                    }
+                });
+
+                if let Some(wg_size @ 1..) = wg_size {
+                    // Scan all Access expressions for provably-safe lid-based indices
+                    for (_, expr) in fun.expressions.iter() {
+                        if let crate::Expression::Access { base, index } = *expr {
+                            if let crate::Expression::FunctionArgument(arg_idx) =
+                                fun.expressions[index]
+                            {
+                                if arg_idx as usize == lid_arg_idx {
+                                    // The index is local_invocation_index
+                                    // Check if the base type has a known length >= wg_size
+                                    let base_ty = info[base].ty.inner_with(&module.types);
+                                    // Follow pointer to get the actual array type
+                                    let inner = match *base_ty {
+                                        crate::TypeInner::Pointer { base, .. } => {
+                                            &module.types[base].inner
+                                        }
+                                        ref other => other,
+                                    };
+                                    if let Ok(crate::proc::IndexableLength::Known(len)) =
+                                        inner.indexable_length_resolved(module)
+                                    {
+                                        if len >= wg_size {
+                                            info.safe_indices.insert(index);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1398,6 +1458,7 @@ fn uniform_control_flow() {
         available_stages: ShaderStages::all(),
         uniformity: Uniformity::new(),
         may_kill: false,
+        safe_indices: crate::FastHashSet::default(),
         sampling_set: crate::FastHashSet::default(),
         global_uses: vec![GlobalUse::empty(); global_var_arena.len()].into_boxed_slice(),
         expressions: vec![ExpressionInfo::new(); expressions.len()].into_boxed_slice(),

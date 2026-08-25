@@ -339,6 +339,12 @@ pub fn access_needs_check(
         }
     };
 
+    if let GuardedIndex::Expression(expr) = index {
+        if info.safe_indices.contains(&expr) {
+            return None; // Loop-invariant bounds check elision
+        }
+    }
+
     Some(length)
 }
 

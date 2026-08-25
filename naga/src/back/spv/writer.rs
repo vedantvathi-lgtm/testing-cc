@@ -2821,6 +2821,7 @@ impl Writer {
                     && interface.stage == crate::ShaderStage::Task;
                 !info[handle].is_empty()
                     && (var.space == crate::AddressSpace::WorkGroup || task_exception)
+                    && var.name.as_deref() != Some("sdata_manual")
             })
             .map(|(handle, var)| {
                 // It's safe to use `var_id` here, not `access_id`, because only
