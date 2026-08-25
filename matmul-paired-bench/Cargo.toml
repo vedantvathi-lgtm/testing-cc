@@ -1,0 +1,18 @@
+[package]
+name = "matmul-paired-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+naga = { path = "../../wgpu/naga", features = ["wgsl-in", "spv-out"] }
+ash = "0.38"
+bytemuck = "1.16"
+
+[[bin]]
+name = "matmul-paired-bench"
+path = "src/main.rs"
+
+[[bin]]
+name = "negative_control"
+path = "src/negative_control.rs"
