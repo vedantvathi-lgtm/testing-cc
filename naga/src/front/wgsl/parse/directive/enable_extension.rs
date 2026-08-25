@@ -25,6 +25,7 @@ pub(crate) struct EnableExtensions {
     primitive_index: bool,
     per_vertex: bool,
     wgpu_binding_array: bool,
+    subgroups: bool,
 }
 
 impl EnableExtensions {
@@ -43,6 +44,7 @@ impl EnableExtensions {
             primitive_index: false,
             per_vertex: false,
             wgpu_binding_array: false,
+            subgroups: false,
         }
     }
 
@@ -66,6 +68,7 @@ impl EnableExtensions {
             ImplementedEnableExtension::PrimitiveIndex => &mut self.primitive_index,
             ImplementedEnableExtension::WgpuPerVertex => &mut self.per_vertex,
             ImplementedEnableExtension::WgpuBindingArray => &mut self.wgpu_binding_array,
+            ImplementedEnableExtension::Subgroups => &mut self.subgroups,
         };
         *field = true;
     }
@@ -88,6 +91,7 @@ impl EnableExtensions {
             ImplementedEnableExtension::PrimitiveIndex => self.primitive_index,
             ImplementedEnableExtension::WgpuPerVertex => self.per_vertex,
             ImplementedEnableExtension::WgpuBindingArray => self.wgpu_binding_array,
+            ImplementedEnableExtension::Subgroups => self.subgroups,
         }
     }
 
@@ -163,7 +167,7 @@ impl EnableExtension {
             Self::COOPERATIVE_MATRIX => {
                 Self::Implemented(ImplementedEnableExtension::WgpuCooperativeMatrix)
             }
-            Self::SUBGROUPS => Self::Unimplemented(UnimplementedEnableExtension::Subgroups),
+            Self::SUBGROUPS => Self::Implemented(ImplementedEnableExtension::Subgroups),
             Self::DRAW_INDEX => Self::Implemented(ImplementedEnableExtension::DrawIndex),
             Self::PRIMITIVE_INDEX => Self::Implemented(ImplementedEnableExtension::PrimitiveIndex),
             Self::PER_VERTEX => Self::Implemented(ImplementedEnableExtension::WgpuPerVertex),
@@ -192,9 +196,10 @@ impl EnableExtension {
                 ImplementedEnableExtension::WgpuPerVertex => Self::PER_VERTEX,
                 ImplementedEnableExtension::WgpuBindingArray => Self::BINDING_ARRAY,
                 ImplementedEnableExtension::WgpuInt16 => Self::INT16,
+                ImplementedEnableExtension::Subgroups => Self::SUBGROUPS,
             },
             Self::Unimplemented(kind) => match kind {
-                UnimplementedEnableExtension::Subgroups => Self::SUBGROUPS,
+                _ => unreachable!()
             },
         }
     }
@@ -246,6 +251,12 @@ pub enum ImplementedEnableExtension {
     WgpuBindingArray,
     /// Enables `i16`/`u16` 16-bit integer support in WGSL, native only.
     WgpuInt16,
+    /// Enables subgroup built-ins in all languages.
+    ///
+    /// In the WGSL standard, this corresponds to [`enable subgroups;`].
+    ///
+    /// [`enable subgroups;`]: https://www.w3.org/TR/WGSL/#extension-subgroups
+    Subgroups,
 }
 
 impl ImplementedEnableExtension {
@@ -264,6 +275,7 @@ impl ImplementedEnableExtension {
         Self::WgpuPerVertex,
         Self::WgpuBindingArray,
         Self::WgpuInt16,
+        Self::Subgroups,
     ];
 
     /// Returns slice of all variants of [`ImplementedEnableExtension`].
@@ -296,6 +308,7 @@ impl ImplementedEnableExtension {
                 .union(C::TEXTURE_AND_SAMPLER_BINDING_ARRAY_NON_UNIFORM_INDEXING)
                 .union(C::ACCELERATION_STRUCTURE_BINDING_ARRAY),
             Self::WgpuInt16 => C::SHADER_INT16,
+            Self::Subgroups => C::SUBGROUP,
         }
     }
 }
@@ -323,8 +336,6 @@ pub enum UnimplementedEnableExtension {
 
 impl UnimplementedEnableExtension {
     pub(crate) const fn tracking_issue_num(self) -> u16 {
-        match self {
-            Self::Subgroups => 5555,
-        }
+        0
     }
 }
