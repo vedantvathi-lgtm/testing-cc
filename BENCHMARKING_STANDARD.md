@@ -8,6 +8,9 @@
 3. **One file, one hypothesis.** Result filenames follow the grammar below; `_v2`-style suffixes are forbidden — a changed methodology is a new methodology name, not a silent overwrite.
 4. **Statistics are part of the schema**, not prose: interleaved rounds, warmup policy, per-config sample count, bootstrap CI on medians, and a negative control run logged in the same file family.
 5. **Comparability rule:** cross-harness comparisons (wgpu vs CUDA) must state per-side methodology deltas explicitly in the file, else the comparison is void.
+6. **Optimization isolation:** compare the same shader and bounds policy with BCE enabled and disabled. Comparing `Unchecked` with a checked policy is not a BCE benchmark.
+7. **Semantic equivalence:** every compared binary must have the same externally observable output for all dispatched invocations. Undefined or intentionally out-of-bounds `Unchecked` accesses are forbidden.
+8. **Correctness before timing:** buffer extents, dispatch coverage, output values, emitted-check classification, and identical-binary controls must pass before timing samples are accepted.
 
 ## 1. Directory layout
 
@@ -56,12 +59,14 @@ Legacy files stay in place until migrated; the indexer tags them `legacy-schema`
 | Item | Value |
 |---|---|
 | Timing primitive | GPU timestamp queries (`timestampPeriod` verified = 1 ns) |
-| Structure | Round-robin interleave, one trial of each config per round |
+| Structure | Balanced randomized interleave, one trial of each config per round |
 | Warmup | ≥ N_warmup recorded in file (default 50 rounds discarded) |
 | Samples | ≥ 200 retained rounds default; record actual |
 | Statistic | Median + bootstrap 95% CI (B=10 000, fixed seed recorded) |
 | Outlier policy | None post-hoc; AD normality recorded, no filtering |
 | Negative control | Identical-config A/B must yield CI ⊇ 0; run once per harness change, stored adjacent |
+| Optimization contrast | Same source + same policy + BCE enabled/disabled; emitted code difference recorded |
+| Correctness gate | CPU/reference or cross-policy output validation before and after timing |
 
 ## 5. Metrics dictionary (canonical names)
 
@@ -69,6 +74,8 @@ Legacy files stay in place until migrated; the indexer tags them `legacy-schema`
 - `median_us`, `ci95_lo_us`, `ci95_hi_us`, `iqr_us`, `n_rounds`, `n_warmup`
 - `delta_vs_baseline_ns` + its CI (paired, same-round differencing)
 - `elision_hits`, `elision_candidates` (from corpus_hit_rate definitions)
+- `emitted_bounds_checks` from structural backend inspection; never infer this from total word count
+- raw ordered samples with round id and within-round order
 
 ## 6. Migration duty
 
