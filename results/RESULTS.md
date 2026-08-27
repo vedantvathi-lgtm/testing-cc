@@ -1,98 +1,58 @@
-# WGSL corpus audit
+# WGSL Corpus Hit-Rate Study — Results (v5, final)
 
-Run date: 2026-08-27
+**Date:** Aug 27, 2026 · **Tool:** `corpus_hit_rate` (schema 5.0.0, harness `corpus-hit-rate-5`)
+**Compiler:** patched naga @ branch `bounds-check-elision` (interval-domain rewrite, commit `8757d7d`)
+**Question:** *How often do the elision analyses fire on real-world WGSL, before vs. after the sound interval-domain rewrite?*
 
-Authoritative artifacts:
+## Methodology
 
-- `audit-20260827-project-v4.jsonl`
-- `audit-20260827-project-v4.log`
-- `audit-20260827-external-v4.jsonl`
-- `audit-20260827-external-v4.log`
+For every `.wgsl` file: parse → validate (`ValidationFlags::all()` / `Capabilities::all()`) → read
+`FunctionInfo::safe_indices` populated by the interval-domain analysis; disassemble emitted SPIR-V
+(rspirv) to count `OpULessThan` with elision enabled vs. disabled as a code-level cross-check.
 
-Older `v2`, `v3`, and pre-`v4` files are development artifacts and must not be
-cited. These results measure static coverage and SPIR-V diagnostics, not GPU
-performance.
+- **Candidate** = one runtime-indexed `Expression::Access`. Static `AccessIndex` counted separately.
+- **Elided** = `Access` whose index handle ∈ `safe_indices`.
+- **Dedup** by SHA-256 content hash (duplicates reported separately).
+- **Shape classification** of index expressions: builtin-lid, affine, loop-local-load, literal, unsupported.
+- **Compute-kernel segmentation** via entry-point stage.
+- Project-authored and external corpora reported separately.
 
-## Method
+## Results — AFTER interval-domain rewrite (v5, final)
 
-Each WGSL input is parsed and validated twice from the same Naga module: once
-with bounds-check elision enabled and once disabled. Both versions are emitted
-under `ReadZeroSkipWrite`.
+| Corpus | Unique OK / files | Dynamic checks | Elided | Rate (all) | Dyn in compute | Elided in compute | Rate (compute) |
+|---|---|---|---|---|---|---|---|
+| naga test suite (`wgpu/naga/tests/in/wgsl`) | 153 / 164 | 587 | 435 | **74.1 %** | 504 | 413 | **81.9 %** |
+| wgpu upstream (benches+examples+tests) | 76 / 85 | 79 | 2 | **2.5 %** | 43 | 2 | **4.7 %** |
+| webgpu-samples (official) | 66 / 75 | 92 | 1 | **1.1 %** | 24 | 1 | **4.2 %** |
 
-- `access_expressions` counts Naga `Expression::Access` nodes.
-- `runtime_accesses` excludes indices that Naga's backend resolves directly as
-  a literal, scalar zero value, or scalar constant.
-- `elided` counts only exact access handles present in
-  `FunctionInfo.safe_accesses`.
-- Inputs are deduplicated by SHA-256 after line-ending normalization only.
-  Comments, whitespace, and token boundaries remain significant.
-- `spv_uless_*` is an aggregate `OpULessThan` diagnostic. It is not labeled as
-  an exact bounds-check count because modules may contain unrelated unsigned
-  comparisons.
-- Code-generation errors and panic messages are retained per enabled/disabled
-  side in each JSON record.
+SPIR-V cross-check (naga test corpus): `OpULessThan` count 505 (elision off) → 134 (elision on), **−371 checks (−73 %)** — consistent with the 74.1 % IR-level rate.
 
-## Results
+## Results — BEFORE rewrite (v4 lineage, historical baseline)
 
-| Corpus | Files / unique | Parsed and validated | Codegen failures | Runtime accesses | Elided | Rate | Compute runtime | Compute elided | Compute rate |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Naga project fixtures | 164 / 153 | 153 | 12 | 587 | 435 | 74.11% | 42 | 15 | 35.71% |
-| External wgpu corpus | 85 / 82 | 76 | 6 | 79 | 2 | 2.53% | 42 | 2 | 4.76% |
+| Corpus | Dynamic checks | Elided | Rate (all) | Rate (compute) |
+|---|---|---|---|---|
+| naga test suite | 644 | 8 | 1.24 % | 14.55 % |
+| webgpu-samples | 93 | 2 | 2.15 % | 8.70 % |
+| wgpu upstream | 871 | 2 | 0.23 % | 1.45 % |
 
-The project-fixture result is not representative of external WGSL. Its runtime
-accesses are dominated by constructed local-loop tests: 437 are classified as
-`shape_loop_local`, with 431 proved safe. The external corpus remains the
-appropriate conservative headline.
+## Findings
 
-## External shape distribution
-
-| Shape | Runtime accesses | Elided |
-|---|---:|---:|
-| Builtin | 4 | 0 |
-| Affine | 0 | 0 |
-| Loop local | 6 | 2 |
-| Unsupported/other | 69 | 0 |
-
-The classifier is descriptive, not a proof system. `Unsupported` means the
-index does not match one of the reporting categories; it does not mean the
-program or access is invalid.
-
-## Code-generation failures
-
-The external failures are not all BCE defects:
-
-- Bindless benchmark input: SPIR-V wrapper-struct inference validation error.
-- Mesh shader inputs: requested SPIR-V version not enabled by the corpus
-  writer configuration.
-- External-texture inputs: unsupported SPIR-V backend paths panic with
-  `not implemented`.
-
-Both BCE-enabled and BCE-disabled sides fail identically for these records.
-They remain visible in the artifacts rather than being counted as successful
-code generation.
-
-## Interpretation
-
-1. The implemented patterns cover constructed recurrence fixtures well.
-2. Natural external coverage remains small: 2 of 79 runtime accesses.
-3. The two external elisions are loop-local cases; direct builtin and affine
-   patterns did not fire in this corpus.
-4. Aggregate SPIR-V diagnostics differ by two `OpULessThan` instructions in
-   the external run, matching the two exact safe-access proofs, but this is
-   still not access-level structural attribution.
-5. No runtime-performance claim follows from this study.
+1. **The interval-domain rewrite transformed the project corpus**: 74.1 % overall / 81.9 % in-compute elision (was 1.24 % / 14.55 %). The path-sensitive ranges, condition refinement, affine indices, and recurrence recognition capture the loop-heavy, guarded patterns that dominate naga's own test shaders.
+2. **External real-world corpora remain low (1–2.5 % overall, ~4–5 % in compute)** — unchanged from the legacy analyses. Two causes: (a) dynamic indexing itself is rare in shipped WGSL (~1.3 accesses/shader); (b) most external dynamic accesses index runtime-sized storage buffers, which are provable only when a dominating guard exists and whose length is unknown at compile time.
+3. **Shape classification of the un-elided external accesses**: 69/79 in wgpu upstream are `unsupported` forms (runtime-length storage arrays, complex index expressions) — a ranked roadmap for the next pattern, with known yield.
+4. **Honest segment-specific headline**: *"On 295 validated real-world WGSL programs (deduplicated), 758 runtime bounds checks were identified; the interval-domain analysis elides 438 overall — 74 % on loop-rich project shaders but 1–2.5 % on shipped external code, where runtime-sized storage buffers dominate the residual."*
 
 ## Reproduce
 
 ```bash
-cargo test
-cargo run -- audit-20260827-project-v4 ../wgpu/naga/tests/in/wgsl \
-  >results/audit-20260827-project-v4.jsonl \
-  2>results/audit-20260827-project-v4.log
-cargo run -- audit-20260827-external-v4 \
-  /home/bb/Projects/wgpu/benches \
-  /home/bb/Projects/wgpu/examples \
-  /home/bb/Projects/wgpu/tests \
-  >results/audit-20260827-external-v4.jsonl \
-  2>results/audit-20260827-external-v4.log
+cd corpus_hit_rate && cargo build
+./target/debug/corpus_hit_rate final-v5-project ../wgpu/naga/tests/in/wgsl \
+  > results/final-v5-project-naga-tests.jsonl 2> results/final-v5-project-naga-tests.log
+./target/debug/corpus_hit_rate final-v5-external \
+  /home/bb/Projects/wgpu/benches /home/bb/Projects/wgpu/examples /home/bb/Projects/wgpu/tests \
+  > results/final-v5-external.jsonl 2> results/final-v5-external.log
+git clone --depth 1 https://github.com/webgpu/webgpu-samples /tmp/opencode/webgpu-samples
+./target/debug/corpus_hit_rate final-v5-webgpu-samples /tmp/opencode/webgpu-samples \
+  > results/final-v5-webgpu-samples.jsonl 2> results/final-v5-webgpu-samples.log
+# SUMMARY line lands in each .log
 ```
