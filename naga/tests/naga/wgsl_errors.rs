@@ -4556,32 +4556,6 @@ fn invalid_clip_distances() {
 }
 
 #[test]
-fn recognized_but_unimplemented_enable_extension() {
-    let extension = naga::front::wgsl::UnimplementedEnableExtension::Subgroups;
-    // NOTE: We match exhaustively here to help maintainers add or remove variants to the above
-    // array.
-    let snapshot = match extension {
-            naga::front::wgsl::UnimplementedEnableExtension::Subgroups => "\
-error: the `subgroups` enable-extension is not yet supported
-  ┌─ wgsl:1:8
-  │
-1 │ enable subgroups;
-  │        ^^^^^^^^^ this enable-extension specifies standard functionality which is not yet implemented in Naga
-  │
-  = note: Let Naga maintainers know that you ran into this at <https://github.com/gfx-rs/wgpu/issues/5555>, so they can prioritize it!
-
-",
-        };
-
-    let shader = {
-        let extension = naga::front::wgsl::EnableExtension::Unimplemented(extension);
-        format!("enable {};", extension.to_ident())
-    };
-
-    check(&shader, snapshot);
-}
-
-#[test]
 fn max_type_size_large_array() {
     // The total size of an array is not resolved until validation. Type aliases
     // don't get spans so the error isn't very helpful.

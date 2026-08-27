@@ -746,12 +746,12 @@ impl super::Validator {
             crate::GatherMode::QuadSwap(_) => {}
         }
         match *mode {
-            crate::GatherMode::Broadcast(index) | crate::GatherMode::QuadBroadcast(index) => {
-                if !context.local_expr_kind.is_const(index) {
-                    return Err(SubgroupError::InvalidInvocationIdExprType(index)
-                        .with_span_handle(index, context.expressions)
-                        .into_other());
-                }
+            crate::GatherMode::Broadcast(index) | crate::GatherMode::QuadBroadcast(index)
+                if !context.local_expr_kind.is_const(index) =>
+            {
+                return Err(SubgroupError::InvalidInvocationIdExprType(index)
+                    .with_span_handle(index, context.expressions)
+                    .into_other());
             }
             _ => {}
         }
@@ -1939,7 +1939,9 @@ impl super::Validator {
                 }
             }
         }
-        crate::proc::bounds_check_elision::elide_bounds_checks(fun, module, &mut info);
+        if self.bounds_check_elision {
+            crate::proc::bounds_check_elision::elide_bounds_checks(fun, module, &mut info);
+        }
         Ok(info)
     }
 }

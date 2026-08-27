@@ -565,6 +565,7 @@ impl BlockContext<'_> {
                 column_pointer,
                 Some(column_id),
                 index,
+                None,
                 block,
             )?,
             None => column_id,
@@ -796,6 +797,7 @@ impl BlockContext<'_> {
                         base,
                         None,
                         GuardedIndex::Expression(index),
+                        Some(expr_handle),
                         block,
                     )?,
                     crate::TypeInner::Array { .. } | crate::TypeInner::Matrix { .. } => {
@@ -2531,14 +2533,20 @@ impl BlockContext<'_> {
                 break spilled.id;
             }
 
+            let access = expr_handle;
             expr_handle = match self.ir_function.expressions[expr_handle] {
                 crate::Expression::Access { base, index } => {
                     is_non_uniform_binding_array |=
                         self.is_nonuniform_binding_array_access(base, index);
 
                     let index = GuardedIndex::Expression(index);
-                    let index_id =
-                        self.write_access_chain_index(base, index, &mut accumulated_checks, block)?;
+                    let index_id = self.write_access_chain_index(
+                        access,
+                        base,
+                        index,
+                        &mut accumulated_checks,
+                        block,
+                    )?;
                     self.temp_list.push(index_id);
 
                     base
@@ -2600,6 +2608,7 @@ impl BlockContext<'_> {
                             // may be a runtime-sized array, so we still need to go
                             // through the bounds check process.
                             let index_id = self.write_access_chain_index(
+                                access,
                                 base,
                                 GuardedIndex::Known(index),
                                 &mut accumulated_checks,
@@ -2693,12 +2702,13 @@ impl BlockContext<'_> {
     /// checks. See [`BlockContext::extend_bounds_check_condition_chain`].
     fn write_access_chain_index(
         &mut self,
+        access: Handle<crate::Expression>,
         base: Handle<crate::Expression>,
         index: GuardedIndex,
         accumulated_checks: &mut Option<Word>,
         block: &mut Block,
     ) -> Result<Word, Error> {
-        match self.write_bounds_check(base, index, block)? {
+        match self.write_bounds_check(base, index, Some(access), block)? {
             BoundsCheckResult::KnownInBounds(known_index) => {
                 // Even if the index is known, `OpAccessChain`
                 // requires expression operands, not literals.

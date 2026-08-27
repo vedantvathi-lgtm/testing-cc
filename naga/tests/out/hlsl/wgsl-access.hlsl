@@ -209,7 +209,7 @@ void test_matrix_within_array_within_struct_accesses()
     __set_col_of_mat4x2_f32(t_1.am[0], _e77, (90.0).xx);
     t_1.am[0]._0.y = 10.0;
     int _e89 = idx_1;
-    t_1.am[0]._0[min(uint(_e89), 1u)] = 20.0;
+    t_1.am[0]._0[_e89] = 20.0;
     int _e94 = idx_1;
     __set_el_of_mat4x2_f32(t_1.am[0], _e94, 1, 30.0);
     int _e100 = idx_1;

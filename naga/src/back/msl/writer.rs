@@ -833,6 +833,7 @@ impl<'a> ExpressionContext<'a> {
         &self,
         base: Handle<crate::Expression>,
         index: index::GuardedIndex,
+        access: Option<Handle<crate::Expression>>,
     ) -> Option<index::IndexableLength> {
         index::access_needs_check(
             base,
@@ -840,6 +841,7 @@ impl<'a> ExpressionContext<'a> {
             self.module,
             &self.function.expressions,
             self.info,
+            access,
         )
     }
 
@@ -3230,6 +3232,7 @@ impl<W: Write> Writer<W> {
                 }
 
                 self.put_subscripted_access_chain(
+                    Some(chain),
                     base,
                     base_ty,
                     index::GuardedIndex::Expression(index),
@@ -3270,6 +3273,7 @@ impl<W: Write> Writer<W> {
                     }
                     _ => {
                         self.put_subscripted_access_chain(
+                            Some(chain),
                             base,
                             base_ty,
                             index::GuardedIndex::Known(index),
@@ -3303,6 +3307,7 @@ impl<W: Write> Writer<W> {
     /// [`Pointer`]: crate::TypeInner::Pointer
     fn put_subscripted_access_chain(
         &mut self,
+        access: Option<Handle<crate::Expression>>,
         base: Handle<crate::Expression>,
         base_ty: &crate::TypeInner,
         index: index::GuardedIndex,
@@ -3327,7 +3332,7 @@ impl<W: Write> Writer<W> {
 
         // Decide whether this index needs to be clamped to fall within range.
         let restriction_needed = if policy == index::BoundsCheckPolicy::Restrict {
-            context.access_needs_check(base, index)
+            context.access_needs_check(base, index, access)
         } else {
             None
         };

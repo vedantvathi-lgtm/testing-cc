@@ -1,47 +1,717 @@
+use alloc::vec::Vec;
+
 use crate::arena::Handle;
 use crate::valid::FunctionInfo;
-use crate::{Expression, Function, Module, Statement, Block, BinaryOperator, TypeInner};
+use crate::{
+    BinaryOperator, Block, Expression, Function, Literal, LocalVariable, Module, ScalarKind,
+    Statement, TypeInner,
+};
 
-/// Performs Loop-Invariant Bounds Check Elision (BCE).
-/// Populates `safe_indices` in `FunctionInfo` with expressions that are provably safe bounds.
-pub fn elide_bounds_checks(
-    function: &Function,
-    module: &Module,
-    info: &mut FunctionInfo,
-) {
-    // Traverse the function statements
-    analyze_block(&function.body, function, module, info);
+type Ranges = crate::FastHashMap<Handle<LocalVariable>, IntRange>;
+type Values = crate::FastHashMap<Handle<Expression>, IntRange>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum IntRange {
+    U32 { min: u32, max: u32 },
+    I32 { min: i32, max: i32 },
 }
 
-fn analyze_block(
+impl IntRange {
+    const fn full(kind: ScalarKind) -> Option<Self> {
+        match kind {
+            ScalarKind::Uint => Some(Self::U32 {
+                min: u32::MIN,
+                max: u32::MAX,
+            }),
+            ScalarKind::Sint => Some(Self::I32 {
+                min: i32::MIN,
+                max: i32::MAX,
+            }),
+            _ => None,
+        }
+    }
+
+    fn exact(self) -> Option<i64> {
+        match self {
+            Self::U32 { min, max } if min == max => Some(i64::from(min)),
+            Self::I32 { min, max } if min == max => Some(i64::from(min)),
+            _ => None,
+        }
+    }
+
+    fn add(self, rhs: Self) -> Option<Self> {
+        match (self, rhs) {
+            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => Some(Self::U32 {
+                min: a.checked_add(c)?,
+                max: b.checked_add(d)?,
+            }),
+            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => Some(Self::I32 {
+                min: a.checked_add(c)?,
+                max: b.checked_add(d)?,
+            }),
+            _ => None,
+        }
+    }
+
+    fn sub(self, rhs: Self) -> Option<Self> {
+        match (self, rhs) {
+            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => Some(Self::U32 {
+                min: a.checked_sub(d)?,
+                max: b.checked_sub(c)?,
+            }),
+            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => Some(Self::I32 {
+                min: a.checked_sub(d)?,
+                max: b.checked_sub(c)?,
+            }),
+            _ => None,
+        }
+    }
+
+    fn mul(self, rhs: Self) -> Option<Self> {
+        match (self, rhs) {
+            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => {
+                let values = [
+                    a.checked_mul(c)?,
+                    a.checked_mul(d)?,
+                    b.checked_mul(c)?,
+                    b.checked_mul(d)?,
+                ];
+                Some(Self::U32 {
+                    min: *values.iter().min()?,
+                    max: *values.iter().max()?,
+                })
+            }
+            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => {
+                let values = [
+                    a.checked_mul(c)?,
+                    a.checked_mul(d)?,
+                    b.checked_mul(c)?,
+                    b.checked_mul(d)?,
+                ];
+                Some(Self::I32 {
+                    min: *values.iter().min()?,
+                    max: *values.iter().max()?,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn join(self, rhs: Self) -> Option<Self> {
+        match (self, rhs) {
+            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => Some(Self::U32 {
+                min: a.min(c),
+                max: b.max(d),
+            }),
+            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => Some(Self::I32 {
+                min: a.min(c),
+                max: b.max(d),
+            }),
+            _ => None,
+        }
+    }
+
+    fn fits(self, length: u32) -> bool {
+        match self {
+            Self::U32 { max, .. } => max < length,
+            Self::I32 { min, max } => min >= 0 && i64::from(max) < i64::from(length),
+        }
+    }
+
+    fn lower(self, value: i64) -> Option<Self> {
+        match self {
+            Self::U32 { min, max } => {
+                let value = u32::try_from(value).ok()?;
+                let min = min.max(value);
+                (min <= max).then_some(Self::U32 { min, max })
+            }
+            Self::I32 { min, max } => {
+                let value = i32::try_from(value).ok()?;
+                let min = min.max(value);
+                (min <= max).then_some(Self::I32 { min, max })
+            }
+        }
+    }
+
+    fn upper(self, value: i64) -> Option<Self> {
+        match self {
+            Self::U32 { min, max } => {
+                let value = u32::try_from(value).ok()?;
+                let max = max.min(value);
+                (min <= max).then_some(Self::U32 { min, max })
+            }
+            Self::I32 { min, max } => {
+                let value = i32::try_from(value).ok()?;
+                let max = max.min(value);
+                (min <= max).then_some(Self::I32 { min, max })
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+struct Flow {
+    ranges: Ranges,
+    values: Values,
+    falls_through: bool,
+}
+
+struct Analysis<'a> {
+    function: &'a Function,
+    module: &'a Module,
+    info: &'a mut FunctionInfo,
+    workgroup_size: Option<[u32; 3]>,
+}
+
+pub fn elide_bounds_checks(function: &Function, module: &Module, info: &mut FunctionInfo) {
+    let workgroup_size = module.entry_points.iter().find_map(|entry_point| {
+        core::ptr::eq(&entry_point.function, function).then_some(entry_point.workgroup_size)
+    });
+    let mut analysis = Analysis {
+        function,
+        module,
+        info,
+        workgroup_size,
+    };
+    let initial = analysis.default_ranges();
+    analysis.analyze_block(&function.body, initial, Values::default());
+}
+
+impl Analysis<'_> {
+    fn default_ranges(&self) -> Ranges {
+        let mut ranges: Ranges = self
+            .function
+            .local_variables
+            .iter()
+            .filter_map(|(handle, _)| self.local_full_range(handle).map(|range| (handle, range)))
+            .collect();
+        for (handle, variable) in self.function.local_variables.iter() {
+            if let Some(init) = variable.init {
+                if let Some(range) = self.expression_range(init, &Values::default()) {
+                    ranges.insert(handle, range);
+                }
+            }
+        }
+        ranges
+    }
+
+    #[allow(clippy::pattern_type_mismatch)]
+    fn analyze_block(&mut self, block: &Block, mut ranges: Ranges, mut values: Values) -> Flow {
+        for statement in block {
+            match statement {
+                Statement::Emit(expressions) => {
+                    for handle in expressions.clone() {
+                        if let Some(range) = self.emitted_expression_range(handle, &ranges, &values)
+                        {
+                            values.insert(handle, range);
+                        } else {
+                            values.remove(&handle);
+                        }
+                        self.prove_access(handle, &values);
+                    }
+                }
+                Statement::Block(nested) => {
+                    let flow = self.analyze_block(nested, ranges, values);
+                    if !flow.falls_through {
+                        return flow;
+                    }
+                    ranges = flow.ranges;
+                    values = flow.values;
+                }
+                Statement::If {
+                    condition,
+                    accept,
+                    reject,
+                } => {
+                    let accept_flow = self
+                        .refine(*condition, true, ranges.clone(), &values)
+                        .map(|facts| self.analyze_block(accept, facts, values.clone()));
+                    let reject_flow = self
+                        .refine(*condition, false, ranges.clone(), &values)
+                        .map(|facts| self.analyze_block(reject, facts, values.clone()));
+                    match (accept_flow, reject_flow) {
+                        (Some(left), Some(right)) if left.falls_through && right.falls_through => {
+                            ranges = join_ranges(&left.ranges, &right.ranges);
+                            values = join_values(&left.values, &right.values);
+                        }
+                        (Some(left), _) if left.falls_through => {
+                            ranges = left.ranges;
+                            values = left.values;
+                        }
+                        (_, Some(right)) if right.falls_through => {
+                            ranges = right.ranges;
+                            values = right.values;
+                        }
+                        _ => {
+                            return Flow {
+                                ranges,
+                                values,
+                                falls_through: false,
+                            };
+                        }
+                    }
+                }
+                Statement::Switch { cases, .. } => {
+                    let mut mutated = crate::FastHashSet::default();
+                    for case in cases {
+                        collect_mutated(&case.body, self.function, &mut mutated);
+                    }
+                    let mut case_ranges = ranges.clone();
+                    for &local in &mutated {
+                        self.reset_local(local, &mut case_ranges);
+                    }
+                    for case in cases {
+                        self.analyze_block(&case.body, case_ranges.clone(), values.clone());
+                    }
+                    for local in mutated {
+                        self.reset_local(local, &mut ranges);
+                    }
+                }
+                Statement::Loop {
+                    body,
+                    continuing,
+                    break_if,
+                } => {
+                    self.analyze_loop(body, continuing, *break_if, &ranges, &values);
+                    for local in mutated_locals(body, continuing, self.function) {
+                        self.reset_local(local, &mut ranges);
+                    }
+                }
+                Statement::Store { pointer, value } => {
+                    if let Expression::LocalVariable(local) = self.function.expressions[*pointer] {
+                        if let Some(range) = self.expression_range(*value, &values) {
+                            ranges.insert(local, range);
+                        } else {
+                            self.reset_local(local, &mut ranges);
+                        }
+                    } else if let Some(local) = root_local(*pointer, self.function) {
+                        self.reset_local(local, &mut ranges);
+                    }
+                }
+                Statement::Atomic { pointer, .. } => {
+                    if let Some(local) = root_local(*pointer, self.function) {
+                        self.reset_local(local, &mut ranges);
+                    }
+                }
+                Statement::Call { .. } => self.reset_all_locals(&mut ranges),
+                Statement::Break
+                | Statement::Continue
+                | Statement::Return { .. }
+                | Statement::Kill => {
+                    return Flow {
+                        ranges,
+                        values,
+                        falls_through: false,
+                    };
+                }
+                _ => {}
+            }
+        }
+        Flow {
+            ranges,
+            values,
+            falls_through: true,
+        }
+    }
+
+    fn analyze_loop(
+        &mut self,
+        body: &Block,
+        continuing: &Block,
+        break_if: Option<Handle<Expression>>,
+        incoming: &Ranges,
+        values: &Values,
+    ) {
+        let mutated = mutated_locals(body, continuing, self.function);
+        let mut entry = incoming.clone();
+        for &local in &mutated {
+            self.reset_local(local, &mut entry);
+        }
+        for local in mutated {
+            if let Some(range) = self.loop_range(local, body, continuing, break_if, incoming) {
+                entry.insert(local, range);
+            }
+        }
+        let body_flow = self.analyze_block(body, entry.clone(), values.clone());
+        self.analyze_block(
+            continuing,
+            if body_flow.falls_through {
+                body_flow.ranges
+            } else {
+                entry
+            },
+            if body_flow.falls_through {
+                body_flow.values
+            } else {
+                values.clone()
+            },
+        );
+    }
+
+    fn loop_range(
+        &self,
+        local: Handle<LocalVariable>,
+        body: &Block,
+        continuing: &Block,
+        break_if: Option<Handle<Expression>>,
+        incoming: &Ranges,
+    ) -> Option<IntRange> {
+        let guard_position =
+            loop_guard(body, local, self.function).map(|(_, _, position)| position);
+        let start = incoming
+            .get(&local)
+            .copied()
+            .and_then(IntRange::exact)
+            .or_else(|| {
+                guard_position.and_then(|position| {
+                    body.iter().take(position).find_map(|statement| {
+                        initializer_store(local, statement, self.function, self.module)
+                    })
+                })
+            })?;
+        let (step, template, update_location) =
+            single_update(local, body, continuing, self.function, self.module)?;
+        let (condition, breaks_when_true, terminal_reaches_header) =
+            if let Some(condition) = break_if {
+                (condition, true, false)
+            } else {
+                let (condition, breaks_when_true, guard_position) =
+                    loop_guard(body, local, self.function)?;
+                let terminal_reaches_header = match update_location {
+                    UpdateLocation::Body(position) => position >= guard_position,
+                    UpdateLocation::Continuing => true,
+                };
+                (condition, breaks_when_true, terminal_reaches_header)
+            };
+        let (op, bound) = comparison(condition, local, self.function, self.module)?;
+        let exit_op = if breaks_when_true {
+            op
+        } else {
+            negate_comparison(op)?
+        };
+        let (active, exit) = recurrence_ranges(start, step, exit_op, bound, template)?;
+        if terminal_reaches_header {
+            active.join(exit)
+        } else {
+            Some(active)
+        }
+    }
+
+    fn emitted_expression_range(
+        &self,
+        handle: Handle<Expression>,
+        ranges: &Ranges,
+        values: &Values,
+    ) -> Option<IntRange> {
+        if let Expression::Load { pointer } = self.function.expressions[handle] {
+            return match self.function.expressions[pointer] {
+                Expression::LocalVariable(local) => ranges.get(&local).copied(),
+                _ => None,
+            };
+        }
+        self.expression_range(handle, values)
+    }
+
+    fn expression_range(&self, handle: Handle<Expression>, values: &Values) -> Option<IntRange> {
+        if let Some(range) = values.get(&handle) {
+            return Some(*range);
+        }
+        match self.function.expressions[handle] {
+            Expression::Literal(literal) => literal_range(literal),
+            Expression::Constant(constant) => {
+                global_range(self.module.constants[constant].init, self.module)
+            }
+            Expression::FunctionArgument(index) => self.argument_range(index),
+            Expression::AccessIndex { base, index } => self.builtin_component_range(base, index),
+            Expression::Load { .. } => None,
+            Expression::Binary { op, left, right } => {
+                let left = self.expression_range(left, values)?;
+                let right = self.expression_range(right, values)?;
+                match op {
+                    BinaryOperator::Add => left.add(right),
+                    BinaryOperator::Subtract => left.sub(right),
+                    BinaryOperator::Multiply => left.mul(right),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn prove_access(&mut self, handle: Handle<Expression>, values: &Values) {
+        let Expression::Access { base, index } = self.function.expressions[handle] else {
+            return;
+        };
+        let Some(range) = self.expression_range(index, values) else {
+            return;
+        };
+        let inner = self.info[base].ty.inner_with(&self.module.types);
+        let Ok(super::IndexableLength::Known(length)) =
+            inner.indexable_length_resolved(self.module)
+        else {
+            return;
+        };
+        if range.fits(length) {
+            self.info.safe_accesses.insert(handle);
+        }
+    }
+
+    fn refine(
+        &self,
+        condition: Handle<Expression>,
+        truth: bool,
+        mut ranges: Ranges,
+        values: &Values,
+    ) -> Option<Ranges> {
+        let Expression::Binary { op, left, right } = self.function.expressions[condition] else {
+            if let Expression::Unary {
+                op: crate::UnaryOperator::LogicalNot,
+                expr,
+            } = self.function.expressions[condition]
+            {
+                return self.refine(expr, !truth, ranges, values);
+            }
+            return Some(ranges);
+        };
+        match (op, truth) {
+            (BinaryOperator::LogicalAnd, true) | (BinaryOperator::LogicalOr, false) => {
+                let ranges = self.refine(left, truth, ranges, values)?;
+                return self.refine(right, truth, ranges, values);
+            }
+            (BinaryOperator::LogicalAnd, false) | (BinaryOperator::LogicalOr, true) => {
+                return Some(ranges);
+            }
+            _ => {}
+        }
+        let op = if truth { op } else { negate_comparison(op)? };
+        let (local, op, bound) = if let Some(local) = loaded_local(left, self.function) {
+            (local, op, self.expression_range(right, values)?.exact()?)
+        } else if let Some(local) = loaded_local(right, self.function) {
+            (
+                local,
+                swap_comparison(op)?,
+                self.expression_range(left, values)?.exact()?,
+            )
+        } else {
+            return Some(ranges);
+        };
+        let current = ranges
+            .get(&local)
+            .copied()
+            .or_else(|| self.local_full_range(local))?;
+        ranges.insert(local, refine_range(current, op, bound)?);
+        Some(ranges)
+    }
+
+    #[allow(clippy::pattern_type_mismatch)]
+    fn argument_range(&self, index: u32) -> Option<IntRange> {
+        match self.function.arguments[index as usize].binding.as_ref()? {
+            crate::Binding::BuiltIn(crate::BuiltIn::LocalInvocationIndex) => {
+                let size = self.workgroup_size?;
+                let total = size[0].checked_mul(size[1])?.checked_mul(size[2])?;
+                (total > 0).then_some(IntRange::U32 {
+                    min: 0,
+                    max: total - 1,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn builtin_component_range(&self, base: Handle<Expression>, index: u32) -> Option<IntRange> {
+        let Expression::FunctionArgument(argument) = self.function.expressions[base] else {
+            return None;
+        };
+        if !matches!(
+            self.function.arguments[argument as usize].binding,
+            Some(crate::Binding::BuiltIn(crate::BuiltIn::LocalInvocationId))
+        ) {
+            return None;
+        }
+        let size = *self.workgroup_size?.get(index as usize)?;
+        (size > 0).then_some(IntRange::U32 {
+            min: 0,
+            max: size - 1,
+        })
+    }
+
+    fn local_full_range(&self, local: Handle<LocalVariable>) -> Option<IntRange> {
+        match self.module.types[self.function.local_variables[local].ty].inner {
+            TypeInner::Scalar(scalar) if scalar.width == 4 => IntRange::full(scalar.kind),
+            _ => None,
+        }
+    }
+
+    fn reset_local(&self, local: Handle<LocalVariable>, ranges: &mut Ranges) {
+        if let Some(range) = self.local_full_range(local) {
+            ranges.insert(local, range);
+        } else {
+            ranges.remove(&local);
+        }
+    }
+
+    fn reset_all_locals(&self, ranges: &mut Ranges) {
+        for (local, _) in self.function.local_variables.iter() {
+            self.reset_local(local, ranges);
+        }
+    }
+}
+
+const fn literal_range(literal: Literal) -> Option<IntRange> {
+    match literal {
+        Literal::U32(value) => Some(IntRange::U32 {
+            min: value,
+            max: value,
+        }),
+        Literal::I32(value) => Some(IntRange::I32 {
+            min: value,
+            max: value,
+        }),
+        _ => None,
+    }
+}
+
+fn global_range(handle: Handle<Expression>, module: &Module) -> Option<IntRange> {
+    match module.global_expressions[handle] {
+        Expression::Literal(literal) => literal_range(literal),
+        Expression::Constant(constant) => global_range(module.constants[constant].init, module),
+        Expression::Binary { op, left, right } => {
+            let left = global_range(left, module)?;
+            let right = global_range(right, module)?;
+            match op {
+                BinaryOperator::Add => left.add(right),
+                BinaryOperator::Subtract => left.sub(right),
+                BinaryOperator::Multiply => left.mul(right),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+fn loaded_local(handle: Handle<Expression>, function: &Function) -> Option<Handle<LocalVariable>> {
+    let Expression::Load { pointer } = function.expressions[handle] else {
+        return None;
+    };
+    let Expression::LocalVariable(local) = function.expressions[pointer] else {
+        return None;
+    };
+    Some(local)
+}
+
+fn root_local(handle: Handle<Expression>, function: &Function) -> Option<Handle<LocalVariable>> {
+    match function.expressions[handle] {
+        Expression::LocalVariable(local) => Some(local),
+        Expression::Access { base, .. } | Expression::AccessIndex { base, .. } => {
+            root_local(base, function)
+        }
+        _ => None,
+    }
+}
+
+fn refine_range(range: IntRange, op: BinaryOperator, bound: i64) -> Option<IntRange> {
+    match op {
+        BinaryOperator::Less => range.upper(bound.checked_sub(1)?),
+        BinaryOperator::LessEqual => range.upper(bound),
+        BinaryOperator::Greater => range.lower(bound.checked_add(1)?),
+        BinaryOperator::GreaterEqual => range.lower(bound),
+        BinaryOperator::Equal => range.lower(bound)?.upper(bound),
+        BinaryOperator::NotEqual => match range.exact() {
+            Some(value) if value == bound => None,
+            _ => Some(range),
+        },
+        _ => None,
+    }
+}
+
+const fn negate_comparison(op: BinaryOperator) -> Option<BinaryOperator> {
+    Some(match op {
+        BinaryOperator::Less => BinaryOperator::GreaterEqual,
+        BinaryOperator::LessEqual => BinaryOperator::Greater,
+        BinaryOperator::Greater => BinaryOperator::LessEqual,
+        BinaryOperator::GreaterEqual => BinaryOperator::Less,
+        BinaryOperator::Equal => BinaryOperator::NotEqual,
+        BinaryOperator::NotEqual => BinaryOperator::Equal,
+        _ => return None,
+    })
+}
+
+const fn swap_comparison(op: BinaryOperator) -> Option<BinaryOperator> {
+    Some(match op {
+        BinaryOperator::Less => BinaryOperator::Greater,
+        BinaryOperator::LessEqual => BinaryOperator::GreaterEqual,
+        BinaryOperator::Greater => BinaryOperator::Less,
+        BinaryOperator::GreaterEqual => BinaryOperator::LessEqual,
+        BinaryOperator::Equal | BinaryOperator::NotEqual => op,
+        _ => return None,
+    })
+}
+
+fn join_ranges(left: &Ranges, right: &Ranges) -> Ranges {
+    left.iter()
+        .filter_map(|(&local, &range)| {
+            right
+                .get(&local)
+                .and_then(|&other| range.join(other))
+                .map(|joined| (local, joined))
+        })
+        .collect()
+}
+
+fn join_values(left: &Values, right: &Values) -> Values {
+    left.iter()
+        .filter_map(|(&expression, &range)| {
+            right
+                .get(&expression)
+                .and_then(|&other| range.join(other))
+                .map(|joined| (expression, joined))
+        })
+        .collect()
+}
+
+fn mutated_locals(
+    body: &Block,
+    continuing: &Block,
+    function: &Function,
+) -> crate::FastHashSet<Handle<LocalVariable>> {
+    let mut result = crate::FastHashSet::default();
+    collect_mutated(body, function, &mut result);
+    collect_mutated(continuing, function, &mut result);
+    result
+}
+
+#[allow(clippy::pattern_type_mismatch)]
+fn collect_mutated(
     block: &Block,
     function: &Function,
-    module: &Module,
-    info: &mut FunctionInfo,
+    result: &mut crate::FastHashSet<Handle<LocalVariable>>,
 ) {
-    for stmt in block {
-        match *stmt {
-            Statement::Loop { ref body, ref continuing, break_if } => {
-                // Handle the WGSL `break if` pattern:
-                //   loop { body; continuing { i++; break if i >= N; } }
-                // break_if = Some(i >= N) means loop breaks when i >= N,
-                // so the body runs with i < N -> safe if len >= N.
-                if let Some(cond_expr) = break_if {
-                    analyze_break_if(cond_expr, function, module, info);
+    for statement in block {
+        match statement {
+            Statement::Store { pointer, .. } | Statement::Atomic { pointer, .. } => {
+                if let Some(local) = root_local(*pointer, function) {
+                    result.insert(local);
                 }
-                // Handle the `if i >= N { break; }` pattern inside the body
-                analyze_loop_body(body, function, module, info);
-                analyze_block(body, function, module, info);
-                analyze_block(continuing, function, module, info);
             }
-            Statement::Block(ref b) => analyze_block(b, function, module, info),
-            Statement::If { ref accept, ref reject, .. } => {
-                analyze_block(accept, function, module, info);
-                analyze_block(reject, function, module, info);
+            Statement::Block(block) => collect_mutated(block, function, result),
+            Statement::If { accept, reject, .. } => {
+                collect_mutated(accept, function, result);
+                collect_mutated(reject, function, result);
             }
-            Statement::Switch { ref cases, .. } => {
+            Statement::Switch { cases, .. } => {
                 for case in cases {
-                    analyze_block(&case.body, function, module, info);
+                    collect_mutated(&case.body, function, result);
+                }
+            }
+            Statement::Loop {
+                body, continuing, ..
+            } => {
+                collect_mutated(body, function, result);
+                collect_mutated(continuing, function, result);
+            }
+            Statement::Call { .. } => {
+                for (local, _) in function.local_variables.iter() {
+                    result.insert(local);
                 }
             }
             _ => {}
@@ -49,128 +719,376 @@ fn analyze_block(
     }
 }
 
-fn analyze_loop_body(
+#[derive(Clone, Copy)]
+enum UpdateLocation {
+    Body(usize),
+    Continuing,
+}
+
+fn single_update(
+    local: Handle<LocalVariable>,
     body: &Block,
+    continuing: &Block,
     function: &Function,
     module: &Module,
-    info: &mut FunctionInfo,
-) {
-    // Look for the `if i < N { ... } else { break; }` pattern
-    let mut upper_bound = None;
-    let mut induction_var = None;
-
-    for stmt in body {
-        if let Statement::If { condition, ref reject, .. } = *stmt {
-            if reject.iter().any(|s| matches!(*s, Statement::Break)) {
-                extract_bound_from_comparison(condition, function, &mut induction_var, &mut upper_bound);
+) -> Option<(i64, IntRange, UpdateLocation)> {
+    let mut updates = Vec::new();
+    for (position, statement) in body.iter().enumerate() {
+        if let Some((target, step, template)) = direct_update(statement, function, module) {
+            if target == local {
+                updates.push((step, template, UpdateLocation::Body(position)));
             }
         }
     }
-
-    tag_safe_accesses(induction_var, upper_bound, function, module, info);
-}
-
-/// Analyze a `break_if` expression from a `Statement::Loop`.
-/// `break_if = i >= N` means the loop breaks when `i >= N`,
-/// so the body runs while `i < N`. `arr[i]` is safe if `len >= N`.
-fn analyze_break_if(
-    break_if: Handle<crate::Expression>,
-    function: &Function,
-    module: &Module,
-    info: &mut FunctionInfo,
-) {
-    let mut induction_var = None;
-    let mut upper_bound = None;
-
-    if let Expression::Binary { op: BinaryOperator::GreaterEqual, left, right } = function.expressions[break_if] {
-        if let Expression::Load { pointer } = function.expressions[left] {
-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
-                induction_var = Some(v);
-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
-                    upper_bound = Some(val);
-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
-                    upper_bound = Some(val as u32);
-                }
-            }
-        }
-    } else if let Expression::Binary { op: BinaryOperator::Greater, left, right } = function.expressions[break_if] {
-        // `break if i > N` -> body runs while `i <= N`, so bound is N+1
-        if let Expression::Load { pointer } = function.expressions[left] {
-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
-                induction_var = Some(v);
-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
-                    upper_bound = Some(val + 1);
-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
-                    upper_bound = Some(val as u32 + 1);
-                }
+    for statement in continuing {
+        if let Some((target, step, template)) = direct_update(statement, function, module) {
+            if target == local {
+                updates.push((step, template, UpdateLocation::Continuing));
             }
         }
     }
-
-    tag_safe_accesses(induction_var, upper_bound, function, module, info);
+    if updates.len() != 1 {
+        return None;
+    }
+    let mutations = local_mutation_count(body, local, function)
+        .checked_add(local_mutation_count(continuing, local, function))?;
+    let initializers = body
+        .iter()
+        .filter(|statement| initializer_store(local, statement, function, module).is_some())
+        .count();
+    (mutations == 1 || (mutations == 2 && initializers == 1)).then(|| updates[0])
 }
 
-/// Extract induction variable and upper bound from comparison expressions.
-/// Handles `i < N` (bound = N) and `i <= N` (bound = N+1).
-fn extract_bound_from_comparison(
-    condition: Handle<crate::Expression>,
+fn initializer_store(
+    local: Handle<LocalVariable>,
+    statement: &Statement,
     function: &Function,
-    induction_var: &mut Option<Handle<crate::LocalVariable>>,
-    upper_bound: &mut Option<u32>,
-) {
-    if let Expression::Binary { op: BinaryOperator::Less, left, right } = function.expressions[condition] {
-        if let Expression::Load { pointer } = function.expressions[left] {
-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
-                *induction_var = Some(v);
-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
-                    *upper_bound = Some(val);
-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
-                    *upper_bound = Some(val as u32);
-                }
+    module: &Module,
+) -> Option<i64> {
+    let Statement::Store { pointer, value } = *statement else {
+        return None;
+    };
+    if function.expressions[pointer] != Expression::LocalVariable(local) {
+        return None;
+    }
+    exact_constant(value, function, module)
+}
+
+#[allow(clippy::pattern_type_mismatch)]
+fn local_mutation_count(block: &Block, local: Handle<LocalVariable>, function: &Function) -> usize {
+    block
+        .iter()
+        .map(|statement| match statement {
+            Statement::Store { pointer, .. } | Statement::Atomic { pointer, .. } => {
+                usize::from(root_local(*pointer, function) == Some(local))
             }
+            Statement::Block(block) => local_mutation_count(block, local, function),
+            Statement::If { accept, reject, .. } => local_mutation_count(accept, local, function)
+                .saturating_add(local_mutation_count(reject, local, function)),
+            Statement::Switch { cases, .. } => cases.iter().fold(0usize, |count, case| {
+                count.saturating_add(local_mutation_count(&case.body, local, function))
+            }),
+            Statement::Loop {
+                body, continuing, ..
+            } => local_mutation_count(body, local, function)
+                .saturating_add(local_mutation_count(continuing, local, function)),
+            Statement::Call { .. } => 1,
+            _ => 0,
+        })
+        .fold(0usize, usize::saturating_add)
+}
+
+fn direct_update(
+    statement: &Statement,
+    function: &Function,
+    module: &Module,
+) -> Option<(Handle<LocalVariable>, i64, IntRange)> {
+    let Statement::Store { pointer, value } = *statement else {
+        return None;
+    };
+    let Expression::LocalVariable(local) = function.expressions[pointer] else {
+        return None;
+    };
+    let Expression::Binary { op, left, right } = function.expressions[value] else {
+        return None;
+    };
+    if loaded_local(left, function) != Some(local) {
+        return None;
+    }
+    let constant = match function.expressions[right] {
+        Expression::Literal(literal) => literal_range(literal)?,
+        Expression::Constant(constant) => global_range(module.constants[constant].init, module)?,
+        _ => return None,
+    };
+    let magnitude = constant.exact()?;
+    if magnitude <= 0 {
+        return None;
+    }
+    let step = match op {
+        BinaryOperator::Add => magnitude,
+        BinaryOperator::Subtract => magnitude.checked_neg()?,
+        _ => return None,
+    };
+    Some((local, step, constant))
+}
+
+fn loop_guard(
+    body: &Block,
+    local: Handle<LocalVariable>,
+    function: &Function,
+) -> Option<(Handle<Expression>, bool, usize)> {
+    body.iter().enumerate().find_map(|(position, statement)| {
+        #[allow(clippy::pattern_type_mismatch)]
+        let Statement::If {
+            condition,
+            accept,
+            reject,
+        } = statement
+        else {
+            return None;
+        };
+        if !condition_mentions(*condition, local, function) {
+            return None;
         }
-    } else if let Expression::Binary { op: BinaryOperator::LessEqual, left, right } = function.expressions[condition] {
-        if let Expression::Load { pointer } = function.expressions[left] {
-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
-                *induction_var = Some(v);
-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
-                    *upper_bound = Some(val + 1);
-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
-                    *upper_bound = Some(val as u32 + 1);
-                }
-            }
+        if matches!(accept.last(), Some(Statement::Break)) {
+            Some((*condition, true, position))
+        } else if matches!(reject.last(), Some(Statement::Break)) {
+            Some((*condition, false, position))
+        } else {
+            None
         }
+    })
+}
+
+fn condition_mentions(
+    condition: Handle<Expression>,
+    local: Handle<LocalVariable>,
+    function: &Function,
+) -> bool {
+    match function.expressions[condition] {
+        Expression::Binary { left, right, .. } => {
+            loaded_local(left, function) == Some(local)
+                || loaded_local(right, function) == Some(local)
+        }
+        _ => false,
     }
 }
 
-/// Mark all `Access` expressions that use the given induction variable
-/// as the index, where array length >= bound, as safe.
-fn tag_safe_accesses(
-    induction_var: Option<Handle<crate::LocalVariable>>,
-    upper_bound: Option<u32>,
+fn comparison(
+    condition: Handle<Expression>,
+    local: Handle<LocalVariable>,
     function: &Function,
     module: &Module,
-    info: &mut FunctionInfo,
-) {
-    if let (Some(ind_var), Some(max_val)) = (induction_var, upper_bound) {
-        for (_handle, expr) in function.expressions.iter() {
-            if let Expression::Access { base, index } = *expr {
-                if let Expression::Load { pointer } = function.expressions[index] {
-                    if let Expression::LocalVariable(v) = function.expressions[pointer] {
-                        if v == ind_var {
-                            let base_ty = info[base].ty.inner_with(&module.types);
-                            if let TypeInner::Pointer { base: ptr_base, .. } = *base_ty {
-                                let inner = &module.types[ptr_base].inner;
-                                if let TypeInner::Array { size: crate::ArraySize::Constant(sz), .. } = *inner {
-                                    if sz.get() >= max_val {
-                                        info.safe_indices.insert(index);
-                                    }
-                                }
-                            }
+) -> Option<(BinaryOperator, i64)> {
+    let Expression::Binary { op, left, right } = function.expressions[condition] else {
+        return None;
+    };
+    if loaded_local(left, function) == Some(local) {
+        Some((op, exact_constant(right, function, module)?))
+    } else if loaded_local(right, function) == Some(local) {
+        Some((
+            swap_comparison(op)?,
+            exact_constant(left, function, module)?,
+        ))
+    } else {
+        None
+    }
+}
+
+fn exact_constant(handle: Handle<Expression>, function: &Function, module: &Module) -> Option<i64> {
+    match function.expressions[handle] {
+        Expression::Literal(literal) => literal_range(literal)?.exact(),
+        Expression::Constant(constant) => {
+            global_range(module.constants[constant].init, module)?.exact()
+        }
+        _ => None,
+    }
+}
+
+fn recurrence_ranges(
+    start: i64,
+    step: i64,
+    exit_op: BinaryOperator,
+    bound: i64,
+    template: IntRange,
+) -> Option<(IntRange, IntRange)> {
+    let (min, max, exit) = if step > 0 {
+        let distance = bound.checked_sub(start)?;
+        if distance <= 0 {
+            return None;
+        }
+        let iterations = match exit_op {
+            BinaryOperator::GreaterEqual => ceil_div(distance, step)?,
+            BinaryOperator::Greater => ceil_div(distance.checked_add(1)?, step)?,
+            BinaryOperator::Equal if distance % step == 0 => distance / step,
+            _ => return None,
+        };
+        let max = start.checked_add(iterations.checked_sub(1)?.checked_mul(step)?)?;
+        let exit = start.checked_add(iterations.checked_mul(step)?)?;
+        (start, max, exit)
+    } else if step < 0 {
+        let magnitude = step.checked_neg()?;
+        let distance = start.checked_sub(bound)?;
+        if distance <= 0 {
+            return None;
+        }
+        let iterations = match exit_op {
+            BinaryOperator::LessEqual => ceil_div(distance, magnitude)?,
+            BinaryOperator::Less => ceil_div(distance.checked_add(1)?, magnitude)?,
+            BinaryOperator::Equal if distance % magnitude == 0 => distance / magnitude,
+            _ => return None,
+        };
+        let min = start.checked_sub(iterations.checked_sub(1)?.checked_mul(magnitude)?)?;
+        let exit = start.checked_sub(iterations.checked_mul(magnitude)?)?;
+        (min, start, exit)
+    } else {
+        return None;
+    };
+    Some((
+        make_range(template, min, max)?,
+        make_range(template, exit, exit)?,
+    ))
+}
+
+fn ceil_div(numerator: i64, denominator: i64) -> Option<i64> {
+    numerator
+        .checked_add(denominator.checked_sub(1)?)?
+        .checked_div(denominator)
+}
+
+fn make_range(template: IntRange, min: i64, max: i64) -> Option<IntRange> {
+    match template {
+        IntRange::U32 { .. } => Some(IntRange::U32 {
+            min: u32::try_from(min).ok()?,
+            max: u32::try_from(max).ok()?,
+        }),
+        IntRange::I32 { .. } => Some(IntRange::I32 {
+            min: i32::try_from(min).ok()?,
+            max: i32::try_from(max).ok()?,
+        }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsigned_interval_arithmetic_matches_enumeration() {
+        for a in 0..=6u32 {
+            for b in a..=6 {
+                for c in 0..=6u32 {
+                    for d in c..=6 {
+                        let left = IntRange::U32 { min: a, max: b };
+                        let right = IntRange::U32 { min: c, max: d };
+                        let sums: Vec<_> =
+                            (a..=b).flat_map(|x| (c..=d).map(move |y| x + y)).collect();
+                        assert_eq!(
+                            left.add(right),
+                            Some(IntRange::U32 {
+                                min: *sums.iter().min().unwrap(),
+                                max: *sums.iter().max().unwrap(),
+                            })
+                        );
+                        let products: Vec<_> =
+                            (a..=b).flat_map(|x| (c..=d).map(move |y| x * y)).collect();
+                        assert_eq!(
+                            left.mul(right),
+                            Some(IntRange::U32 {
+                                min: *products.iter().min().unwrap(),
+                                max: *products.iter().max().unwrap(),
+                            })
+                        );
+                        let differences: Vec<_> = (a..=b)
+                            .flat_map(|x| (c..=d).filter_map(move |y| x.checked_sub(y)))
+                            .collect();
+                        if a >= d {
+                            assert_eq!(
+                                left.sub(right),
+                                Some(IntRange::U32 {
+                                    min: *differences.iter().min().unwrap(),
+                                    max: *differences.iter().max().unwrap(),
+                                })
+                            );
+                        } else {
+                            assert_eq!(left.sub(right), None);
                         }
                     }
                 }
             }
         }
+    }
+
+    #[test]
+    fn signed_interval_arithmetic_matches_enumeration() {
+        for a in -4..=4i32 {
+            for b in a..=4 {
+                for c in -4..=4i32 {
+                    for d in c..=4 {
+                        let left = IntRange::I32 { min: a, max: b };
+                        let right = IntRange::I32 { min: c, max: d };
+                        let products: Vec<_> =
+                            (a..=b).flat_map(|x| (c..=d).map(move |y| x * y)).collect();
+                        assert_eq!(
+                            left.mul(right),
+                            Some(IntRange::I32 {
+                                min: *products.iter().min().unwrap(),
+                                max: *products.iter().max().unwrap(),
+                            })
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn interval_overflow_and_underflow_are_rejected() {
+        assert_eq!(
+            IntRange::U32 {
+                min: u32::MAX,
+                max: u32::MAX,
+            }
+            .add(IntRange::U32 { min: 1, max: 1 }),
+            None
+        );
+        assert_eq!(
+            IntRange::U32 { min: 0, max: 1 }.sub(IntRange::U32 { min: 1, max: 1 }),
+            None
+        );
+        assert_eq!(
+            IntRange::I32 {
+                min: i32::MAX,
+                max: i32::MAX,
+            }
+            .mul(IntRange::I32 { min: 2, max: 2 }),
+            None
+        );
+    }
+
+    #[test]
+    fn recurrence_requires_reachable_exit_and_no_wrap() {
+        let template = IntRange::U32 { min: 2, max: 2 };
+        assert_eq!(
+            recurrence_ranges(0, 2, BinaryOperator::Equal, 8, template),
+            Some((
+                IntRange::U32 { min: 0, max: 6 },
+                IntRange::U32 { min: 8, max: 8 }
+            ))
+        );
+        assert_eq!(
+            recurrence_ranges(0, 2, BinaryOperator::Equal, 7, template),
+            None
+        );
+        assert_eq!(
+            recurrence_ranges(
+                i64::from(u32::MAX) - 1,
+                2,
+                BinaryOperator::Equal,
+                i64::from(u32::MAX) + 1,
+                template,
+            ),
+            None
+        );
     }
 }

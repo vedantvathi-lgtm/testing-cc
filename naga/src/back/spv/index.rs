@@ -353,13 +353,6 @@ impl BlockContext<'_> {
             return Ok(BoundsCheckResult::KnownInBounds(restricted));
         }
 
-        // Check if our bounds check elision pass proved this is safe
-        if let GuardedIndex::Expression(expr) = index {
-            if self.fun_info.safe_indices.contains(&expr) {
-                return Ok(BoundsCheckResult::Computed(self.cached[expr]));
-            }
-        }
-
         let index_id = match index {
             GuardedIndex::Known(value) => self.get_index_constant(value),
             GuardedIndex::Expression(expr) => self.cached[expr],
@@ -517,6 +510,7 @@ impl BlockContext<'_> {
         &mut self,
         base: Handle<crate::Expression>,
         mut index: GuardedIndex,
+        access: Option<Handle<crate::Expression>>,
         block: &mut Block,
     ) -> Result<BoundsCheckResult, Error> {
         // If the value of `index` is known at compile time, find it now.
@@ -524,7 +518,9 @@ impl BlockContext<'_> {
 
         // If our bounds check elision pass proved this index is safe, skip the check entirely.
         if let GuardedIndex::Expression(expr) = index {
-            if self.fun_info.safe_indices.contains(&expr) {
+            if self.fun_info.safe_indices.contains(&expr)
+                || access.is_some_and(|handle| self.fun_info.safe_accesses.contains(&handle))
+            {
                 return Ok(BoundsCheckResult::Computed(self.cached[expr]));
             }
         }
@@ -559,11 +555,12 @@ impl BlockContext<'_> {
         base: Handle<crate::Expression>,
         base_id_override: Option<Word>,
         index: GuardedIndex,
+        access: Option<Handle<crate::Expression>>,
         block: &mut Block,
     ) -> Result<Word, Error> {
         let base_id = base_id_override.unwrap_or_else(|| self.cached[base]);
 
-        let result_id = match self.write_bounds_check(base, index, block)? {
+        let result_id = match self.write_bounds_check(base, index, access, block)? {
             BoundsCheckResult::KnownInBounds(known_index) => {
                 let result_id = self.gen_id();
                 block.body.push(Instruction::composite_extract(

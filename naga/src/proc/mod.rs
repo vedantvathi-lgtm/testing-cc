@@ -2,12 +2,12 @@
 [`Module`](super::Module) processing functionality.
 */
 
+pub mod bounds_check_elision;
 mod constant_evaluator;
 mod emitter;
 pub mod index;
 mod keyword_set;
 pub mod layouter;
-pub mod bounds_check_elision;
 mod namer;
 mod overloads;
 mod terminator;

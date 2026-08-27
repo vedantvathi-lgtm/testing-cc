@@ -238,7 +238,7 @@ pub fn find_checked_indexes(
 
     // Don't bother scanning if we never need `ReadZeroSkipWrite`.
     if policies.contains(BoundsCheckPolicy::ReadZeroSkipWrite) {
-        for (_handle, expr) in function.expressions.iter() {
+        for (handle, expr) in function.expressions.iter() {
             // There's no need to handle `AccessIndex` expressions, as their
             // indices never need to be cached.
             match *expr {
@@ -251,6 +251,7 @@ pub fn find_checked_indexes(
                             module,
                             &function.expressions,
                             info,
+                            Some(handle),
                         )
                         .is_some()
                     {
@@ -263,18 +264,16 @@ pub fn find_checked_indexes(
                     sample,
                     level,
                     ..
-                } => {
-                    if policies.image_load == BoundsCheckPolicy::ReadZeroSkipWrite {
-                        guarded_indices.insert(coordinate);
-                        if let Some(array_index) = array_index {
-                            guarded_indices.insert(array_index);
-                        }
-                        if let Some(sample) = sample {
-                            guarded_indices.insert(sample);
-                        }
-                        if let Some(level) = level {
-                            guarded_indices.insert(level);
-                        }
+                } if policies.image_load == BoundsCheckPolicy::ReadZeroSkipWrite => {
+                    guarded_indices.insert(coordinate);
+                    if let Some(array_index) = array_index {
+                        guarded_indices.insert(array_index);
+                    }
+                    if let Some(sample) = sample {
+                        guarded_indices.insert(sample);
+                    }
+                    if let Some(level) = level {
+                        guarded_indices.insert(level);
                     }
                 }
                 _ => {}
@@ -325,6 +324,7 @@ pub fn access_needs_check(
     module: &crate::Module,
     expressions: &crate::Arena<crate::Expression>,
     info: &valid::FunctionInfo,
+    access: Option<Handle<crate::Expression>>,
 ) -> Option<IndexableLength> {
     let base_inner = info[base].ty.inner_with(&module.types);
     // Unwrap safety: `Err` here indicates unindexable base types and invalid
@@ -340,8 +340,10 @@ pub fn access_needs_check(
     };
 
     if let GuardedIndex::Expression(expr) = index {
-        if info.safe_indices.contains(&expr) {
-            return None; // Loop-invariant bounds check elision
+        if info.safe_indices.contains(&expr)
+            || access.is_some_and(|handle| info.safe_accesses.contains(&handle))
+        {
+            return None;
         }
     }
 
@@ -382,6 +384,7 @@ pub(crate) fn bounds_check_iter<'a>(
     info: &'a valid::FunctionInfo,
 ) -> impl Iterator<Item = BoundsCheck> + 'a {
     iter::from_fn(move || {
+        let access = chain;
         let (next_expr, result) = match function.expressions[chain] {
             crate::Expression::Access { base, index } => {
                 (base, Some((base, GuardedIndex::Expression(index))))
@@ -401,16 +404,22 @@ pub(crate) fn bounds_check_iter<'a>(
             _ => return None,
         };
         chain = next_expr;
-        Some(result)
+        Some(result.map(|(base, index)| (access, base, index)))
     })
     .flatten()
-    .filter_map(|(base, index)| {
-        access_needs_check(base, index, module, &function.expressions, info).map(|length| {
-            BoundsCheck {
-                base,
-                index,
-                length,
-            }
+    .filter_map(|(access, base, index)| {
+        access_needs_check(
+            base,
+            index,
+            module,
+            &function.expressions,
+            info,
+            Some(access),
+        )
+        .map(|length| BoundsCheck {
+            base,
+            index,
+            length,
         })
     })
 }

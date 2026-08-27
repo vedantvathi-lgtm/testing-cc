@@ -14,13 +14,9 @@
 //!
 //! HOW TO WIRE THIS IN: add `mod elision_assertions;` to `tests/naga/main.rs`.
 //!
-//! STATUS: every case here currently exercises the *unpatched* Naga
-//! (`access_needs_check` only elides compile-time-constant indices, per
-//! `naga/src/proc/index.rs:322`). Cases 1, 2, and 7 are written so that, once
-//! the patch in the paper's §4.2 lands, flipping their expected assertion
-//! from "check retained" to "check elided" is the only change this file
-//! needs - that's intentional, so a `git diff` on this file at patch-merge
-//! time *is* the human-readable summary of what changed.
+//! These are backend smoke tests. Exact proof-scoping assertions live in
+//! `bounds_check_stress`; this module only checks the corresponding minimal
+//! SPIR-V shapes under the two guarded policies.
 
 use naga::back::spv;
 use naga::proc::{BoundsCheckPolicies, BoundsCheckPolicy};
@@ -31,8 +27,8 @@ use rspirv::binary::Disassemble;
 /// return the disassembly, exactly as `write_output_spv_inner` in
 /// `snapshots.rs` does it, minus the golden-file write.
 fn compile_to_spv_text(source: &str, policy: BoundsCheckPolicy) -> String {
-    let module = naga::front::wgsl::parse_str(source)
-        .unwrap_or_else(|e| panic!("WGSL parse failed: {e}"));
+    let module =
+        naga::front::wgsl::parse_str(source).unwrap_or_else(|e| panic!("WGSL parse failed: {e}"));
 
     let info = Validator::new(ValidationFlags::all(), Capabilities::all())
         .validate(&module)
@@ -118,7 +114,7 @@ const CASES: &[Case] = &[
         check_marker: "OpULessThan",
     },
     Case {
-        name: "multiplicative (lid * 2u; explicitly out of scope for v1)",
+        name: "multiplicative (lid * 2u; bounded affine expression)",
         snippet: r#"
             var<workgroup> tile: array<f32, 128>;
             @compute @workgroup_size(64)
@@ -156,15 +152,9 @@ fn elision_soundness_table_read_zero_skip_write() {
     for (i, case) in CASES.iter().enumerate() {
         let text = compile_to_spv_text(case.snippet, BoundsCheckPolicy::ReadZeroSkipWrite);
         let check_present = text.contains(case.check_marker);
-        println!(
-            "[{}] check present = {check_present}",
-            case.name
-        );
+        println!("[{}] check present = {check_present}", case.name);
         // POST-PATCH ASSERTIONS:
-        // Cases 0 (happy_direct) and 1 (happy_oversized) should have checks ELIDED
-        // because lid ∈ [0, 64) and array size >= workgroup size.
-        // All other cases should still have checks present.
-        if i == 0 || i == 1 {
+        if matches!(i, 0 | 1 | 4) {
             assert!(
                 !check_present,
                 "[{}] bounds check should be ELIDED (lid-based index, array >= wg_size) but OpULessThan was found in the disassembly.",
@@ -211,4 +201,3 @@ fn happy_direct_restrict_elides_umin() {
         "Expected an OpAccessChain for the tile[lid] access"
     );
 }
-

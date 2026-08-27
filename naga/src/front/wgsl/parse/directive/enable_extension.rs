@@ -198,9 +198,7 @@ impl EnableExtension {
                 ImplementedEnableExtension::WgpuInt16 => Self::INT16,
                 ImplementedEnableExtension::Subgroups => Self::SUBGROUPS,
             },
-            Self::Unimplemented(kind) => match kind {
-                _ => unreachable!()
-            },
+            Self::Unimplemented(kind) => match kind {},
         }
     }
 }
@@ -325,17 +323,10 @@ fn test_manual_variants_array_is_correct() {
 
 /// A variant of [`EnableExtension::Unimplemented`].
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
-pub enum UnimplementedEnableExtension {
-    /// Enables subgroup built-ins in all languages.
-    ///
-    /// In the WGSL standard, this corresponds to [`enable subgroups;`].
-    ///
-    /// [`enable subgroups;`]: https://www.w3.org/TR/WGSL/#extension-subgroups
-    Subgroups,
-}
+pub enum UnimplementedEnableExtension {}
 
 impl UnimplementedEnableExtension {
     pub(crate) const fn tracking_issue_num(self) -> u16 {
-        0
+        match self {}
     }
 }

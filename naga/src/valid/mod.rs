@@ -372,6 +372,7 @@ impl ops::Index<Handle<crate::Expression>> for ModuleInfo {
 pub struct Validator {
     flags: ValidationFlags,
     capabilities: Capabilities,
+    bounds_check_elision: bool,
     subgroup_stages: ShaderStages,
     subgroup_operations: SubgroupOperationSet,
     types: Vec<r#type::TypeInfo>,
@@ -619,6 +620,7 @@ impl Validator {
         Validator {
             flags,
             capabilities,
+            bounds_check_elision: true,
             subgroup_stages,
             subgroup_operations,
             types: Vec::new(),
@@ -634,6 +636,14 @@ impl Validator {
             trace_rays_vertex_return: TraceRayVertexReturnState::NoTraceRays,
             trace_rays_payload_type: None,
         }
+    }
+
+    /// Enable or disable bounds-check elision analysis.
+    ///
+    /// This is enabled by default. Disabling it is intended for differential
+    /// testing and benchmarking with otherwise identical validation settings.
+    pub const fn set_bounds_check_elision(&mut self, enabled: bool) {
+        self.bounds_check_elision = enabled;
     }
 
     // TODO(https://github.com/gfx-rs/wgpu/issues/8207): Consider removing this

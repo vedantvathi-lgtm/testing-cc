@@ -3964,6 +3964,7 @@ impl<'a, W: fmt::Write> super::Writer<'a, W> {
                             module,
                             func_ctx.expressions,
                             func_ctx.info,
+                            Some(expr),
                         )
                     } else {
                         None
