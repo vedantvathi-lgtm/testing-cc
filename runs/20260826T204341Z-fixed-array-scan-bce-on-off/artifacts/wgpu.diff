@@ -1,0 +1,2483 @@
+diff --git a/deno_webgpu/surface.rs b/deno_webgpu/surface.rs
+index b857e22..050c2e8 100644
+--- a/deno_webgpu/surface.rs
++++ b/deno_webgpu/surface.rs
+@@ -2,12 +2,12 @@
+ 
+ use std::cell::RefCell;
+ 
+-use deno_core::GarbageCollected;
+-use deno_core::WebIDL;
+ use deno_core::_ops::make_cppgc_object;
+ use deno_core::cppgc::Ptr;
+ use deno_core::op2;
+ use deno_core::v8;
++use deno_core::GarbageCollected;
++use deno_core::WebIDL;
+ use deno_error::JsErrorBox;
+ use wgpu_types::SurfaceStatus;
+ 
+diff --git a/naga/src/back/hlsl/writer.rs b/naga/src/back/hlsl/writer.rs
+index af3736f..c3934b8 100644
+--- a/naga/src/back/hlsl/writer.rs
++++ b/naga/src/back/hlsl/writer.rs
+@@ -3964,6 +3964,7 @@ impl<'a, W: fmt::Write> super::Writer<'a, W> {
+                             module,
+                             func_ctx.expressions,
+                             func_ctx.info,
++                            Some(expr),
+                         )
+                     } else {
+                         None
+diff --git a/naga/src/back/msl/writer.rs b/naga/src/back/msl/writer.rs
+index de03c76..5d39439 100644
+--- a/naga/src/back/msl/writer.rs
++++ b/naga/src/back/msl/writer.rs
+@@ -833,6 +833,7 @@ impl<'a> ExpressionContext<'a> {
+         &self,
+         base: Handle<crate::Expression>,
+         index: index::GuardedIndex,
++        access: Option<Handle<crate::Expression>>,
+     ) -> Option<index::IndexableLength> {
+         index::access_needs_check(
+             base,
+@@ -840,6 +841,7 @@ impl<'a> ExpressionContext<'a> {
+             self.module,
+             &self.function.expressions,
+             self.info,
++            access,
+         )
+     }
+ 
+@@ -3230,6 +3232,7 @@ impl<W: Write> Writer<W> {
+                 }
+ 
+                 self.put_subscripted_access_chain(
++                    Some(chain),
+                     base,
+                     base_ty,
+                     index::GuardedIndex::Expression(index),
+@@ -3270,6 +3273,7 @@ impl<W: Write> Writer<W> {
+                     }
+                     _ => {
+                         self.put_subscripted_access_chain(
++                            Some(chain),
+                             base,
+                             base_ty,
+                             index::GuardedIndex::Known(index),
+@@ -3303,6 +3307,7 @@ impl<W: Write> Writer<W> {
+     /// [`Pointer`]: crate::TypeInner::Pointer
+     fn put_subscripted_access_chain(
+         &mut self,
++        access: Option<Handle<crate::Expression>>,
+         base: Handle<crate::Expression>,
+         base_ty: &crate::TypeInner,
+         index: index::GuardedIndex,
+@@ -3327,7 +3332,7 @@ impl<W: Write> Writer<W> {
+ 
+         // Decide whether this index needs to be clamped to fall within range.
+         let restriction_needed = if policy == index::BoundsCheckPolicy::Restrict {
+-            context.access_needs_check(base, index)
++            context.access_needs_check(base, index, access)
+         } else {
+             None
+         };
+diff --git a/naga/src/back/spv/block.rs b/naga/src/back/spv/block.rs
+index 2c6dd12..04cd94d 100644
+--- a/naga/src/back/spv/block.rs
++++ b/naga/src/back/spv/block.rs
+@@ -565,6 +565,7 @@ impl BlockContext<'_> {
+                 column_pointer,
+                 Some(column_id),
+                 index,
++                None,
+                 block,
+             )?,
+             None => column_id,
+@@ -796,6 +797,7 @@ impl BlockContext<'_> {
+                         base,
+                         None,
+                         GuardedIndex::Expression(index),
++                        Some(expr_handle),
+                         block,
+                     )?,
+                     crate::TypeInner::Array { .. } | crate::TypeInner::Matrix { .. } => {
+@@ -2531,14 +2533,20 @@ impl BlockContext<'_> {
+                 break spilled.id;
+             }
+ 
++            let access = expr_handle;
+             expr_handle = match self.ir_function.expressions[expr_handle] {
+                 crate::Expression::Access { base, index } => {
+                     is_non_uniform_binding_array |=
+                         self.is_nonuniform_binding_array_access(base, index);
+ 
+                     let index = GuardedIndex::Expression(index);
+-                    let index_id =
+-                        self.write_access_chain_index(base, index, &mut accumulated_checks, block)?;
++                    let index_id = self.write_access_chain_index(
++                        access,
++                        base,
++                        index,
++                        &mut accumulated_checks,
++                        block,
++                    )?;
+                     self.temp_list.push(index_id);
+ 
+                     base
+@@ -2600,6 +2608,7 @@ impl BlockContext<'_> {
+                             // may be a runtime-sized array, so we still need to go
+                             // through the bounds check process.
+                             let index_id = self.write_access_chain_index(
++                                access,
+                                 base,
+                                 GuardedIndex::Known(index),
+                                 &mut accumulated_checks,
+@@ -2693,12 +2702,13 @@ impl BlockContext<'_> {
+     /// checks. See [`BlockContext::extend_bounds_check_condition_chain`].
+     fn write_access_chain_index(
+         &mut self,
++        access: Handle<crate::Expression>,
+         base: Handle<crate::Expression>,
+         index: GuardedIndex,
+         accumulated_checks: &mut Option<Word>,
+         block: &mut Block,
+     ) -> Result<Word, Error> {
+-        match self.write_bounds_check(base, index, block)? {
++        match self.write_bounds_check(base, index, Some(access), block)? {
+             BoundsCheckResult::KnownInBounds(known_index) => {
+                 // Even if the index is known, `OpAccessChain`
+                 // requires expression operands, not literals.
+diff --git a/naga/src/back/spv/index.rs b/naga/src/back/spv/index.rs
+index 1060bd9..ed3507f 100644
+--- a/naga/src/back/spv/index.rs
++++ b/naga/src/back/spv/index.rs
+@@ -353,13 +353,6 @@ impl BlockContext<'_> {
+             return Ok(BoundsCheckResult::KnownInBounds(restricted));
+         }
+ 
+-        // Check if our bounds check elision pass proved this is safe
+-        if let GuardedIndex::Expression(expr) = index {
+-            if self.fun_info.safe_indices.contains(&expr) {
+-                return Ok(BoundsCheckResult::Computed(self.cached[expr]));
+-            }
+-        }
+-
+         let index_id = match index {
+             GuardedIndex::Known(value) => self.get_index_constant(value),
+             GuardedIndex::Expression(expr) => self.cached[expr],
+@@ -517,6 +510,7 @@ impl BlockContext<'_> {
+         &mut self,
+         base: Handle<crate::Expression>,
+         mut index: GuardedIndex,
++        access: Option<Handle<crate::Expression>>,
+         block: &mut Block,
+     ) -> Result<BoundsCheckResult, Error> {
+         // If the value of `index` is known at compile time, find it now.
+@@ -524,7 +518,9 @@ impl BlockContext<'_> {
+ 
+         // If our bounds check elision pass proved this index is safe, skip the check entirely.
+         if let GuardedIndex::Expression(expr) = index {
+-            if self.fun_info.safe_indices.contains(&expr) {
++            if self.fun_info.safe_indices.contains(&expr)
++                || access.is_some_and(|handle| self.fun_info.safe_accesses.contains(&handle))
++            {
+                 return Ok(BoundsCheckResult::Computed(self.cached[expr]));
+             }
+         }
+@@ -559,11 +555,12 @@ impl BlockContext<'_> {
+         base: Handle<crate::Expression>,
+         base_id_override: Option<Word>,
+         index: GuardedIndex,
++        access: Option<Handle<crate::Expression>>,
+         block: &mut Block,
+     ) -> Result<Word, Error> {
+         let base_id = base_id_override.unwrap_or_else(|| self.cached[base]);
+ 
+-        let result_id = match self.write_bounds_check(base, index, block)? {
++        let result_id = match self.write_bounds_check(base, index, access, block)? {
+             BoundsCheckResult::KnownInBounds(known_index) => {
+                 let result_id = self.gen_id();
+                 block.body.push(Instruction::composite_extract(
+diff --git a/naga/src/front/wgsl/parse/directive/enable_extension.rs b/naga/src/front/wgsl/parse/directive/enable_extension.rs
+index 11f54ea..534389b 100644
+--- a/naga/src/front/wgsl/parse/directive/enable_extension.rs
++++ b/naga/src/front/wgsl/parse/directive/enable_extension.rs
+@@ -199,7 +199,7 @@ impl EnableExtension {
+                 ImplementedEnableExtension::Subgroups => Self::SUBGROUPS,
+             },
+             Self::Unimplemented(kind) => match kind {
+-                _ => unreachable!()
++                _ => unreachable!(),
+             },
+         }
+     }
+diff --git a/naga/src/proc/bounds_check_elision.rs b/naga/src/proc/bounds_check_elision.rs
+index f5ba4a5..25e3ee4 100644
+--- a/naga/src/proc/bounds_check_elision.rs
++++ b/naga/src/proc/bounds_check_elision.rs
+@@ -1,176 +1,979 @@
++use alloc::vec::Vec;
++
+ use crate::arena::Handle;
+ use crate::valid::FunctionInfo;
+-use crate::{Expression, Function, Module, Statement, Block, BinaryOperator, TypeInner};
++use crate::{
++    BinaryOperator, Block, Expression, Function, Literal, LocalVariable, Module, ScalarKind,
++    Statement, TypeInner,
++};
+ 
+-/// Performs Loop-Invariant Bounds Check Elision (BCE).
+-/// Populates `safe_indices` in `FunctionInfo` with expressions that are provably safe bounds.
+-pub fn elide_bounds_checks(
+-    function: &Function,
+-    module: &Module,
+-    info: &mut FunctionInfo,
+-) {
+-    // Traverse the function statements
+-    analyze_block(&function.body, function, module, info);
++type Ranges = crate::FastHashMap<Handle<LocalVariable>, IntRange>;
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++enum IntRange {
++    U32 { min: u32, max: u32 },
++    I32 { min: i32, max: i32 },
+ }
+ 
+-fn analyze_block(
+-    block: &Block,
+-    function: &Function,
+-    module: &Module,
+-    info: &mut FunctionInfo,
+-) {
+-    for stmt in block {
+-        match *stmt {
+-            Statement::Loop { ref body, ref continuing, break_if } => {
+-                // Handle the WGSL `break if` pattern:
+-                //   loop { body; continuing { i++; break if i >= N; } }
+-                // break_if = Some(i >= N) means loop breaks when i >= N,
+-                // so the body runs with i < N -> safe if len >= N.
+-                if let Some(cond_expr) = break_if {
+-                    analyze_break_if(cond_expr, function, module, info);
++impl IntRange {
++    fn full(kind: ScalarKind) -> Option<Self> {
++        match kind {
++            ScalarKind::Uint => Some(Self::U32 {
++                min: u32::MIN,
++                max: u32::MAX,
++            }),
++            ScalarKind::Sint => Some(Self::I32 {
++                min: i32::MIN,
++                max: i32::MAX,
++            }),
++            _ => None,
++        }
++    }
++
++    fn exact(self) -> Option<i64> {
++        match self {
++            Self::U32 { min, max } if min == max => Some(i64::from(min)),
++            Self::I32 { min, max } if min == max => Some(i64::from(min)),
++            _ => None,
++        }
++    }
++
++    fn add(self, rhs: Self) -> Option<Self> {
++        match (self, rhs) {
++            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => Some(Self::U32 {
++                min: a.checked_add(c)?,
++                max: b.checked_add(d)?,
++            }),
++            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => Some(Self::I32 {
++                min: a.checked_add(c)?,
++                max: b.checked_add(d)?,
++            }),
++            _ => None,
++        }
++    }
++
++    fn sub(self, rhs: Self) -> Option<Self> {
++        match (self, rhs) {
++            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => Some(Self::U32 {
++                min: a.checked_sub(d)?,
++                max: b.checked_sub(c)?,
++            }),
++            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => Some(Self::I32 {
++                min: a.checked_sub(d)?,
++                max: b.checked_sub(c)?,
++            }),
++            _ => None,
++        }
++    }
++
++    fn mul(self, rhs: Self) -> Option<Self> {
++        match (self, rhs) {
++            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => {
++                let values = [
++                    a.checked_mul(c)?,
++                    a.checked_mul(d)?,
++                    b.checked_mul(c)?,
++                    b.checked_mul(d)?,
++                ];
++                Some(Self::U32 {
++                    min: *values.iter().min()?,
++                    max: *values.iter().max()?,
++                })
++            }
++            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => {
++                let values = [
++                    a.checked_mul(c)?,
++                    a.checked_mul(d)?,
++                    b.checked_mul(c)?,
++                    b.checked_mul(d)?,
++                ];
++                Some(Self::I32 {
++                    min: *values.iter().min()?,
++                    max: *values.iter().max()?,
++                })
++            }
++            _ => None,
++        }
++    }
++
++    fn join(self, rhs: Self) -> Option<Self> {
++        match (self, rhs) {
++            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => Some(Self::U32 {
++                min: a.min(c),
++                max: b.max(d),
++            }),
++            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => Some(Self::I32 {
++                min: a.min(c),
++                max: b.max(d),
++            }),
++            _ => None,
++        }
++    }
++
++    fn fits(self, length: u32) -> bool {
++        match self {
++            Self::U32 { max, .. } => max < length,
++            Self::I32 { min, max } => min >= 0 && i64::from(max) < i64::from(length),
++        }
++    }
++
++    fn lower(self, value: i64) -> Option<Self> {
++        match self {
++            Self::U32 { min, max } => {
++                let value = u32::try_from(value).ok()?;
++                let min = min.max(value);
++                (min <= max).then_some(Self::U32 { min, max })
++            }
++            Self::I32 { min, max } => {
++                let value = i32::try_from(value).ok()?;
++                let min = min.max(value);
++                (min <= max).then_some(Self::I32 { min, max })
++            }
++        }
++    }
++
++    fn upper(self, value: i64) -> Option<Self> {
++        match self {
++            Self::U32 { min, max } => {
++                let value = u32::try_from(value).ok()?;
++                let max = max.min(value);
++                (min <= max).then_some(Self::U32 { min, max })
++            }
++            Self::I32 { min, max } => {
++                let value = i32::try_from(value).ok()?;
++                let max = max.min(value);
++                (min <= max).then_some(Self::I32 { min, max })
++            }
++        }
++    }
++}
++
++#[derive(Clone)]
++struct Flow {
++    ranges: Ranges,
++    falls_through: bool,
++}
++
++struct Analysis<'a> {
++    function: &'a Function,
++    module: &'a Module,
++    info: &'a mut FunctionInfo,
++    workgroup_size: Option<[u32; 3]>,
++}
++
++pub fn elide_bounds_checks(function: &Function, module: &Module, info: &mut FunctionInfo) {
++    let workgroup_size = module.entry_points.iter().find_map(|entry_point| {
++        core::ptr::eq(&entry_point.function, function).then_some(entry_point.workgroup_size)
++    });
++    let mut analysis = Analysis {
++        function,
++        module,
++        info,
++        workgroup_size,
++    };
++    let initial = analysis.default_ranges();
++    analysis.analyze_block(&function.body, initial);
++}
++
++impl Analysis<'_> {
++    fn default_ranges(&self) -> Ranges {
++        let mut ranges: Ranges = self
++            .function
++            .local_variables
++            .iter()
++            .filter_map(|(handle, _)| self.local_full_range(handle).map(|range| (handle, range)))
++            .collect();
++        for (handle, variable) in self.function.local_variables.iter() {
++            if let Some(init) = variable.init {
++                if let Some(range) = self.expression_range(init, &ranges) {
++                    ranges.insert(handle, range);
++                }
++            }
++        }
++        ranges
++    }
++
++    fn analyze_block(&mut self, block: &Block, mut ranges: Ranges) -> Flow {
++        for statement in block {
++            match statement {
++                Statement::Emit(expressions) => {
++                    for handle in expressions.clone() {
++                        self.prove_access(handle, &ranges);
++                    }
++                }
++                Statement::Block(nested) => {
++                    let flow = self.analyze_block(nested, ranges);
++                    if !flow.falls_through {
++                        return flow;
++                    }
++                    ranges = flow.ranges;
+                 }
+-                // Handle the `if i >= N { break; }` pattern inside the body
+-                analyze_loop_body(body, function, module, info);
+-                analyze_block(body, function, module, info);
+-                analyze_block(continuing, function, module, info);
++                Statement::If {
++                    condition,
++                    accept,
++                    reject,
++                } => {
++                    let accept_flow = self
++                        .refine(*condition, true, ranges.clone())
++                        .map(|facts| self.analyze_block(accept, facts));
++                    let reject_flow = self
++                        .refine(*condition, false, ranges.clone())
++                        .map(|facts| self.analyze_block(reject, facts));
++                    match (accept_flow, reject_flow) {
++                        (Some(left), Some(right)) if left.falls_through && right.falls_through => {
++                            ranges = join_ranges(&left.ranges, &right.ranges);
++                        }
++                        (Some(left), _) if left.falls_through => ranges = left.ranges,
++                        (_, Some(right)) if right.falls_through => ranges = right.ranges,
++                        _ => {
++                            return Flow {
++                                ranges,
++                                falls_through: false,
++                            };
++                        }
++                    }
++                }
++                Statement::Switch { cases, .. } => {
++                    let mut mutated = crate::FastHashSet::default();
++                    for case in cases {
++                        collect_mutated(&case.body, self.function, &mut mutated);
++                    }
++                    let mut case_ranges = ranges.clone();
++                    for &local in &mutated {
++                        self.reset_local(local, &mut case_ranges);
++                    }
++                    for case in cases {
++                        self.analyze_block(&case.body, case_ranges.clone());
++                    }
++                    for local in mutated {
++                        self.reset_local(local, &mut ranges);
++                    }
++                }
++                Statement::Loop {
++                    body,
++                    continuing,
++                    break_if,
++                } => {
++                    self.analyze_loop(body, continuing, *break_if, &ranges);
++                    for local in mutated_locals(body, continuing, self.function) {
++                        self.reset_local(local, &mut ranges);
++                    }
++                }
++                Statement::Store { pointer, value } => {
++                    if let Expression::LocalVariable(local) = self.function.expressions[*pointer] {
++                        if let Some(range) = self.expression_range(*value, &ranges) {
++                            ranges.insert(local, range);
++                        } else {
++                            self.reset_local(local, &mut ranges);
++                        }
++                    } else if let Some(local) = root_local(*pointer, self.function) {
++                        self.reset_local(local, &mut ranges);
++                    }
++                }
++                Statement::Atomic { pointer, .. } => {
++                    if let Some(local) = root_local(*pointer, self.function) {
++                        self.reset_local(local, &mut ranges);
++                    }
++                }
++                Statement::Call { .. } => self.reset_all_locals(&mut ranges),
++                Statement::Break
++                | Statement::Continue
++                | Statement::Return { .. }
++                | Statement::Kill => {
++                    return Flow {
++                        ranges,
++                        falls_through: false,
++                    };
++                }
++                _ => {}
++            }
++        }
++        Flow {
++            ranges,
++            falls_through: true,
++        }
++    }
++
++    fn analyze_loop(
++        &mut self,
++        body: &Block,
++        continuing: &Block,
++        break_if: Option<Handle<Expression>>,
++        incoming: &Ranges,
++    ) {
++        let mutated = mutated_locals(body, continuing, self.function);
++        let mut entry = incoming.clone();
++        for &local in &mutated {
++            self.reset_local(local, &mut entry);
++        }
++        for local in mutated {
++            if let Some(range) = self.loop_range(local, body, continuing, break_if, incoming) {
++                entry.insert(local, range);
+             }
+-            Statement::Block(ref b) => analyze_block(b, function, module, info),
+-            Statement::If { ref accept, ref reject, .. } => {
+-                analyze_block(accept, function, module, info);
+-                analyze_block(reject, function, module, info);
++        }
++        let body_flow = self.analyze_block(body, entry.clone());
++        self.analyze_block(
++            continuing,
++            if body_flow.falls_through {
++                body_flow.ranges
++            } else {
++                entry
++            },
++        );
++    }
++
++    fn loop_range(
++        &self,
++        local: Handle<LocalVariable>,
++        body: &Block,
++        continuing: &Block,
++        break_if: Option<Handle<Expression>>,
++        incoming: &Ranges,
++    ) -> Option<IntRange> {
++        let start = incoming.get(&local).copied()?.exact()?;
++        let (step, template, update_location) =
++            single_update(local, body, continuing, self.function, self.module)?;
++        let (condition, breaks_when_true) = if let Some(condition) = break_if {
++            (condition, true)
++        } else {
++            let (condition, breaks_when_true, guard_position) =
++                loop_guard(body, local, self.function)?;
++            if !matches!(update_location, UpdateLocation::Body(position) if position < guard_position)
++            {
++                return None;
+             }
+-            Statement::Switch { ref cases, .. } => {
+-                for case in cases {
+-                    analyze_block(&case.body, function, module, info);
++            (condition, breaks_when_true)
++        };
++        let (op, bound) = comparison(condition, local, self.function, self.module)?;
++        let exit_op = if breaks_when_true {
++            op
++        } else {
++            negate_comparison(op)?
++        };
++        recurrence_range(start, step, exit_op, bound, template)
++    }
++
++    fn expression_range(&self, handle: Handle<Expression>, ranges: &Ranges) -> Option<IntRange> {
++        match self.function.expressions[handle] {
++            Expression::Literal(literal) => literal_range(literal),
++            Expression::Constant(constant) => {
++                global_range(self.module.constants[constant].init, self.module)
++            }
++            Expression::FunctionArgument(index) => self.argument_range(index),
++            Expression::AccessIndex { base, index } => self.builtin_component_range(base, index),
++            Expression::Load { pointer } => match self.function.expressions[pointer] {
++                Expression::LocalVariable(local) => ranges.get(&local).copied(),
++                _ => None,
++            },
++            Expression::Binary { op, left, right } => {
++                let left = self.expression_range(left, ranges)?;
++                let right = self.expression_range(right, ranges)?;
++                match op {
++                    BinaryOperator::Add => left.add(right),
++                    BinaryOperator::Subtract => left.sub(right),
++                    BinaryOperator::Multiply => left.mul(right),
++                    _ => None,
+                 }
+             }
+-            _ => {}
++            _ => None,
++        }
++    }
++
++    fn prove_access(&mut self, handle: Handle<Expression>, ranges: &Ranges) {
++        let Expression::Access { base, index } = self.function.expressions[handle] else {
++            return;
++        };
++        let Some(range) = self.expression_range(index, ranges) else {
++            return;
++        };
++        let inner = self.info[base].ty.inner_with(&self.module.types);
++        let Ok(super::IndexableLength::Known(length)) =
++            inner.indexable_length_resolved(self.module)
++        else {
++            return;
++        };
++        if range.fits(length) {
++            self.info.safe_accesses.insert(handle);
++        }
++    }
++
++    fn refine(
++        &self,
++        condition: Handle<Expression>,
++        truth: bool,
++        mut ranges: Ranges,
++    ) -> Option<Ranges> {
++        let Expression::Binary { op, left, right } = self.function.expressions[condition] else {
++            return Some(ranges);
++        };
++        let op = if truth { op } else { negate_comparison(op)? };
++        let (local, op, bound) = if let Some(local) = loaded_local(left, self.function) {
++            (local, op, self.expression_range(right, &ranges)?.exact()?)
++        } else if let Some(local) = loaded_local(right, self.function) {
++            (
++                local,
++                swap_comparison(op)?,
++                self.expression_range(left, &ranges)?.exact()?,
++            )
++        } else {
++            return Some(ranges);
++        };
++        let current = ranges
++            .get(&local)
++            .copied()
++            .or_else(|| self.local_full_range(local))?;
++        ranges.insert(local, refine_range(current, op, bound)?);
++        Some(ranges)
++    }
++
++    fn argument_range(&self, index: u32) -> Option<IntRange> {
++        match self.function.arguments[index as usize].binding.as_ref()? {
++            crate::Binding::BuiltIn(crate::BuiltIn::LocalInvocationIndex) => {
++                let size = self.workgroup_size?;
++                let total = size[0].checked_mul(size[1])?.checked_mul(size[2])?;
++                (total > 0).then_some(IntRange::U32 {
++                    min: 0,
++                    max: total - 1,
++                })
++            }
++            _ => None,
++        }
++    }
++
++    fn builtin_component_range(&self, base: Handle<Expression>, index: u32) -> Option<IntRange> {
++        let Expression::FunctionArgument(argument) = self.function.expressions[base] else {
++            return None;
++        };
++        if !matches!(
++            self.function.arguments[argument as usize].binding,
++            Some(crate::Binding::BuiltIn(crate::BuiltIn::LocalInvocationId))
++        ) {
++            return None;
++        }
++        let size = *self.workgroup_size?.get(index as usize)?;
++        (size > 0).then_some(IntRange::U32 {
++            min: 0,
++            max: size - 1,
++        })
++    }
++
++    fn local_full_range(&self, local: Handle<LocalVariable>) -> Option<IntRange> {
++        match self.module.types[self.function.local_variables[local].ty].inner {
++            TypeInner::Scalar(scalar) if scalar.width == 4 => IntRange::full(scalar.kind),
++            _ => None,
++        }
++    }
++
++    fn reset_local(&self, local: Handle<LocalVariable>, ranges: &mut Ranges) {
++        if let Some(range) = self.local_full_range(local) {
++            ranges.insert(local, range);
++        } else {
++            ranges.remove(&local);
++        }
++    }
++
++    fn reset_all_locals(&self, ranges: &mut Ranges) {
++        for (local, _) in self.function.local_variables.iter() {
++            self.reset_local(local, ranges);
+         }
+     }
+ }
+ 
+-fn analyze_loop_body(
+-    body: &Block,
+-    function: &Function,
+-    module: &Module,
+-    info: &mut FunctionInfo,
+-) {
+-    // Look for the `if i < N { ... } else { break; }` pattern
+-    let mut upper_bound = None;
+-    let mut induction_var = None;
++fn literal_range(literal: Literal) -> Option<IntRange> {
++    match literal {
++        Literal::U32(value) => Some(IntRange::U32 {
++            min: value,
++            max: value,
++        }),
++        Literal::I32(value) => Some(IntRange::I32 {
++            min: value,
++            max: value,
++        }),
++        _ => None,
++    }
++}
+ 
+-    for stmt in body {
+-        if let Statement::If { condition, ref reject, .. } = *stmt {
+-            if reject.iter().any(|s| matches!(*s, Statement::Break)) {
+-                extract_bound_from_comparison(condition, function, &mut induction_var, &mut upper_bound);
++fn global_range(handle: Handle<Expression>, module: &Module) -> Option<IntRange> {
++    match module.global_expressions[handle] {
++        Expression::Literal(literal) => literal_range(literal),
++        Expression::Constant(constant) => global_range(module.constants[constant].init, module),
++        Expression::Binary { op, left, right } => {
++            let left = global_range(left, module)?;
++            let right = global_range(right, module)?;
++            match op {
++                BinaryOperator::Add => left.add(right),
++                BinaryOperator::Subtract => left.sub(right),
++                BinaryOperator::Multiply => left.mul(right),
++                _ => None,
+             }
+         }
++        _ => None,
++    }
++}
++
++fn loaded_local(handle: Handle<Expression>, function: &Function) -> Option<Handle<LocalVariable>> {
++    let Expression::Load { pointer } = function.expressions[handle] else {
++        return None;
++    };
++    let Expression::LocalVariable(local) = function.expressions[pointer] else {
++        return None;
++    };
++    Some(local)
++}
++
++fn root_local(handle: Handle<Expression>, function: &Function) -> Option<Handle<LocalVariable>> {
++    match function.expressions[handle] {
++        Expression::LocalVariable(local) => Some(local),
++        Expression::Access { base, .. } | Expression::AccessIndex { base, .. } => {
++            root_local(base, function)
++        }
++        _ => None,
++    }
++}
++
++fn refine_range(range: IntRange, op: BinaryOperator, bound: i64) -> Option<IntRange> {
++    match op {
++        BinaryOperator::Less => range.upper(bound.checked_sub(1)?),
++        BinaryOperator::LessEqual => range.upper(bound),
++        BinaryOperator::Greater => range.lower(bound.checked_add(1)?),
++        BinaryOperator::GreaterEqual => range.lower(bound),
++        BinaryOperator::Equal => range.lower(bound)?.upper(bound),
++        BinaryOperator::NotEqual => match range.exact() {
++            Some(value) if value == bound => None,
++            _ => Some(range),
++        },
++        _ => None,
+     }
++}
+ 
+-    tag_safe_accesses(induction_var, upper_bound, function, module, info);
++fn negate_comparison(op: BinaryOperator) -> Option<BinaryOperator> {
++    Some(match op {
++        BinaryOperator::Less => BinaryOperator::GreaterEqual,
++        BinaryOperator::LessEqual => BinaryOperator::Greater,
++        BinaryOperator::Greater => BinaryOperator::LessEqual,
++        BinaryOperator::GreaterEqual => BinaryOperator::Less,
++        BinaryOperator::Equal => BinaryOperator::NotEqual,
++        BinaryOperator::NotEqual => BinaryOperator::Equal,
++        _ => return None,
++    })
+ }
+ 
+-/// Analyze a `break_if` expression from a `Statement::Loop`.
+-/// `break_if = i >= N` means the loop breaks when `i >= N`,
+-/// so the body runs while `i < N`. `arr[i]` is safe if `len >= N`.
+-fn analyze_break_if(
+-    break_if: Handle<crate::Expression>,
++fn swap_comparison(op: BinaryOperator) -> Option<BinaryOperator> {
++    Some(match op {
++        BinaryOperator::Less => BinaryOperator::Greater,
++        BinaryOperator::LessEqual => BinaryOperator::GreaterEqual,
++        BinaryOperator::Greater => BinaryOperator::Less,
++        BinaryOperator::GreaterEqual => BinaryOperator::LessEqual,
++        BinaryOperator::Equal | BinaryOperator::NotEqual => op,
++        _ => return None,
++    })
++}
++
++fn join_ranges(left: &Ranges, right: &Ranges) -> Ranges {
++    left.iter()
++        .filter_map(|(&local, &range)| {
++            right
++                .get(&local)
++                .and_then(|&other| range.join(other))
++                .map(|joined| (local, joined))
++        })
++        .collect()
++}
++
++fn mutated_locals(
++    body: &Block,
++    continuing: &Block,
+     function: &Function,
+-    module: &Module,
+-    info: &mut FunctionInfo,
++) -> crate::FastHashSet<Handle<LocalVariable>> {
++    let mut result = crate::FastHashSet::default();
++    collect_mutated(body, function, &mut result);
++    collect_mutated(continuing, function, &mut result);
++    result
++}
++
++fn collect_mutated(
++    block: &Block,
++    function: &Function,
++    result: &mut crate::FastHashSet<Handle<LocalVariable>>,
+ ) {
+-    let mut induction_var = None;
+-    let mut upper_bound = None;
+-
+-    if let Expression::Binary { op: BinaryOperator::GreaterEqual, left, right } = function.expressions[break_if] {
+-        if let Expression::Load { pointer } = function.expressions[left] {
+-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
+-                induction_var = Some(v);
+-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
+-                    upper_bound = Some(val);
+-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
+-                    upper_bound = Some(val as u32);
++    for statement in block {
++        match statement {
++            Statement::Store { pointer, .. } | Statement::Atomic { pointer, .. } => {
++                if let Some(local) = root_local(*pointer, function) {
++                    result.insert(local);
+                 }
+             }
+-        }
+-    } else if let Expression::Binary { op: BinaryOperator::Greater, left, right } = function.expressions[break_if] {
+-        // `break if i > N` -> body runs while `i <= N`, so bound is N+1
+-        if let Expression::Load { pointer } = function.expressions[left] {
+-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
+-                induction_var = Some(v);
+-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
+-                    upper_bound = Some(val + 1);
+-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
+-                    upper_bound = Some(val as u32 + 1);
++            Statement::Block(block) => collect_mutated(block, function, result),
++            Statement::If { accept, reject, .. } => {
++                collect_mutated(accept, function, result);
++                collect_mutated(reject, function, result);
++            }
++            Statement::Switch { cases, .. } => {
++                for case in cases {
++                    collect_mutated(&case.body, function, result);
+                 }
+             }
++            Statement::Loop {
++                body, continuing, ..
++            } => {
++                collect_mutated(body, function, result);
++                collect_mutated(continuing, function, result);
++            }
++            Statement::Call { .. } => {
++                for (local, _) in function.local_variables.iter() {
++                    result.insert(local);
++                }
++            }
++            _ => {}
+         }
+     }
++}
+ 
+-    tag_safe_accesses(induction_var, upper_bound, function, module, info);
++#[derive(Clone, Copy)]
++enum UpdateLocation {
++    Body(usize),
++    Continuing,
+ }
+ 
+-/// Extract induction variable and upper bound from comparison expressions.
+-/// Handles `i < N` (bound = N) and `i <= N` (bound = N+1).
+-fn extract_bound_from_comparison(
+-    condition: Handle<crate::Expression>,
++fn single_update(
++    local: Handle<LocalVariable>,
++    body: &Block,
++    continuing: &Block,
+     function: &Function,
+-    induction_var: &mut Option<Handle<crate::LocalVariable>>,
+-    upper_bound: &mut Option<u32>,
+-) {
+-    if let Expression::Binary { op: BinaryOperator::Less, left, right } = function.expressions[condition] {
+-        if let Expression::Load { pointer } = function.expressions[left] {
+-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
+-                *induction_var = Some(v);
+-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
+-                    *upper_bound = Some(val);
+-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
+-                    *upper_bound = Some(val as u32);
+-                }
++    module: &Module,
++) -> Option<(i64, IntRange, UpdateLocation)> {
++    if local_mutation_count(body, local, function)
++        .checked_add(local_mutation_count(continuing, local, function))?
++        != 1
++    {
++        return None;
++    }
++    let mut updates = Vec::new();
++    for (position, statement) in body.iter().enumerate() {
++        if let Some((target, step, template)) = direct_update(statement, function, module) {
++            if target == local {
++                updates.push((step, template, UpdateLocation::Body(position)));
+             }
+         }
+-    } else if let Expression::Binary { op: BinaryOperator::LessEqual, left, right } = function.expressions[condition] {
+-        if let Expression::Load { pointer } = function.expressions[left] {
+-            if let Expression::LocalVariable(v) = function.expressions[pointer] {
+-                *induction_var = Some(v);
+-                if let Expression::Literal(crate::Literal::U32(val)) = function.expressions[right] {
+-                    *upper_bound = Some(val + 1);
+-                } else if let Expression::Literal(crate::Literal::I32(val)) = function.expressions[right] {
+-                    *upper_bound = Some(val as u32 + 1);
+-                }
++    }
++    for statement in continuing {
++        if let Some((target, step, template)) = direct_update(statement, function, module) {
++            if target == local {
++                updates.push((step, template, UpdateLocation::Continuing));
+             }
+         }
+     }
++    (updates.len() == 1).then(|| updates[0])
+ }
+ 
+-/// Mark all `Access` expressions that use the given induction variable
+-/// as the index, where array length >= bound, as safe.
+-fn tag_safe_accesses(
+-    induction_var: Option<Handle<crate::LocalVariable>>,
+-    upper_bound: Option<u32>,
++fn local_mutation_count(block: &Block, local: Handle<LocalVariable>, function: &Function) -> usize {
++    block
++        .iter()
++        .map(|statement| match statement {
++            Statement::Store { pointer, .. } | Statement::Atomic { pointer, .. } => {
++                usize::from(root_local(*pointer, function) == Some(local))
++            }
++            Statement::Block(block) => local_mutation_count(block, local, function),
++            Statement::If { accept, reject, .. } => local_mutation_count(accept, local, function)
++                .saturating_add(local_mutation_count(reject, local, function)),
++            Statement::Switch { cases, .. } => cases.iter().fold(0usize, |count, case| {
++                count.saturating_add(local_mutation_count(&case.body, local, function))
++            }),
++            Statement::Loop {
++                body, continuing, ..
++            } => local_mutation_count(body, local, function)
++                .saturating_add(local_mutation_count(continuing, local, function)),
++            Statement::Call { .. } => 1,
++            _ => 0,
++        })
++        .fold(0usize, usize::saturating_add)
++}
++
++fn direct_update(
++    statement: &Statement,
+     function: &Function,
+     module: &Module,
+-    info: &mut FunctionInfo,
+-) {
+-    if let (Some(ind_var), Some(max_val)) = (induction_var, upper_bound) {
+-        for (_handle, expr) in function.expressions.iter() {
+-            if let Expression::Access { base, index } = *expr {
+-                if let Expression::Load { pointer } = function.expressions[index] {
+-                    if let Expression::LocalVariable(v) = function.expressions[pointer] {
+-                        if v == ind_var {
+-                            let base_ty = info[base].ty.inner_with(&module.types);
+-                            if let TypeInner::Pointer { base: ptr_base, .. } = *base_ty {
+-                                let inner = &module.types[ptr_base].inner;
+-                                if let TypeInner::Array { size: crate::ArraySize::Constant(sz), .. } = *inner {
+-                                    if sz.get() >= max_val {
+-                                        info.safe_indices.insert(index);
+-                                    }
+-                                }
+-                            }
++) -> Option<(Handle<LocalVariable>, i64, IntRange)> {
++    let Statement::Store { pointer, value } = *statement else {
++        return None;
++    };
++    let Expression::LocalVariable(local) = function.expressions[pointer] else {
++        return None;
++    };
++    let Expression::Binary { op, left, right } = function.expressions[value] else {
++        return None;
++    };
++    if loaded_local(left, function) != Some(local) {
++        return None;
++    }
++    let constant = match function.expressions[right] {
++        Expression::Literal(literal) => literal_range(literal)?,
++        Expression::Constant(constant) => global_range(module.constants[constant].init, module)?,
++        _ => return None,
++    };
++    let magnitude = constant.exact()?;
++    if magnitude <= 0 {
++        return None;
++    }
++    let step = match op {
++        BinaryOperator::Add => magnitude,
++        BinaryOperator::Subtract => magnitude.checked_neg()?,
++        _ => return None,
++    };
++    Some((local, step, constant))
++}
++
++fn loop_guard(
++    body: &Block,
++    local: Handle<LocalVariable>,
++    function: &Function,
++) -> Option<(Handle<Expression>, bool, usize)> {
++    body.iter().enumerate().find_map(|(position, statement)| {
++        let Statement::If {
++            condition,
++            accept,
++            reject,
++        } = statement
++        else {
++            return None;
++        };
++        if !condition_mentions(*condition, local, function) {
++            return None;
++        }
++        if matches!(accept.last(), Some(Statement::Break)) {
++            Some((*condition, true, position))
++        } else if matches!(reject.last(), Some(Statement::Break)) {
++            Some((*condition, false, position))
++        } else {
++            None
++        }
++    })
++}
++
++fn condition_mentions(
++    condition: Handle<Expression>,
++    local: Handle<LocalVariable>,
++    function: &Function,
++) -> bool {
++    match function.expressions[condition] {
++        Expression::Binary { left, right, .. } => {
++            loaded_local(left, function) == Some(local)
++                || loaded_local(right, function) == Some(local)
++        }
++        _ => false,
++    }
++}
++
++fn comparison(
++    condition: Handle<Expression>,
++    local: Handle<LocalVariable>,
++    function: &Function,
++    module: &Module,
++) -> Option<(BinaryOperator, i64)> {
++    let Expression::Binary { op, left, right } = function.expressions[condition] else {
++        return None;
++    };
++    if loaded_local(left, function) == Some(local) {
++        Some((op, exact_constant(right, function, module)?))
++    } else if loaded_local(right, function) == Some(local) {
++        Some((
++            swap_comparison(op)?,
++            exact_constant(left, function, module)?,
++        ))
++    } else {
++        None
++    }
++}
++
++fn exact_constant(handle: Handle<Expression>, function: &Function, module: &Module) -> Option<i64> {
++    match function.expressions[handle] {
++        Expression::Literal(literal) => literal_range(literal)?.exact(),
++        Expression::Constant(constant) => {
++            global_range(module.constants[constant].init, module)?.exact()
++        }
++        _ => None,
++    }
++}
++
++fn recurrence_range(
++    start: i64,
++    step: i64,
++    exit_op: BinaryOperator,
++    bound: i64,
++    template: IntRange,
++) -> Option<IntRange> {
++    let (min, max, exit) = if step > 0 {
++        let distance = bound.checked_sub(start)?;
++        if distance <= 0 {
++            return None;
++        }
++        let iterations = match exit_op {
++            BinaryOperator::GreaterEqual => ceil_div(distance, step)?,
++            BinaryOperator::Greater => ceil_div(distance.checked_add(1)?, step)?,
++            BinaryOperator::Equal if distance % step == 0 => distance / step,
++            _ => return None,
++        };
++        let max = start.checked_add(iterations.checked_sub(1)?.checked_mul(step)?)?;
++        let exit = start.checked_add(iterations.checked_mul(step)?)?;
++        (start, max, exit)
++    } else if step < 0 {
++        let magnitude = step.checked_neg()?;
++        let distance = start.checked_sub(bound)?;
++        if distance <= 0 {
++            return None;
++        }
++        let iterations = match exit_op {
++            BinaryOperator::LessEqual => ceil_div(distance, magnitude)?,
++            BinaryOperator::Less => ceil_div(distance.checked_add(1)?, magnitude)?,
++            BinaryOperator::Equal if distance % magnitude == 0 => distance / magnitude,
++            _ => return None,
++        };
++        let min = start.checked_sub(iterations.checked_sub(1)?.checked_mul(magnitude)?)?;
++        let exit = start.checked_sub(iterations.checked_mul(magnitude)?)?;
++        (min, start, exit)
++    } else {
++        return None;
++    };
++    make_range(template, exit, exit)?;
++    make_range(template, min, max)
++}
++
++fn ceil_div(numerator: i64, denominator: i64) -> Option<i64> {
++    numerator
++        .checked_add(denominator.checked_sub(1)?)?
++        .checked_div(denominator)
++}
++
++fn make_range(template: IntRange, min: i64, max: i64) -> Option<IntRange> {
++    match template {
++        IntRange::U32 { .. } => Some(IntRange::U32 {
++            min: u32::try_from(min).ok()?,
++            max: u32::try_from(max).ok()?,
++        }),
++        IntRange::I32 { .. } => Some(IntRange::I32 {
++            min: i32::try_from(min).ok()?,
++            max: i32::try_from(max).ok()?,
++        }),
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn unsigned_interval_arithmetic_matches_enumeration() {
++        for a in 0..=6u32 {
++            for b in a..=6 {
++                for c in 0..=6u32 {
++                    for d in c..=6 {
++                        let left = IntRange::U32 { min: a, max: b };
++                        let right = IntRange::U32 { min: c, max: d };
++                        let sums: Vec<_> =
++                            (a..=b).flat_map(|x| (c..=d).map(move |y| x + y)).collect();
++                        assert_eq!(
++                            left.add(right),
++                            Some(IntRange::U32 {
++                                min: *sums.iter().min().unwrap(),
++                                max: *sums.iter().max().unwrap(),
++                            })
++                        );
++                        let products: Vec<_> =
++                            (a..=b).flat_map(|x| (c..=d).map(move |y| x * y)).collect();
++                        assert_eq!(
++                            left.mul(right),
++                            Some(IntRange::U32 {
++                                min: *products.iter().min().unwrap(),
++                                max: *products.iter().max().unwrap(),
++                            })
++                        );
++                        let differences: Vec<_> = (a..=b)
++                            .flat_map(|x| (c..=d).filter_map(move |y| x.checked_sub(y)))
++                            .collect();
++                        if a >= d {
++                            assert_eq!(
++                                left.sub(right),
++                                Some(IntRange::U32 {
++                                    min: *differences.iter().min().unwrap(),
++                                    max: *differences.iter().max().unwrap(),
++                                })
++                            );
++                        } else {
++                            assert_eq!(left.sub(right), None);
+                         }
+                     }
+                 }
+             }
+         }
+     }
++
++    #[test]
++    fn signed_interval_arithmetic_matches_enumeration() {
++        for a in -4..=4i32 {
++            for b in a..=4 {
++                for c in -4..=4i32 {
++                    for d in c..=4 {
++                        let left = IntRange::I32 { min: a, max: b };
++                        let right = IntRange::I32 { min: c, max: d };
++                        let products: Vec<_> =
++                            (a..=b).flat_map(|x| (c..=d).map(move |y| x * y)).collect();
++                        assert_eq!(
++                            left.mul(right),
++                            Some(IntRange::I32 {
++                                min: *products.iter().min().unwrap(),
++                                max: *products.iter().max().unwrap(),
++                            })
++                        );
++                    }
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn interval_overflow_and_underflow_are_rejected() {
++        assert_eq!(
++            IntRange::U32 {
++                min: u32::MAX,
++                max: u32::MAX,
++            }
++            .add(IntRange::U32 { min: 1, max: 1 }),
++            None
++        );
++        assert_eq!(
++            IntRange::U32 { min: 0, max: 1 }.sub(IntRange::U32 { min: 1, max: 1 }),
++            None
++        );
++        assert_eq!(
++            IntRange::I32 {
++                min: i32::MAX,
++                max: i32::MAX,
++            }
++            .mul(IntRange::I32 { min: 2, max: 2 }),
++            None
++        );
++    }
++
++    #[test]
++    fn recurrence_requires_reachable_exit_and_no_wrap() {
++        let template = IntRange::U32 { min: 2, max: 2 };
++        assert_eq!(
++            recurrence_range(0, 2, BinaryOperator::Equal, 8, template),
++            Some(IntRange::U32 { min: 0, max: 6 })
++        );
++        assert_eq!(
++            recurrence_range(0, 2, BinaryOperator::Equal, 7, template),
++            None
++        );
++        assert_eq!(
++            recurrence_range(
++                i64::from(u32::MAX) - 1,
++                2,
++                BinaryOperator::Equal,
++                i64::from(u32::MAX) + 1,
++                template,
++            ),
++            None
++        );
++    }
+ }
+diff --git a/naga/src/proc/index.rs b/naga/src/proc/index.rs
+index ff79e74..e058aea 100644
+--- a/naga/src/proc/index.rs
++++ b/naga/src/proc/index.rs
+@@ -238,7 +238,7 @@ pub fn find_checked_indexes(
+ 
+     // Don't bother scanning if we never need `ReadZeroSkipWrite`.
+     if policies.contains(BoundsCheckPolicy::ReadZeroSkipWrite) {
+-        for (_handle, expr) in function.expressions.iter() {
++        for (handle, expr) in function.expressions.iter() {
+             // There's no need to handle `AccessIndex` expressions, as their
+             // indices never need to be cached.
+             match *expr {
+@@ -251,6 +251,7 @@ pub fn find_checked_indexes(
+                             module,
+                             &function.expressions,
+                             info,
++                            Some(handle),
+                         )
+                         .is_some()
+                     {
+@@ -325,6 +326,7 @@ pub fn access_needs_check(
+     module: &crate::Module,
+     expressions: &crate::Arena<crate::Expression>,
+     info: &valid::FunctionInfo,
++    access: Option<Handle<crate::Expression>>,
+ ) -> Option<IndexableLength> {
+     let base_inner = info[base].ty.inner_with(&module.types);
+     // Unwrap safety: `Err` here indicates unindexable base types and invalid
+@@ -340,8 +342,10 @@ pub fn access_needs_check(
+     };
+ 
+     if let GuardedIndex::Expression(expr) = index {
+-        if info.safe_indices.contains(&expr) {
+-            return None; // Loop-invariant bounds check elision
++        if info.safe_indices.contains(&expr)
++            || access.is_some_and(|handle| info.safe_accesses.contains(&handle))
++        {
++            return None;
+         }
+     }
+ 
+@@ -382,6 +386,7 @@ pub(crate) fn bounds_check_iter<'a>(
+     info: &'a valid::FunctionInfo,
+ ) -> impl Iterator<Item = BoundsCheck> + 'a {
+     iter::from_fn(move || {
++        let access = chain;
+         let (next_expr, result) = match function.expressions[chain] {
+             crate::Expression::Access { base, index } => {
+                 (base, Some((base, GuardedIndex::Expression(index))))
+@@ -401,16 +406,22 @@ pub(crate) fn bounds_check_iter<'a>(
+             _ => return None,
+         };
+         chain = next_expr;
+-        Some(result)
++        Some(result.map(|(base, index)| (access, base, index)))
+     })
+     .flatten()
+-    .filter_map(|(base, index)| {
+-        access_needs_check(base, index, module, &function.expressions, info).map(|length| {
+-            BoundsCheck {
+-                base,
+-                index,
+-                length,
+-            }
++    .filter_map(|(access, base, index)| {
++        access_needs_check(
++            base,
++            index,
++            module,
++            &function.expressions,
++            info,
++            Some(access),
++        )
++        .map(|length| BoundsCheck {
++            base,
++            index,
++            length,
+         })
+     })
+ }
+diff --git a/naga/src/proc/mod.rs b/naga/src/proc/mod.rs
+index 5e0732a..4156601 100644
+--- a/naga/src/proc/mod.rs
++++ b/naga/src/proc/mod.rs
+@@ -2,12 +2,12 @@
+ [`Module`](super::Module) processing functionality.
+ */
+ 
++pub mod bounds_check_elision;
+ mod constant_evaluator;
+ mod emitter;
+ pub mod index;
+ mod keyword_set;
+ pub mod layouter;
+-pub mod bounds_check_elision;
+ mod namer;
+ mod overloads;
+ mod terminator;
+diff --git a/naga/src/valid/analyzer.rs b/naga/src/valid/analyzer.rs
+index 262c5bb..690b85a 100644
+--- a/naga/src/valid/analyzer.rs
++++ b/naga/src/valid/analyzer.rs
+@@ -248,8 +248,10 @@ pub struct FunctionInfo {
+     pub uniformity: Uniformity,
+     /// Function may kill the invocation.
+     pub may_kill: bool,
+-    /// Set of indices known to be safe
++    /// Index expressions whose ranges are safe at every use.
+     pub safe_indices: crate::FastHashSet<Handle<crate::Expression>>,
++    /// Access expressions proven safe at their specific program points.
++    pub safe_accesses: crate::FastHashSet<Handle<crate::Expression>>,
+ 
+     /// All pairs of (texture, sampler) globals that may be used together in
+     /// sampling operations by this function and its callees. This includes
+@@ -1265,6 +1267,7 @@ impl ModuleInfo {
+             uniformity: Uniformity::new(),
+             may_kill: false,
+             safe_indices: crate::FastHashSet::default(),
++            safe_accesses: crate::FastHashSet::default(),
+             sampling_set: crate::FastHashSet::default(),
+             global_uses: vec![GlobalUse::empty(); module.global_variables.len()].into_boxed_slice(),
+             expressions: vec![ExpressionInfo::new(); fun.expressions.len()].into_boxed_slice(),
+@@ -1318,63 +1321,6 @@ impl ModuleInfo {
+             }
+         }
+ 
+-        // Populate safe_indices for provably-safe builtin-based indices
+-        // This enables bounds check elision for cases like tile[lid] where
+-        // tile has N elements and lid ∈ [0, workgroup_size) with N >= workgroup_size
+-        {
+-            // Find the function argument bound to local_invocation_index
+-            let lid_arg = fun.arguments.iter().position(|arg| {
+-                matches!(
+-                    arg.binding,
+-                    Some(crate::Binding::BuiltIn(
+-                        crate::BuiltIn::LocalInvocationIndex
+-                    ))
+-                )
+-            });
+-
+-            if let Some(lid_arg_idx) = lid_arg {
+-                // Find workgroup size from entry point data
+-                let wg_size = module.entry_points.iter().find_map(|ep| {
+-                    if ep.function.name == fun.name {
+-                        Some(ep.workgroup_size.iter().product::<u32>())
+-                    } else {
+-                        None
+-                    }
+-                });
+-
+-                if let Some(wg_size @ 1..) = wg_size {
+-                    // Scan all Access expressions for provably-safe lid-based indices
+-                    for (_, expr) in fun.expressions.iter() {
+-                        if let crate::Expression::Access { base, index } = *expr {
+-                            if let crate::Expression::FunctionArgument(arg_idx) =
+-                                fun.expressions[index]
+-                            {
+-                                if arg_idx as usize == lid_arg_idx {
+-                                    // The index is local_invocation_index
+-                                    // Check if the base type has a known length >= wg_size
+-                                    let base_ty = info[base].ty.inner_with(&module.types);
+-                                    // Follow pointer to get the actual array type
+-                                    let inner = match *base_ty {
+-                                        crate::TypeInner::Pointer { base, .. } => {
+-                                            &module.types[base].inner
+-                                        }
+-                                        ref other => other,
+-                                    };
+-                                    if let Ok(crate::proc::IndexableLength::Known(len)) =
+-                                        inner.indexable_length_resolved(module)
+-                                    {
+-                                        if len >= wg_size {
+-                                            info.safe_indices.insert(index);
+-                                        }
+-                                    }
+-                                }
+-                            }
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-
+         Ok(info)
+     }
+ 
+@@ -1459,6 +1405,7 @@ fn uniform_control_flow() {
+         uniformity: Uniformity::new(),
+         may_kill: false,
+         safe_indices: crate::FastHashSet::default(),
++        safe_accesses: crate::FastHashSet::default(),
+         sampling_set: crate::FastHashSet::default(),
+         global_uses: vec![GlobalUse::empty(); global_var_arena.len()].into_boxed_slice(),
+         expressions: vec![ExpressionInfo::new(); expressions.len()].into_boxed_slice(),
+diff --git a/naga/src/valid/function.rs b/naga/src/valid/function.rs
+index a2cf8e6..f9ece16 100644
+--- a/naga/src/valid/function.rs
++++ b/naga/src/valid/function.rs
+@@ -1939,7 +1939,9 @@ impl super::Validator {
+                 }
+             }
+         }
+-        crate::proc::bounds_check_elision::elide_bounds_checks(fun, module, &mut info);
++        if self.bounds_check_elision {
++            crate::proc::bounds_check_elision::elide_bounds_checks(fun, module, &mut info);
++        }
+         Ok(info)
+     }
+ }
+diff --git a/naga/src/valid/mod.rs b/naga/src/valid/mod.rs
+index 8dc549f..c0b4f9c 100644
+--- a/naga/src/valid/mod.rs
++++ b/naga/src/valid/mod.rs
+@@ -372,6 +372,7 @@ impl ops::Index<Handle<crate::Expression>> for ModuleInfo {
+ pub struct Validator {
+     flags: ValidationFlags,
+     capabilities: Capabilities,
++    bounds_check_elision: bool,
+     subgroup_stages: ShaderStages,
+     subgroup_operations: SubgroupOperationSet,
+     types: Vec<r#type::TypeInfo>,
+@@ -619,6 +620,7 @@ impl Validator {
+         Validator {
+             flags,
+             capabilities,
++            bounds_check_elision: true,
+             subgroup_stages,
+             subgroup_operations,
+             types: Vec::new(),
+@@ -636,6 +638,14 @@ impl Validator {
+         }
+     }
+ 
++    /// Enable or disable bounds-check elision analysis.
++    ///
++    /// This is enabled by default. Disabling it is intended for differential
++    /// testing and benchmarking with otherwise identical validation settings.
++    pub fn set_bounds_check_elision(&mut self, enabled: bool) {
++        self.bounds_check_elision = enabled;
++    }
++
+     // TODO(https://github.com/gfx-rs/wgpu/issues/8207): Consider removing this
+     pub const fn subgroup_stages(&mut self, stages: ShaderStages) -> &mut Self {
+         self.subgroup_stages = stages;
+diff --git a/naga/tests/naga/bounds_check_stress.rs b/naga/tests/naga/bounds_check_stress.rs
+index 5642a21..80ba438 100644
+--- a/naga/tests/naga/bounds_check_stress.rs
++++ b/naga/tests/naga/bounds_check_stress.rs
+@@ -2,7 +2,7 @@
+ //!
+ //! These tests deliberately push the elision to its breaking points:
+ //! - Boundary: array_len == wg_size (exact fit), > wg_size (oversized)
+-//! - MUST NOT ELIDE: lid+1, lid-1, lid*2, helper fn forwarding
++//! - Affine builtin expressions with checked overflow and underflow
+ //! - 3D workgroups: local_invocation_id.x, (y,z combinations)
+ //! - Storage buffer accesses (dynamic-length arrays)
+ //! - Loop induction variables (if/break, break_if)
+@@ -14,6 +14,24 @@ use naga::proc::{BoundsCheckPolicies, BoundsCheckPolicy};
+ use naga::valid::{Capabilities, ValidationFlags, Validator};
+ use rspirv::binary::Disassemble;
+ 
++fn access_proofs(text: &str) -> Vec<bool> {
++    let module = naga::front::wgsl::parse_str(text).expect("WGSL parse");
++    let info = Validator::new(ValidationFlags::all(), Capabilities::all())
++        .validate(&module)
++        .expect("validation");
++    let function = &module.entry_points[0].function;
++    let function_info = info.get_entry_point(0);
++
++    function
++        .expressions
++        .iter()
++        .filter_map(|(handle, expression)| match *expression {
++            naga::Expression::Access { .. } => Some(function_info.safe_accesses.contains(&handle)),
++            _ => None,
++        })
++        .collect()
++}
++
+ /// Compile WGSL to SPIR-V disassembly text under a given policy.
+ fn compile(text: &str, policy: BoundsCheckPolicy) -> String {
+     let module = naga::front::wgsl::parse_str(text).expect("WGSL parse");
+@@ -34,26 +52,67 @@ fn compile(text: &str, policy: BoundsCheckPolicy) -> String {
+         .disassemble()
+ }
+ 
+-/// Count occurrences of a substring in SPIR-V disassembly.
+-fn count(text: &str, marker: &str) -> usize {
+-    text.matches(marker).count()
++fn compile_with_elision(
++    text: &str,
++    policy: BoundsCheckPolicy,
++    bounds_check_elision: bool,
++) -> String {
++    let module = naga::front::wgsl::parse_str(text).expect("WGSL parse");
++    let mut validator = Validator::new(ValidationFlags::all(), Capabilities::all());
++    validator.set_bounds_check_elision(bounds_check_elision);
++    let info = validator.validate(&module).expect("validation");
++    let opts = spv::Options {
++        bounds_check_policies: BoundsCheckPolicies {
++            index: policy,
++            buffer: policy,
++            ..Default::default()
++        },
++        ..Default::default()
++    };
++    let words = spv::write_vec(&module, &info, &opts, None).expect("SPIR-V codegen");
++    rspirv::dr::load_words(words)
++        .expect("valid SPIR-V")
++        .disassemble()
++}
++
++fn compile_msl(text: &str) -> String {
++    let module = naga::front::wgsl::parse_str(text).expect("WGSL parse");
++    let info = Validator::new(ValidationFlags::all(), Capabilities::all())
++        .validate(&module)
++        .expect("validation");
++    let mut options = naga::back::msl::Options::default();
++    options.bounds_check_policies = BoundsCheckPolicies {
++        index: BoundsCheckPolicy::Restrict,
++        buffer: BoundsCheckPolicy::Restrict,
++        ..Default::default()
++    };
++    naga::back::msl::write_string(
++        &module,
++        &info,
++        &options,
++        &naga::back::msl::PipelineOptions::default(),
++    )
++    .expect("MSL codegen")
++    .0
+ }
+ 
+-/// Compile both checked (ReadZeroSkipWrite) and unchecked versions,
+-/// then assert that the checked version is NO LARGER than the unchecked
+-/// version (in instruction opcodes). Returns (checked_count, unchecked_count).
+-struct PolicyCounts {
+-    checked: usize,
+-    unchecked: usize,
++fn compile_hlsl(text: &str) -> String {
++    let module = naga::front::wgsl::parse_str(text).expect("WGSL parse");
++    let info = Validator::new(ValidationFlags::all(), Capabilities::all())
++        .validate(&module)
++        .expect("validation");
++    let options = naga::back::hlsl::Options::default();
++    let pipeline_options = naga::back::hlsl::PipelineOptions::default();
++    let mut output = String::new();
++    naga::back::hlsl::Writer::new(&mut output, &options, &pipeline_options)
++        .write(&module, &info, None)
++        .expect("HLSL codegen");
++    output
+ }
+ 
+-fn compare_policies(text: &str, marker: &str) -> PolicyCounts {
+-    let checked_text = compile(text, BoundsCheckPolicy::ReadZeroSkipWrite);
+-    let unchecked_text = compile(text, BoundsCheckPolicy::Unchecked);
+-    PolicyCounts {
+-        checked: count(&checked_text, marker),
+-        unchecked: count(&unchecked_text, marker),
+-    }
++/// Count occurrences of a substring in SPIR-V disassembly.
++fn count(text: &str, marker: &str) -> usize {
++    text.matches(marker).count()
+ }
+ 
+ // =========================================================================
+@@ -150,21 +209,69 @@ fn lid_minus_one_wraparound_check_retained() {
+     assert!(text.contains("UMin"), "lid-1: UMin must be retained");
+ }
+ 
+-/// lid * 2: when lid = 255, lid*2 = 510 which is OOB for many arrays.
+-/// Elision MUST NOT apply (multiplicative transform).
++/// lid * 2: when lid = 255, lid*2 = 510, which fits in array<512>.
+ #[test]
+-fn lid_times_two_check_retained() {
+-    let text = compile(
+-        r#"
++fn lid_times_two_safe_affine_elided() {
++    let source = r#"
+         var<workgroup> tile: array<f32, 512>;
+         @compute @workgroup_size(256)
+         fn main(@builtin(local_invocation_index) lid: u32) {
+             tile[lid * 2u] = 1.0;
+         }
+-        "#,
+-        BoundsCheckPolicy::Restrict,
+-    );
+-    assert!(text.contains("UMin"), "lid*2: UMin must be retained");
++        "#;
++    assert_eq!(access_proofs(source), [true]);
++    let text = compile(source, BoundsCheckPolicy::Restrict);
++    assert!(!text.contains("UMin"), "lid*2: UMin should be elided");
++}
++
++#[test]
++fn lid_plus_one_safe_affine_elided() {
++    let source = r#"
++        var<workgroup> tile: array<f32, 65>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[lid + 1u] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true]);
++}
++
++#[test]
++fn two_lid_plus_one_exact_fit_elided() {
++    let source = r#"
++        var<workgroup> tile: array<f32, 128>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[2u * lid + 1u] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true]);
++}
++
++#[test]
++fn affine_multiplication_overflow_retains_check() {
++    let source = r#"
++        var<workgroup> tile: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[lid * 0xffffffffu] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn same_index_source_is_proved_per_access() {
++    let source = r#"
++        var<workgroup> wide: array<f32, 64>;
++        var<workgroup> narrow: array<f32, 32>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            wide[lid] = 1.0;
++            narrow[lid] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true, false]);
+ }
+ 
+ // =========================================================================
+@@ -208,10 +315,9 @@ fn workgroup_3d_lid_elided() {
+ /// via a component, e.g. `tile[lid3.x]`. The elision analysis only matches a
+ /// bare `Expression::FunctionArgument` bound to `LocalInvocationIndex`; a
+ /// vec3 builtin accessed via `.x`/AccessIndex is a structurally different
+-/// expression shape and is NOT recognized. Elision MUST NOT apply here —
+-/// this locks in that the gap fails closed (conservative), not open (unsound).
++/// expression shape. The interval analysis recognizes the component range.
+ #[test]
+-fn local_invocation_id_vec3_not_elided() {
++fn local_invocation_id_x_elided() {
+     let text = compile(
+         r#"
+         var<workgroup> tile: array<f32, 64>;
+@@ -223,8 +329,8 @@ fn local_invocation_id_vec3_not_elided() {
+         BoundsCheckPolicy::Restrict,
+     );
+     assert!(
+-        text.contains("UMin"),
+-        "local_invocation_id.x: UMin must be retained (vec3 builtin access is not recognized by the elision analysis)"
++        !text.contains("UMin"),
++        "local_invocation_id.x should be elided"
+     );
+ }
+ 
+@@ -247,8 +353,10 @@ fn storage_buffer_runtime_array_check_retained() {
+         "#,
+         BoundsCheckPolicy::Restrict,
+     );
+-    assert!(text.contains("UMin") || text.contains("ULessThan") || text.contains("OpSelectionMerge"),
+-        "storage buffer: bounds check must be retained for runtime-sized arrays");
++    assert!(
++        text.contains("UMin") || text.contains("ULessThan") || text.contains("OpSelectionMerge"),
++        "storage buffer: bounds check must be retained for runtime-sized arrays"
++    );
+ }
+ 
+ // =========================================================================
+@@ -259,8 +367,7 @@ fn storage_buffer_runtime_array_check_retained() {
+ /// Elision SHOULD apply via bounds_check_elision.rs (if/break pattern).
+ #[test]
+ fn loop_induction_variable_if_break() {
+-    let text = compile(
+-        r#"
++    let source = r#"
+         var<workgroup> arr: array<f32, 64>;
+         @compute @workgroup_size(64)
+         fn main(@builtin(local_invocation_index) lid: u32) {
+@@ -271,12 +378,257 @@ fn loop_induction_variable_if_break() {
+                 i = i + 1u;
+             }
+         }
+-        "#,
+-        BoundsCheckPolicy::Restrict,
++        "#;
++    assert_eq!(access_proofs(source), [true]);
++    let text = compile(source, BoundsCheckPolicy::Restrict);
++    assert!(
++        !text.contains("UMin"),
++        "loop if/break: UMin should be elided (i < 64, arr has 64)"
+     );
+-    // If elision works: no UMin inside the loop
+-    assert!(!text.contains("UMin"),
+-        "loop if/break: UMin should be elided (i < 64, arr has 64)");
++}
++
++#[test]
++fn loop_guard_does_not_prove_access_before_guard() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0u;
++            loop {
++                arr[i] = 1.0;
++                if i < 64u { } else { break; }
++                i = i + 1u;
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn loop_guard_does_not_prove_access_after_loop() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0u;
++            loop {
++                if i < 64u { } else { break; }
++                i = i + 1u;
++            }
++            arr[i] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn branch_fact_applies_only_to_dominated_arm() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = lid;
++            if i < 64u {
++                arr[i] = 1.0;
++            } else {
++                arr[i] = 2.0;
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true, false]);
++}
++
++#[test]
++fn mutation_after_guard_kills_range_fact() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = lid;
++            if i < 64u {
++                i = 100u;
++                arr[i] = 1.0;
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn early_return_guard_proves_fallthrough_access() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(128)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = lid;
++            if i >= 64u {
++                return;
++            }
++            arr[i] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true]);
++}
++
++#[test]
++fn unsafe_branch_is_preserved_at_join() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = 0u;
++            if lid < 32u {
++                i = lid;
++            } else {
++                i = 100u;
++            }
++            arr[i] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn safe_branches_join_to_safe_interval() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = 0u;
++            if lid < 32u {
++                i = lid;
++            } else {
++                i = 63u;
++            }
++            arr[i] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true]);
++}
++
++#[test]
++fn signed_negative_lower_bound_retains_check() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = -1i;
++            if i < 64i {
++                arr[i] = 1.0;
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn signed_non_negative_guard_elides_check() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 17i;
++            if i >= 0i {
++                arr[i] = 1.0;
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true]);
++}
++
++#[test]
++fn call_does_not_restore_local_initializer() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        fn noop() {}
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0u;
++            i = 100u;
++            noop();
++            arr[i] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn switch_break_path_is_included_after_switch() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = 0u;
++            switch lid {
++                case 0u: {
++                    i = 100u;
++                    break;
++                }
++                default: { i = 0u; }
++            }
++            arr[i] = 1.0;
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn nested_second_update_rejects_recurrence() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            var i = 0u;
++            loop {
++                arr[i] = 1.0;
++                if lid == 0u {
++                    i = i + 100u;
++                }
++                continuing {
++                    i = i + 1u;
++                    break if i >= 64u;
++                }
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn two_direct_updates_reject_recurrence() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0u;
++            loop {
++                arr[i] = 1.0;
++                i = i + 1u;
++                continuing {
++                    i = i + 1u;
++                    break if i >= 64u;
++                }
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn maximum_inclusive_bound_does_not_overflow_analysis() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 64>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0xffffffffu;
++            loop {
++                if i <= 0xffffffffu { } else { break; }
++                arr[i] = 1.0;
++                break;
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
+ }
+ 
+ /// Loop induction variable with break_if pattern:
+@@ -301,8 +653,10 @@ fn loop_induction_variable_break_if() {
+         BoundsCheckPolicy::Restrict,
+     );
+     // break_if i >= 128 means body runs while i < 128, arr has 128
+-    assert!(!text.contains("UMin"),
+-        "break_if: UMin should be elided (i < 128, arr has 128)");
++    assert!(
++        !text.contains("UMin"),
++        "break_if: UMin should be elided (i < 128, arr has 128)"
++    );
+ }
+ 
+ /// Loop with i < 64 and break_if i >= 64 — but arr only has 32 elements.
+@@ -325,8 +679,10 @@ fn loop_induction_variable_undersized_array() {
+         BoundsCheckPolicy::Restrict,
+     );
+     // arr only has 32 elements, but loop goes to 64 — check must be retained
+-    assert!(text.contains("UMin"),
+-        "loop undersized: UMin must be retained (arr has 32, loop to 64)");
++    assert!(
++        text.contains("UMin"),
++        "loop undersized: UMin must be retained (arr has 32, loop to 64)"
++    );
+ }
+ 
+ /// WGSL `while` loop: `while i < 64u { arr[i] = f32(i); i++; }`
+@@ -348,8 +704,10 @@ fn while_loop_induction_variable() {
+         "#,
+         BoundsCheckPolicy::Restrict,
+     );
+-    assert!(!text.contains("UMin"),
+-        "while loop: UMin should be elided (i < 64, arr has 64)");
++    assert!(
++        !text.contains("UMin"),
++        "while loop: UMin should be elided (i < 64, arr has 64)"
++    );
+ }
+ 
+ /// WGSL `for` loop: `for (var i = 0u; i < 64u; i++) { arr[i] = f32(i); }`
+@@ -368,8 +726,10 @@ fn for_loop_induction_variable() {
+         "#,
+         BoundsCheckPolicy::Restrict,
+     );
+-    assert!(!text.contains("UMin"),
+-        "for loop: UMin should be elided (i < 64, arr has 64)");
++    assert!(
++        !text.contains("UMin"),
++        "for loop: UMin should be elided (i < 64, arr has 64)"
++    );
+ }
+ 
+ /// Nested loops with a 2D array: `matrix[i][j]` where both i and j
+@@ -398,8 +758,10 @@ fn nested_loops_2d_array() {
+         BoundsCheckPolicy::Restrict,
+     );
+     // Both dimensions are safe: i < 4, j < 4, matrix is 4x4
+-    assert!(!text.contains("UMin"),
+-        "nested loops 2D: UMin should be elided (i < 4, j < 4, matrix is 4x4)");
++    assert!(
++        !text.contains("UMin"),
++        "nested loops 2D: UMin should be elided (i < 4, j < 4, matrix is 4x4)"
++    );
+ }
+ 
+ /// Non-zero initial value: i starts at 16, loops while i < 64.
+@@ -423,8 +785,10 @@ fn non_zero_initial_value_elided() {
+         BoundsCheckPolicy::Restrict,
+     );
+     // bound=64, arr_size=64, 64 >= 64 → elided
+-    assert!(!text.contains("UMin"),
+-        "non-zero init: UMin should be elided (bound=64, arr has 64)");
++    assert!(
++        !text.contains("UMin"),
++        "non-zero init: UMin should be elided (bound=64, arr has 64)"
++    );
+ }
+ 
+ /// Non-zero initial value with undersized array: i starts at 16, bound=64,
+@@ -447,15 +811,15 @@ fn non_zero_initial_value_retained() {
+         BoundsCheckPolicy::Restrict,
+     );
+     // bound=64, arr_size=48, 48 < 64 → NOT elided
+-    assert!(text.contains("UMin"),
+-        "non-zero init undersized: UMin must be retained (arr has 48, bound=64)");
++    assert!(
++        text.contains("UMin"),
++        "non-zero init undersized: UMin must be retained (arr has 48, bound=64)"
++    );
+ }
+ 
+ /// Decrementing loop: i goes from 63 down to 0.
+-/// The condition `i == 0u` does NOT match the `<` / `<=` patterns
+-/// the analysis looks for — this documents a current limitation.
+ #[test]
+-fn decrement_loop_not_elided() {
++fn decrement_loop_elided() {
+     let text = compile(
+         r#"
+         var<workgroup> arr: array<f32, 64>;
+@@ -471,17 +835,12 @@ fn decrement_loop_not_elided() {
+         "#,
+         BoundsCheckPolicy::Restrict,
+     );
+-    // Analysis doesn't handle decrement or equality conditions
+-    // Even though i is always in [0, 63] ⊂ array<64>, the analysis misses it
+-    assert!(text.contains("UMin"),
+-        "decrement loop: UMin should be retained (analysis limitation — doesn't handle decrement patterns)");
++    assert!(!text.contains("UMin"), "decrement loop should be elided");
+ }
+ 
+-/// Decrementing loop with `break if i == 0u`: the analysis's `break_if`
+-/// handler only recognizes `>=` and `>` patterns, not `==`.
+-/// This documents a current limitation — the loop is safe but not elided.
++/// Decrementing loop with `break if i == 0u`.
+ #[test]
+-fn decrement_break_if_not_elided() {
++fn decrement_break_if_elided() {
+     let text = compile(
+         r#"
+         var<workgroup> arr: array<f32, 64>;
+@@ -499,10 +858,86 @@ fn decrement_break_if_not_elided() {
+         "#,
+         BoundsCheckPolicy::Restrict,
+     );
+-    // break_if i == 0u uses Equal, not GreaterEqual/GreaterThan
+-    // The analysis misses this pattern
+-    assert!(text.contains("UMin"),
+-        "decrement break_if: UMin should be retained (analysis limitation — doesn't handle == in break_if)");
++    assert!(
++        !text.contains("UMin"),
++        "decrement break_if should be elided"
++    );
++}
++
++#[test]
++fn reachable_step_two_equality_exit_elided() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 8>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0u;
++            loop {
++                arr[i] = 1.0;
++                continuing {
++                    i = i + 2u;
++                    break if i == 8u;
++                }
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [true]);
++}
++
++#[test]
++fn unreachable_step_two_equality_exit_retains_check() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 8>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0u;
++            loop {
++                arr[i] = 1.0;
++                continuing {
++                    i = i + 2u;
++                    break if i == 7u;
++                }
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn positive_recurrence_overflow_retains_check() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 2>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 0xfffffffeu;
++            loop {
++                arr[i - 0xfffffffeu] = 1.0;
++                continuing {
++                    i = i + 2u;
++                    break if i == 0u;
++                }
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
++}
++
++#[test]
++fn negative_recurrence_underflow_retains_check() {
++    let source = r#"
++        var<workgroup> arr: array<f32, 2>;
++        @compute @workgroup_size(1)
++        fn main() {
++            var i = 1u;
++            loop {
++                arr[i] = 1.0;
++                continuing {
++                    i = i - 2u;
++                    break if i == 0xffffffffu;
++                }
++            }
++        }
++    "#;
++    assert_eq!(access_proofs(source), [false]);
+ }
+ 
+ // =========================================================================
+@@ -539,8 +974,10 @@ fn dual_array_lid_accesses_both_elided() {
+     // (zero from actual bounds checks, only zero-init related)
+     let c_umin = count(&checked, "UMin");
+     let u_umin = count(&unchecked, "UMin");
+-    assert_eq!(c_umin, u_umin,
+-        "dual lid: UMin count should match between checked ({c_umin}) and unchecked ({u_umin})");
++    assert_eq!(
++        c_umin, u_umin,
++        "dual lid: UMin count should match between checked ({c_umin}) and unchecked ({u_umin})"
++    );
+ }
+ 
+ // =========================================================================
+@@ -564,8 +1001,10 @@ fn op_uless_than_count_elided_to_zero() {
+         BoundsCheckPolicy::ReadZeroSkipWrite,
+     );
+     let uless_count = count(&text, "OpULessThan");
+-    assert_eq!(uless_count, 0,
+-        "OpULessThan should be 0 for elided tile[lid] (got {uless_count})");
++    assert_eq!(
++        uless_count, 0,
++        "OpULessThan should be 0 for elided tile[lid] (got {uless_count})"
++    );
+ }
+ 
+ /// lid+1 should have 1 OpULessThan (the bounds check).
+@@ -583,8 +1022,10 @@ fn op_uless_than_count_plus_one_is_one() {
+         BoundsCheckPolicy::ReadZeroSkipWrite,
+     );
+     let uless_count = count(&text, "OpULessThan");
+-    assert_eq!(uless_count, 1,
+-        "OpULessThan should be 1 for tile[lid+1] (got {uless_count})");
++    assert_eq!(
++        uless_count, 1,
++        "OpULessThan should be 1 for tile[lid+1] (got {uless_count})"
++    );
+ }
+ 
+ /// lid-1 (wraparound) should have 1 OpULessThan.
+@@ -602,8 +1043,10 @@ fn op_uless_than_count_minus_one_is_one() {
+         BoundsCheckPolicy::ReadZeroSkipWrite,
+     );
+     let uless_count = count(&text, "OpULessThan");
+-    assert_eq!(uless_count, 1,
+-        "OpULessThan should be 1 for tile[lid-1] (got {uless_count})");
++    assert_eq!(
++        uless_count, 1,
++        "OpULessThan should be 1 for tile[lid-1] (got {uless_count})"
++    );
+ }
+ 
+ // =========================================================================
+@@ -621,10 +1064,72 @@ fn access_chain_count_identical_across_policies() {
+             tile[lid] = 1.0;
+         }
+     "#;
+-    let rzw = count(&compile(wgsl, BoundsCheckPolicy::ReadZeroSkipWrite), "OpAccessChain");
++    let rzw = count(
++        &compile(wgsl, BoundsCheckPolicy::ReadZeroSkipWrite),
++        "OpAccessChain",
++    );
+     let rest = count(&compile(wgsl, BoundsCheckPolicy::Restrict), "OpAccessChain");
+-    let unch = count(&compile(wgsl, BoundsCheckPolicy::Unchecked), "OpAccessChain");
++    let unch = count(
++        &compile(wgsl, BoundsCheckPolicy::Unchecked),
++        "OpAccessChain",
++    );
+     // All should have the same number (just 1 access chain, no extra from bounds)
+     assert_eq!(rzw, unch, "ReadZeroSkipWrite ({rzw}) vs Unchecked ({unch})");
+     assert_eq!(rest, unch, "Restrict ({rest}) vs Unchecked ({unch})");
+ }
++
++#[test]
++fn validator_toggle_isolates_elision_effect() {
++    let source = r#"
++        var<workgroup> tile: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            let value = tile[lid];
++            tile[0] = value;
++        }
++    "#;
++    let enabled = compile_with_elision(source, BoundsCheckPolicy::ReadZeroSkipWrite, true);
++    let disabled = compile_with_elision(source, BoundsCheckPolicy::ReadZeroSkipWrite, false);
++    assert_eq!(count(&enabled, "OpULessThan"), 0);
++    assert_eq!(count(&disabled, "OpULessThan"), 1);
++}
++
++#[test]
++fn msl_uses_access_specific_proof() {
++    let safe = r#"
++        var<workgroup> tile: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[lid] = 1.0;
++        }
++    "#;
++    let unsafe_source = r#"
++        var<workgroup> tile: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[lid + 1u] = 1.0;
++        }
++    "#;
++    assert!(!compile_msl(safe).contains("metal::min(unsigned("));
++    assert!(compile_msl(unsafe_source).contains("metal::min(unsigned("));
++}
++
++#[test]
++fn hlsl_uses_access_specific_proof() {
++    let safe = r#"
++        var<workgroup> tile: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[lid] = 1.0;
++        }
++    "#;
++    let unsafe_source = r#"
++        var<workgroup> tile: array<f32, 64>;
++        @compute @workgroup_size(64)
++        fn main(@builtin(local_invocation_index) lid: u32) {
++            tile[lid + 1u] = 1.0;
++        }
++    "#;
++    assert!(!compile_hlsl(safe).contains("min(uint("));
++    assert!(compile_hlsl(unsafe_source).contains("min(uint("));
++}
+diff --git a/naga/tests/naga/elision_assertions.rs b/naga/tests/naga/elision_assertions.rs
+index 9f83390..dbacf7a 100644
+--- a/naga/tests/naga/elision_assertions.rs
++++ b/naga/tests/naga/elision_assertions.rs
+@@ -14,13 +14,9 @@
+ //!
+ //! HOW TO WIRE THIS IN: add `mod elision_assertions;` to `tests/naga/main.rs`.
+ //!
+-//! STATUS: every case here currently exercises the *unpatched* Naga
+-//! (`access_needs_check` only elides compile-time-constant indices, per
+-//! `naga/src/proc/index.rs:322`). Cases 1, 2, and 7 are written so that, once
+-//! the patch in the paper's §4.2 lands, flipping their expected assertion
+-//! from "check retained" to "check elided" is the only change this file
+-//! needs - that's intentional, so a `git diff` on this file at patch-merge
+-//! time *is* the human-readable summary of what changed.
++//! These are backend smoke tests. Exact proof-scoping assertions live in
++//! `bounds_check_stress`; this module only checks the corresponding minimal
++//! SPIR-V shapes under the two guarded policies.
+ 
+ use naga::back::spv;
+ use naga::proc::{BoundsCheckPolicies, BoundsCheckPolicy};
+@@ -31,8 +27,8 @@ use rspirv::binary::Disassemble;
+ /// return the disassembly, exactly as `write_output_spv_inner` in
+ /// `snapshots.rs` does it, minus the golden-file write.
+ fn compile_to_spv_text(source: &str, policy: BoundsCheckPolicy) -> String {
+-    let module = naga::front::wgsl::parse_str(source)
+-        .unwrap_or_else(|e| panic!("WGSL parse failed: {e}"));
++    let module =
++        naga::front::wgsl::parse_str(source).unwrap_or_else(|e| panic!("WGSL parse failed: {e}"));
+ 
+     let info = Validator::new(ValidationFlags::all(), Capabilities::all())
+         .validate(&module)
+@@ -118,7 +114,7 @@ const CASES: &[Case] = &[
+         check_marker: "OpULessThan",
+     },
+     Case {
+-        name: "multiplicative (lid * 2u; explicitly out of scope for v1)",
++        name: "multiplicative (lid * 2u; bounded affine expression)",
+         snippet: r#"
+             var<workgroup> tile: array<f32, 128>;
+             @compute @workgroup_size(64)
+@@ -156,15 +152,9 @@ fn elision_soundness_table_read_zero_skip_write() {
+     for (i, case) in CASES.iter().enumerate() {
+         let text = compile_to_spv_text(case.snippet, BoundsCheckPolicy::ReadZeroSkipWrite);
+         let check_present = text.contains(case.check_marker);
+-        println!(
+-            "[{}] check present = {check_present}",
+-            case.name
+-        );
++        println!("[{}] check present = {check_present}", case.name);
+         // POST-PATCH ASSERTIONS:
+-        // Cases 0 (happy_direct) and 1 (happy_oversized) should have checks ELIDED
+-        // because lid ∈ [0, 64) and array size >= workgroup size.
+-        // All other cases should still have checks present.
+-        if i == 0 || i == 1 {
++        if matches!(i, 0 | 1 | 4) {
+             assert!(
+                 !check_present,
+                 "[{}] bounds check should be ELIDED (lid-based index, array >= wg_size) but OpULessThan was found in the disassembly.",
+@@ -211,4 +201,3 @@ fn happy_direct_restrict_elides_umin() {
+         "Expected an OpAccessChain for the tile[lid] access"
+     );
+ }
+-
