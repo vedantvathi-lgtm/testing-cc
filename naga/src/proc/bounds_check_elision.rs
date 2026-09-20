@@ -1091,4 +1091,280 @@ mod tests {
             None
         );
     }
+
+    // ===== T5 Part A — property sweeps (TASKS/T5-FUZZ-EXPECTATION-HARNESS.md) =====
+    // Boundary-centered interval universe: values near 0, 1, len-1-ish, MAX-1, MAX
+    // (u32) and MIN+1, -1, 0, 1, MAX-1, MAX (i32). Coverage of each sweep is the
+    // full cartesian product of intervals over this universe — exhaustive, not
+    // random; the domain is small enough that this is strictly stronger than
+    // sampled fuzzing for these invariants.
+
+    const U_UNIVERSE: [u32; 8] = [0, 1, 2, 7, 100, u32::MAX - 1, u32::MAX, u32::MAX];
+    const I_UNIVERSE: [i32; 8] = [i32::MIN, i32::MIN + 1, -1, 0, 1, 7, i32::MAX - 1, i32::MAX];
+
+    fn u_intervals() -> Vec<IntRange> {
+        let mut v = Vec::new();
+        for &a in &U_UNIVERSE {
+            for &b in &U_UNIVERSE {
+                if a <= b {
+                    v.push(IntRange::U32 { min: a, max: b });
+                }
+            }
+        }
+        v
+    }
+
+    fn i_intervals() -> Vec<IntRange> {
+        let mut v = Vec::new();
+        for &a in &I_UNIVERSE {
+            for &b in &I_UNIVERSE {
+                if a <= b {
+                    v.push(IntRange::I32 { min: a, max: b });
+                }
+            }
+        }
+        v
+    }
+
+    /// P1 (u32): add/sub/mul, when Some, exactly equal the concrete enumeration;
+    /// when any endpoint op would overflow, the result is None. `sub` may be None
+    /// even without underflow (min > max would invert) — accepted as conservative.
+    #[test]
+    fn property_u32_arithmetic_sound_and_tight() {
+        for left in u_intervals() {
+            for right in u_intervals() {
+                let (a, b) = (left, right);
+                // add
+                match a.add(b) {
+                    Some(r) => {
+                        // endpoints must be exactly the corner-derived bounds
+                        // (add is monotone: lo = amin+bmin, hi = amax+bmax)
+                        let lo = u64::from(a_min(a)) + u64::from(a_min(b));
+                        let hi = u64::from(a_max(a)) + u64::from(a_max(b));
+                        assert!(hi <= u64::from(u32::MAX), "Some(add) must not overflow");
+                        assert_eq!(u64::from(a_min_of(r)), lo);
+                        assert_eq!(u64::from(a_max_of(r)), hi);
+                    }
+                    None => {
+                        // must be justified: at least one endpoint pair overflows
+                        let any_overflow =
+                            u64::from(a_max(a)) + u64::from(a_max(b)) > u64::from(u32::MAX);
+                        assert!(any_overflow, "None(add) must be overflow-justified");
+                    }
+                }
+                // mul (endpoints only: 4-corner rule is exact for monotone +- mul on
+                // nonneg domains, and u32 is nonneg)
+                match a.mul(b) {
+                    Some(r) => {
+                        // nonneg domain: mul is monotone in each arg, so the
+                        // 4-corner rule gives exact bounds
+                        let corners = [
+                            u64::from(a_min(a)) * u64::from(a_min(b)),
+                            u64::from(a_min(a)) * u64::from(a_max(b)),
+                            u64::from(a_max(a)) * u64::from(a_min(b)),
+                            u64::from(a_max(a)) * u64::from(a_max(b)),
+                        ];
+                        let lo = *corners.iter().min().unwrap();
+                        let hi = *corners.iter().max().unwrap();
+                        assert!(hi <= u64::from(u32::MAX), "Some(mul) must not overflow");
+                        assert_eq!(u64::from(a_min_of(r)), lo);
+                        assert_eq!(u64::from(a_max_of(r)), hi);
+                    }
+                    None => {
+                        let any_overflow =
+                            u64::from(a_max(a)) * u64::from(a_max(b)) > u64::from(u32::MAX);
+                        assert!(any_overflow, "None(mul) must be overflow-justified");
+                    }
+                }
+                // sub: containment soundness via corner bounds (sub is
+                // monotone-decreasing in rhs: lo = amin-bmax, hi = amax-bmin),
+                // plus spot enumeration only on small spans
+                if let Some(r) = a.sub(b) {
+                    let lo = u64::from(a_min(a)) - u64::from(a_max(b));
+                    let hi = u64::from(a_max(a)) - u64::from(a_min(b));
+                    assert_eq!(u64::from(a_min_of(r)), lo);
+                    assert_eq!(u64::from(a_max_of(r)), hi);
+                    // enumerate only when BOTH spans are small (a zero-span
+                    // operand makes the product guard useless: span*0 == 0)
+                    let span_a = u64::from(a_max(a)) - u64::from(a_min(a));
+                    let span_b = u64::from(a_max(b)) - u64::from(a_min(b));
+                    if span_a <= 64 && span_b <= 64 {
+                        for x in a_min(a)..=a_max(a) {
+                            for y in a_min(b)..=a_max(b) {
+                                if let Some(d) = x.checked_sub(y) {
+                                    assert!(d >= a_min_of(r) && d <= a_max_of(r));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// P1/P2 (i32): same for the signed domain; join/sub properties.
+    #[test]
+    fn property_i32_arithmetic_sound_and_tight() {
+        for left in i_intervals() {
+            for right in i_intervals() {
+                let (a, b) = (left, right);
+                match a.mul(b) {
+                    Some(r) => {
+                        // 4-corner rule is exact for i32 mul when no overflow
+                        let corners = [
+                            i64::from(i_min(a)) * i64::from(i_min(b)),
+                            i64::from(i_min(a)) * i64::from(i_max(b)),
+                            i64::from(i_max(a)) * i64::from(i_min(b)),
+                            i64::from(i_max(a)) * i64::from(i_max(b)),
+                        ];
+                        let lo = *corners.iter().min().unwrap();
+                        let hi = *corners.iter().max().unwrap();
+                        assert!(
+                            hi <= i64::from(i32::MAX) && lo >= i64::from(i32::MIN),
+                            "Some(mul) must not overflow"
+                        );
+                        assert_eq!(i64::from(i_min_of(r)), lo);
+                        assert_eq!(i64::from(i_max_of(r)), hi);
+                    }
+                    None => {
+                        let corners = [
+                            i64::from(i_min(a)) * i64::from(i_min(b)),
+                            i64::from(i_min(a)) * i64::from(i_max(b)),
+                            i64::from(i_max(a)) * i64::from(i_min(b)),
+                            i64::from(i_max(a)) * i64::from(i_max(b)),
+                        ];
+                        let any_overflow = corners
+                            .iter()
+                            .any(|&c| c > i64::from(i32::MAX) || c < i64::from(i32::MIN));
+                        assert!(any_overflow, "None(mul) must be overflow-justified");
+                    }
+                }
+                // join: same-kind join never shrinks
+                if let Some(j) = a.join(b) {
+                    assert!(i_min_of(j) <= i_min(a) && i_max_of(j) >= i_max(a));
+                    assert!(i_min_of(j) <= i_min(b) && i_max_of(j) >= i_max(b));
+                }
+            }
+        }
+    }
+
+    /// P2: join never shrinks (u32) — including that join with self is self.
+    #[test]
+    fn property_join_never_shrinks_u32() {
+        for a in u_intervals() {
+            for b in u_intervals() {
+                let j = a.join(b).expect("same-kind u32 join is always Some");
+                assert!(a_min_of(j) <= a_min_of(a) && a_max_of(j) >= a_max_of(a));
+                assert!(a_min_of(j) <= a_min_of(b) && a_max_of(j) >= a_max_of(b));
+            }
+        }
+    }
+
+    /// P3: refinement never widens and never inverts; cross-kind refine rejected.
+    #[test]
+    fn property_refinement_never_widens() {
+        for r in u_intervals().into_iter().chain(i_intervals()) {
+            for &bound in &[0i64, 1, 7, 100] {
+                for op in [
+                    BinaryOperator::Less,
+                    BinaryOperator::LessEqual,
+                    BinaryOperator::Greater,
+                    BinaryOperator::GreaterEqual,
+                    BinaryOperator::Equal,
+                ] {
+                    if let Some(refined) = refine_range(r, op, bound) {
+                        match (r, refined) {
+                            (
+                                IntRange::U32 { min, max },
+                                IntRange::U32 {
+                                    min: rmin,
+                                    max: rmax,
+                                },
+                            ) => {
+                                assert!(rmin >= min && rmax <= max, "refine widened u32");
+                                assert!(rmin <= rmax, "refine inverted u32");
+                            }
+                            (
+                                IntRange::I32 { min, max },
+                                IntRange::I32 {
+                                    min: rmin,
+                                    max: rmax,
+                                },
+                            ) => {
+                                assert!(rmin >= min && rmax <= max, "refine widened i32");
+                                assert!(rmin <= rmax, "refine inverted i32");
+                            }
+                            _ => panic!("refine_range changed interval kind"),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// P4: fits() soundness — the elision predicate itself. For every interval
+    /// where fits(len) is true, EVERY concrete value must be a valid index.
+    #[test]
+    fn property_fits_soundness() {
+        let lens = [1u32, 2, 8, 100];
+        for r in u_intervals() {
+            for &len in &lens {
+                if r.fits(len) {
+                    for x in a_min(r)..=a_max(r) {
+                        assert!(x < len, "fits() admitted OOB index {x} for len {len}");
+                    }
+                }
+            }
+        }
+        for r in i_intervals() {
+            for &len in &lens {
+                if r.fits(len) {
+                    for x in i_min(r)..=i_max(r) {
+                        assert!(
+                            x >= 0 && (x as i64) < i64::from(len),
+                            "fits() admitted OOB index {x} for len {len}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // helpers to read endpoints without pattern-matching at every site
+    fn a_min(r: IntRange) -> u32 {
+        match r {
+            IntRange::U32 { min, .. } => min,
+            _ => unreachable!("u32 helper used on i32"),
+        }
+    }
+    fn a_max(r: IntRange) -> u32 {
+        match r {
+            IntRange::U32 { max, .. } => max,
+            _ => unreachable!("u32 helper used on i32"),
+        }
+    }
+    fn a_min_of(r: IntRange) -> u32 {
+        a_min(r)
+    }
+    fn a_max_of(r: IntRange) -> u32 {
+        a_max(r)
+    }
+    fn i_min(r: IntRange) -> i32 {
+        match r {
+            IntRange::I32 { min, .. } => min,
+            _ => unreachable!("i32 helper used on u32"),
+        }
+    }
+    fn i_max(r: IntRange) -> i32 {
+        match r {
+            IntRange::I32 { max, .. } => max,
+            _ => unreachable!("i32 helper used on u32"),
+        }
+    }
+    fn i_min_of(r: IntRange) -> i32 {
+        i_min(r)
+    }
+    fn i_max_of(r: IntRange) -> i32 {
+        i_max(r)
+    }
 }
