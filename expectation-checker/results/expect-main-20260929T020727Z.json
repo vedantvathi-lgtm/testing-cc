@@ -1,0 +1,324 @@
+{
+  "harness": "expectation-checker-2",
+  "utc": "2026-09-29T02:07:27+00:00",
+  "compiler": "bce/sound-branch-refinement@19ffb4e",
+  "fixtures_dir": "fixtures",
+  "fixtures_total": 12,
+  "pass": 12,
+  "fail": 0,
+  "error": 0,
+  "uncompilable": 0,
+  "no_markers": 0,
+  "results": [
+    {
+      "fixture": "continue_before_guard.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 8,
+          "expect": "RETAINED",
+          "proven": [
+            false
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 1,
+        "disabled": 1
+      }
+    },
+    {
+      "fixture": "continue_before_guard_without_continue.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 8,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 0,
+        "disabled": 1
+      }
+    },
+    {
+      "fixture": "eq_exit_loop.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 11,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 13,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 16,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 0,
+        "disabled": 3
+      }
+    },
+    {
+      "fixture": "eq_exit_loop_off_by_one.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 10,
+          "expect": "RETAINED",
+          "proven": [
+            false
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 12,
+          "expect": "RETAINED",
+          "proven": [
+            false
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 15,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 2,
+        "disabled": 3
+      }
+    },
+    {
+      "fixture": "lid_spec_direct.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 5,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 7,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 8,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 0,
+        "disabled": 3
+      }
+    },
+    {
+      "fixture": "loop_iv_guarded.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 7,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 9,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 11,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 1,
+        "disabled": 4
+      }
+    },
+    {
+      "fixture": "mutation_after_guard.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 8,
+          "expect": "RETAINED",
+          "proven": [
+            false
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 2,
+        "disabled": 2
+      }
+    },
+    {
+      "fixture": "prefix_scan_relation.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 9,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 12,
+          "expect": "ELIDED",
+          "proven": [
+            true,
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 1,
+        "disabled": 4
+      }
+    },
+    {
+      "fixture": "prefix_scan_relation_off_by_one.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 8,
+          "expect": "RETAINED",
+          "proven": [
+            false
+          ],
+          "verdict": "PASS"
+        },
+        {
+          "line": 11,
+          "expect": "ELIDED",
+          "proven": [
+            true,
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 2,
+        "disabled": 4
+      }
+    },
+    {
+      "fixture": "runtime_sized_storage.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 7,
+          "expect": "MANUAL",
+          "proven": [
+            false
+          ],
+          "verdict": "MANUAL"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 2,
+        "disabled": 2
+      }
+    },
+    {
+      "fixture": "signed_guarded.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 8,
+          "expect": "ELIDED",
+          "proven": [
+            true
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 0,
+        "disabled": 1
+      }
+    },
+    {
+      "fixture": "unguarded_oob.wgsl",
+      "status": "PASS",
+      "verdicts": [
+        {
+          "line": 5,
+          "expect": "RETAINED",
+          "proven": [
+            false
+          ],
+          "verdict": "PASS"
+        }
+      ],
+      "unmarked_runtime_accesses": 0,
+      "op_u_less_than": {
+        "enabled": 1,
+        "disabled": 1
+      }
+    }
+  ]
+}
