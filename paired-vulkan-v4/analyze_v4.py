@@ -24,7 +24,14 @@ import statistics as st
 import sys
 from datetime import datetime, timezone
 
-root = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "runs-v4")
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("root", nargs="?", default=os.path.join(os.path.dirname(__file__), "..", "runs-v4"))
+parser.add_argument("adapter", nargs="?", default=None, help="adapter name substring (default: NVIDIA)")
+parser.add_argument("--rev", default=None, help="only runs whose wgpu revision starts with this prefix")
+args = parser.parse_args()
+root = args.root
 
 
 def gmean(xs):
@@ -56,19 +63,22 @@ def local_offset_ms():
     return (now - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() * 1000
 
 
-adapter_filter = sys.argv[2] if len(sys.argv) > 2 else None
+adapter_filter = args.adapter
 runs = {}
 adapters = set()
 for path in sorted(glob.glob(os.path.join(root, "2*", "result.json"))):
     r = json.load(open(path))
-    adapter = json.load(open(os.path.join(os.path.dirname(path), "meta.json")))["machine"]["adapter"]
+    meta = json.load(open(os.path.join(os.path.dirname(path), "meta.json")))
+    adapter = meta["machine"]["adapter"]
+    if args.rev and not meta["sources"]["wgpu"]["rev"].startswith(args.rev):
+        continue
     adapters.add(adapter)
     if adapter_filter and adapter_filter.lower() not in adapter.lower():
         continue
     if not adapter_filter and "nvidia" not in adapter.lower():
         continue  # default report: NVIDIA only; pass an adapter substring for others
     runs.setdefault(r["kernel"], []).append((os.path.dirname(path), r))
-print(f"adapters seen: {sorted(adapters)}; reporting: {adapter_filter or 'NVIDIA'}\n")
+print(f"adapters seen: {sorted(adapters)}; reporting: {adapter_filter or 'NVIDIA'}; wgpu rev: {args.rev or 'any'}\n")
 
 order = ["empty", "scan_shared", "matmul_tiled", "reduce_tree", "prefix_scan_hs", "vello_binning", "private_array"]
 summary = {}
@@ -119,6 +129,7 @@ for k in order + sorted(set(runs) - set(order)):
         "telemetry_temp_max": [max(t) if t else None for _, _, t in tele],
         "statics": s0, "verdict": verdict,
     }
-out = os.path.join(root, f"summary-{(adapter_filter or 'nvidia').lower()}.json")
+tag = (adapter_filter or "nvidia").lower() + (f"-{args.rev}" if args.rev else "")
+out = os.path.join(root, f"summary-{tag}.json")
 json.dump(summary, open(out, "w"), indent=2)
 print(f"\nwritten {out}")
