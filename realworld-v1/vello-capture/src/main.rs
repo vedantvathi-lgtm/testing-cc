@@ -222,10 +222,22 @@ fn main() -> Result<()> {
             "layout": layout, "wgsl_binding_indices": e.source.wgsl.binding_indices, "wgsl": e.source.wgsl.code,
         }));
     }
-    std::fs::write(out.join("shaders.json"), serde_json::to_vec_pretty(&json!({"vello_rev": VELLO_REV, "shaders": shader_json}))?)?;
+    if std::env::var("REFS_ONLY").is_err() {
+        std::fs::write(out.join("shaders.json"), serde_json::to_vec_pretty(&json!({"vello_rev": VELLO_REV, "shaders": shader_json}))?)?;
+    }
 
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor { backends: wgpu::Backends::VULKAN, ..wgpu::InstanceDescriptor::new_without_display_handle() });
-    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions { power_preference: wgpu::PowerPreference::HighPerformance, ..Default::default() }))?;
+    let adapter = match std::env::var("BCE_ADAPTER") {
+        Ok(want) => pollster::block_on(instance.enumerate_adapters(wgpu::Backends::VULKAN))
+            .into_iter()
+            .find(|a| a.get_info().name.to_lowercase().contains(&want.to_lowercase()))
+            .ok_or_else(|| anyhow::anyhow!("no adapter matching {want}"))?,
+        Err(_) => pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions { power_preference: wgpu::PowerPreference::HighPerformance, ..Default::default() }))?,
+    };
+    let adapter_name = adapter.get_info().name;
+    // REFS_ONLY=<tag>: only (re)render reference images on this adapter into <stem>.ref-<tag>.<k>.rgba,
+    // for scenes whose regenerated recording is identical to the stored one.
+    let refs_only = std::env::var("REFS_ONLY").ok();
     let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))?;
     let mut renderer = Renderer::new(&device, RendererOptions { use_cpu: false, antialiasing_support: AaSupport::area_only(), num_init_threads: std::num::NonZeroUsize::new(1), pipeline_cache: None })
         .map_err(|e| anyhow::anyhow!("renderer: {e}"))?;
@@ -271,12 +283,19 @@ fn main() -> Result<()> {
                     None => states.push((img, 1)),
                 }
             }
-            let mut ref_meta = Vec::new();
-            for (k, (img, count)) in states.iter().enumerate() {
-                std::fs::write(out.join(format!("{stem}.ref.{k}.rgba")), img)?;
-                ref_meta.push(json!({"file": format!("{stem}.ref.{k}.rgba"), "count": count}));
+            let tag = refs_only.as_deref().map(|t| format!("-{t}")).unwrap_or_default();
+            let write_refs = || -> Result<()> {
+                let mut ref_meta = Vec::new();
+                for (k, (img, count)) in states.iter().enumerate() {
+                    std::fs::write(out.join(format!("{stem}.ref{tag}.{k}.rgba")), img)?;
+                    ref_meta.push(json!({"file": format!("{stem}.ref{tag}.{k}.rgba"), "count": count}));
+                }
+                std::fs::write(out.join(format!("{stem}.refs{tag}.json")), serde_json::to_vec_pretty(&json!({"renders": n_refs, "adapter": adapter_name, "states": ref_meta}))?)?;
+                Ok(())
+            };
+            if refs_only.is_none() {
+                write_refs()?;
             }
-            std::fs::write(out.join(format!("{stem}.refs.json")), serde_json::to_vec_pretty(&json!({"renders": n_refs, "states": ref_meta}))?)?;
             let mut resolver = vello::low_level::vello_encoding::Resolver::new();
             let mut atlas: Option<ImageProxy> = None;
             let mut render = Render::new();
@@ -286,6 +305,15 @@ fn main() -> Result<()> {
             let mut blob = Vec::new();
             let commands = serialize(&recording, &mut blob);
             let n = commands.len();
+            if refs_only.is_some() {
+                let stored: Value = serde_json::from_slice(&std::fs::read(out.join(format!("{stem}.json")))?)?;
+                let ops = |c: &Vec<Value>| c.iter().map(|x| x["op"].as_str().unwrap_or("").to_string()).collect::<Vec<_>>();
+                let same = std::fs::read(out.join(format!("{stem}.blob")))? == blob && ops(stored["commands"].as_array().unwrap()) == ops(&commands);
+                if same {
+                    write_refs()?;
+                }
+                return Ok(json!({"index": i, "scene": name, "refs_written": same, "adapter": adapter_name, "vello_states": states.len()}));
+            }
             let c = base_color.to_rgba8();
             let rec = json!({
                 "vello_rev": VELLO_REV, "scene_index": i, "scene": name, "width": width, "height": height,
@@ -303,6 +331,7 @@ fn main() -> Result<()> {
         println!("{entry}");
         index.push(entry);
     }
-    std::fs::write(out.join("index.json"), serde_json::to_vec_pretty(&index)?)?;
+    let index_name = std::env::var("REFS_ONLY").map(|t| format!("index-refs-{t}.json")).unwrap_or("index.json".into());
+    std::fs::write(out.join(index_name), serde_json::to_vec_pretty(&index)?)?;
     Ok(())
 }

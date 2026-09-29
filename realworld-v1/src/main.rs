@@ -399,10 +399,12 @@ fn main() {
     }
     let outputs_before: Vec<Vec<u8>> = (0..4).map(|s| w.output(&gpu.device, &gpu.queue, s)).collect();
     let mask = w.oracle_mask();
-    let refs = w.reference_outputs();
+    let ref_set = w.reference_outputs(&adapter.name);
+    let nondeterministic = ref_set.is_some();
+    let refs = ref_set.unwrap_or_default();
     let oracle_runs = env_usize("BCE_ORACLE_RUNS", 20);
     let collect = |w: &dyn Workload| -> Vec<Vec<Vec<u8>>> { (0..4).map(|s| (0..oracle_runs).map(|_| w.output(&gpu.device, &gpu.queue, s)).collect()).collect() };
-    let runs_before = if refs.is_empty() { Vec::new() } else { collect(w.as_ref()) };
+    let runs_before = if nondeterministic { collect(w.as_ref()) } else { Vec::new() };
     let before = correctness("before", &outputs_before, &mask, &refs);
 
     let probe = gpu.time(w.as_ref(), 0, 3);
@@ -451,7 +453,7 @@ fn main() {
     let quiet_during_run = compute_apps_after.is_empty();
     let outputs_after: Vec<Vec<u8>> = (0..4).map(|s| w.output(&gpu.device, &gpu.queue, s)).collect();
     let after = correctness("after", &outputs_after, &mask, &refs);
-    let oracle = (!refs.is_empty()).then(|| {
+    let oracle = nondeterministic.then(|| {
         let mut runs = runs_before;
         for (slot, more) in collect(w.as_ref()).into_iter().enumerate() {
             runs[slot].extend(more);

@@ -340,8 +340,11 @@ impl Workload for Vello {
         encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None, timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: None, end_of_pass_write_index: Some(1) }) });
     }
 
-    fn reference_outputs(&self) -> Vec<Vec<u8>> {
-        references(&self.dir, &self.stem)
+    fn reference_outputs(&self, adapter: &str) -> Option<Vec<Vec<u8>>> {
+        // .refs.json: rendered on the default high-performance adapter (NVIDIA on this machine);
+        // .refs-intel.json: rendered on the Intel iGPU (vello-capture REFS_ONLY=intel).
+        let tag = if adapter.to_lowercase().contains("intel") { "-intel" } else { "" };
+        Some(references(&self.dir, &self.stem, tag))
     }
 
     fn output(&self, device: &wgpu::Device, queue: &wgpu::Queue, slot: usize) -> Vec<u8> {
@@ -380,8 +383,8 @@ impl Workload for Vello {
 }
 
 /// Every distinct image vello's own renderer produced for this scene (see vello-capture).
-pub fn references(dir: &Path, stem: &str) -> Vec<Vec<u8>> {
-    let meta: Value = match std::fs::read(dir.join(format!("{stem}.refs.json"))) {
+pub fn references(dir: &Path, stem: &str, tag: &str) -> Vec<Vec<u8>> {
+    let meta: Value = match std::fs::read(dir.join(format!("{stem}.refs{tag}.json"))) {
         Ok(b) => serde_json::from_slice(&b).unwrap(),
         Err(_) => return Vec::new(),
     };

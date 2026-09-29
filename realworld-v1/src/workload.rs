@@ -18,10 +18,12 @@ pub trait Workload {
     fn oracle_mask(&self) -> Option<(usize, Vec<bool>)> {
         None
     }
-    /// Every distinct output an independent reference produced (e.g. the upstream renderer's own
-    /// images over repeated renders). Empty = no reference.
-    fn reference_outputs(&self) -> Vec<Vec<u8>> {
-        Vec::new()
+    /// For workloads whose upstream implementation is not bit-deterministic: every distinct output
+    /// an independent reference produced on this adapter (e.g. the upstream renderer's own images
+    /// over repeated renders; may be empty if none exist for this adapter). `None` = the workload
+    /// is deterministic and slots are compared byte for byte.
+    fn reference_outputs(&self, _adapter: &str) -> Option<Vec<Vec<u8>>> {
+        None
     }
 }
 
