@@ -1,0 +1,288 @@
+{
+  "all_checks_no_bce_minus_unchecked": {
+    "ci95_hi": 1260885.3858833313,
+    "ci95_lo": 869999.9787597656,
+    "median": 871979.1453781128,
+    "median_pct_of_bce": 11.803066033579025
+  },
+  "bce_changes_binary": true,
+  "control_bce_dup_minus_bce": {
+    "ci95_hi": 90520.83112335205,
+    "ci95_lo": -3593.749912261963,
+    "median": 338.54165840148926,
+    "median_pct_of_bce": 0.004582482930251085
+  },
+  "correctness": [
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "no_bce"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "bce"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "bce_dup"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "unchecked"
+    }
+  ],
+  "dispatch": [
+    2048,
+    1,
+    1
+  ],
+  "dispatches_per_sample": 1,
+  "effect_no_bce_minus_bce": {
+    "ci95_hi": 1102447.8897514343,
+    "ci95_lo": 843385.3960762024,
+    "median": 871614.5620536804,
+    "median_pct_of_bce": 11.798131051961832
+  },
+  "harness_version": "paired-vulkan-4",
+  "kernel": "scan_shared",
+  "measure_window_unix_ms": [
+    1790613711438,
+    1790613711713
+  ],
+  "median_ns_per_dispatch": {
+    "bce": 7387734.194635391,
+    "bce_dup": 7379244.611509323,
+    "no_bce": 8374843.545536041,
+    "unchecked": 7503437.316810608
+  },
+  "models": "v3 kernel at full occupancy: tile[lid] + 256-iteration scan of workgroup memory",
+  "order_effect_ratio": {
+    "bce_first_median": 1.1219313338176735,
+    "n_first": 6,
+    "n_second": 2,
+    "no_bce_first_median": 1.116232438577108
+  },
+  "ratio_all_checks_no_bce_over_unchecked": {
+    "ci95_hi": 1.1772371532531425,
+    "ci95_lo": 1.1160763245389362,
+    "median": 1.1162490082397503,
+    "median_pct_of_bce": 111.62490082397503
+  },
+  "ratio_control_bce_dup_over_bce": {
+    "ci95_hi": 1.0128809439108266,
+    "ci95_lo": 0.9995212887738748,
+    "median": 1.0000451184747168,
+    "median_pct_of_bce": 100.00451184747168
+  },
+  "ratio_no_bce_over_bce": {
+    "ci95_hi": 1.1515989256938228,
+    "ci95_lo": 1.1156538570942922,
+    "median": 1.116232438577108,
+    "median_pct_of_bce": 111.6232438577108
+  },
+  "ratio_residual_bce_over_unchecked": {
+    "ci95_hi": 1.0004997744073856,
+    "ci95_lo": 0.9691536694222908,
+    "median": 0.9999167198254421,
+    "median_pct_of_bce": 99.9916719825442
+  },
+  "residual_bce_minus_unchecked": {
+    "ci95_hi": 3749.9999084472656,
+    "ci95_lo": -231458.32768249512,
+    "median": -624.9999847412109,
+    "median_pct_of_bce": -0.008459968486617387
+  },
+  "rounds": 8,
+  "rounds_raw": [
+    {
+      "ns": [
+        8374999.795532227,
+        17219530.829601288,
+        7030468.5783576965,
+        7114114.409648895
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 0
+    },
+    {
+      "ns": [
+        8183333.133544922,
+        7253385.239582062,
+        7254947.739543915,
+        7256458.156173706
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 1
+    },
+    {
+      "ns": [
+        8375468.5455207825,
+        7503593.566806793,
+        7503749.8168029785,
+        7503489.40014267
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 2
+    },
+    {
+      "ns": [
+        17768124.566207886,
+        7027499.828430176,
+        7118020.659553528,
+        7504791.483444214
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 3
+    },
+    {
+      "ns": [
+        8097031.052318573,
+        7253645.656242371,
+        7252968.572925568,
+        7253541.489578247
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 4
+    },
+    {
+      "ns": [
+        8375364.378856659,
+        7507135.233386993,
+        7503541.483474731,
+        7503385.233478546
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 5
+    },
+    {
+      "ns": [
+        8374687.295539856,
+        7503333.150146484,
+        7503853.983467102,
+        7504687.31678009
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 6
+    },
+    {
+      "ns": [
+        8374583.128875732,
+        7272135.239124298,
+        7503906.066799164,
+        7503593.566806793
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 7
+    }
+  ],
+  "schema": "bce-result-4",
+  "slots": [
+    "no_bce",
+    "bce",
+    "bce_dup",
+    "unchecked"
+  ],
+  "statics": [
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 0,
+      "slot": "no_bce",
+      "spv_sha256": "5d276ba00aa2a5500c219bb9d70ba49dd622b06f514e9b9fad090e18386f6f96",
+      "spv_words": 490,
+      "umin_clamps": 2
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 2,
+      "slot": "bce",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 2,
+      "slot": "bce_dup",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    },
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Unchecked",
+      "op_u_less_than": 1,
+      "proven_accesses": 0,
+      "slot": "unchecked",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    }
+  ],
+  "valid": true,
+  "warmup_last_window_change_pct": -0.19808630592362017,
+  "warmup_rounds": 4,
+  "warmup_rounds_done": 134,
+  "warmup_seconds": 5.002893207,
+  "workgroup_size": [
+    256,
+    1,
+    1
+  ]
+}

@@ -1,0 +1,1968 @@
+{
+  "all_checks_no_bce_minus_unchecked": {
+    "ci95_hi": 47669.59999999998,
+    "ci95_lo": 47563.20000000001,
+    "median": 47635.20000000004,
+    "median_pct_of_bce": 15.786961916579187
+  },
+  "bce_changes_binary": true,
+  "control_bce_dup_minus_bce": {
+    "ci95_hi": 20.800000000046566,
+    "ci95_lo": -4.7999999999883585,
+    "median": 5.599999999976717,
+    "median_pct_of_bce": 0.0018559171942696957
+  },
+  "correctness": [
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "no_bce"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "bce"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "bce_dup"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "unchecked"
+    }
+  ],
+  "dispatch": [
+    2048,
+    1,
+    1
+  ],
+  "dispatches_per_sample": 20,
+  "effect_no_bce_minus_bce": {
+    "ci95_hi": 47912.0,
+    "ci95_lo": 47619.20000000001,
+    "median": 47660.0,
+    "median_pct_of_bce": 15.795180978439546
+  },
+  "harness_version": "paired-vulkan-4",
+  "kernel": "scan_shared",
+  "measure_window_unix_ms": [
+    1790612927884,
+    1790612931056
+  ],
+  "median_ns_per_dispatch": {
+    "bce": 301737.6,
+    "bce_dup": 301758.4,
+    "no_bce": 349400.0,
+    "unchecked": 301762.4
+  },
+  "models": "v3 kernel at full occupancy: tile[lid] + 256-iteration scan of workgroup memory",
+  "order_effect_ratio": {
+    "bce_first_median": 1.1656691326112263,
+    "n_first": 90,
+    "n_second": 30,
+    "no_bce_first_median": 1.1578175855885633
+  },
+  "ratio_all_checks_no_bce_over_unchecked": {
+    "ci95_hi": 1.1579306994645784,
+    "ci95_lo": 1.1577944332340413,
+    "median": 1.157849385329738,
+    "median_pct_of_bce": 115.7849385329738
+  },
+  "ratio_control_bce_dup_over_bce": {
+    "ci95_hi": 1.0000693995868057,
+    "ci95_lo": 0.9999893226844906,
+    "median": 1.000018538206092,
+    "median_pct_of_bce": 100.0018538206092
+  },
+  "ratio_no_bce_over_bce": {
+    "ci95_hi": 1.158169502020423,
+    "ci95_lo": 1.1578205107813353,
+    "median": 1.1579134829993256,
+    "median_pct_of_bce": 115.79134829993257
+  },
+  "ratio_residual_bce_over_unchecked": {
+    "ci95_hi": 0.9999599643415461,
+    "ci95_lo": 0.9993324114253015,
+    "median": 0.9998913022246908,
+    "median_pct_of_bce": 99.98913022246909
+  },
+  "residual_bce_minus_unchecked": {
+    "ci95_hi": -11.200000000011642,
+    "ci95_lo": -231.20000000001164,
+    "median": -32.80000000001746,
+    "median_pct_of_bce": -0.010870372137916343
+  },
+  "rounds": 120,
+  "rounds_raw": [
+    {
+      "ns": [
+        347022.4,
+        299744.0,
+        299696.0,
+        299716.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 0
+    },
+    {
+      "ns": [
+        349422.4,
+        299769.6,
+        301556.8,
+        301742.4
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 1
+    },
+    {
+      "ns": [
+        349417.6,
+        301736.0,
+        301782.4,
+        301704.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 2
+    },
+    {
+      "ns": [
+        349398.4,
+        301918.4,
+        299836.8,
+        301761.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 3
+    },
+    {
+      "ns": [
+        347044.8,
+        301777.6,
+        301761.6,
+        301768.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 4
+    },
+    {
+      "ns": [
+        355315.2,
+        301740.8,
+        301766.4,
+        301766.4
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 5
+    },
+    {
+      "ns": [
+        354787.2,
+        305952.0,
+        308020.8,
+        308088.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 6
+    },
+    {
+      "ns": [
+        352123.2,
+        303899.2,
+        303875.2,
+        305905.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 7
+    },
+    {
+      "ns": [
+        349836.8,
+        301793.6,
+        301776.0,
+        301811.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 8
+    },
+    {
+      "ns": [
+        351851.2,
+        301747.2,
+        301782.4,
+        303572.8
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 9
+    },
+    {
+      "ns": [
+        351808.0,
+        302966.4,
+        303849.6,
+        303897.6
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 10
+    },
+    {
+      "ns": [
+        351758.4,
+        303886.4,
+        302092.8,
+        301907.2
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 11
+    },
+    {
+      "ns": [
+        349411.2,
+        301796.8,
+        301720.0,
+        301724.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 12
+    },
+    {
+      "ns": [
+        349411.2,
+        301913.6,
+        301760.0,
+        301777.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 13
+    },
+    {
+      "ns": [
+        349419.2,
+        301748.8,
+        301750.4,
+        301726.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 14
+    },
+    {
+      "ns": [
+        349433.6,
+        301820.8,
+        301752.0,
+        301764.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 15
+    },
+    {
+      "ns": [
+        349414.4,
+        299723.2,
+        299737.6,
+        299740.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 16
+    },
+    {
+      "ns": [
+        349404.8,
+        301513.6,
+        301723.2,
+        301809.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 17
+    },
+    {
+      "ns": [
+        351860.8,
+        301900.8,
+        301776.0,
+        302166.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 18
+    },
+    {
+      "ns": [
+        349404.8,
+        301817.6,
+        301760.0,
+        301913.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 19
+    },
+    {
+      "ns": [
+        345158.4,
+        297662.4,
+        297697.6,
+        295875.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 20
+    },
+    {
+      "ns": [
+        351790.4,
+        295702.4,
+        295686.4,
+        301052.8
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 21
+    },
+    {
+      "ns": [
+        349443.2,
+        301739.2,
+        303833.6,
+        302510.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 22
+    },
+    {
+      "ns": [
+        347006.4,
+        299729.6,
+        298228.8,
+        300614.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 23
+    },
+    {
+      "ns": [
+        344713.6,
+        297712.0,
+        299150.4,
+        299710.4
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 24
+    },
+    {
+      "ns": [
+        347000.0,
+        299724.8,
+        299729.6,
+        299731.2
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 25
+    },
+    {
+      "ns": [
+        347155.2,
+        299737.6,
+        299734.4,
+        299660.8
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 26
+    },
+    {
+      "ns": [
+        347014.4,
+        299748.8,
+        299720.0,
+        299713.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 27
+    },
+    {
+      "ns": [
+        347001.6,
+        299931.2,
+        299728.0,
+        299708.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 28
+    },
+    {
+      "ns": [
+        345369.6,
+        299248.0,
+        297670.4,
+        297692.8
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 29
+    },
+    {
+      "ns": [
+        349553.6,
+        297860.8,
+        301793.6,
+        301776.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 30
+    },
+    {
+      "ns": [
+        344249.6,
+        295715.2,
+        295729.6,
+        297676.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 31
+    },
+    {
+      "ns": [
+        342790.4,
+        297659.2,
+        297667.2,
+        297702.4
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 32
+    },
+    {
+      "ns": [
+        347377.6,
+        297651.2,
+        297737.6,
+        297716.8
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 33
+    },
+    {
+      "ns": [
+        347548.8,
+        299872.0,
+        301886.4,
+        301875.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 34
+    },
+    {
+      "ns": [
+        346996.8,
+        299713.6,
+        299734.4,
+        299723.2
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 35
+    },
+    {
+      "ns": [
+        344819.2,
+        297702.4,
+        297686.4,
+        299528.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 36
+    },
+    {
+      "ns": [
+        351801.6,
+        299708.8,
+        299707.2,
+        302620.8
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 37
+    },
+    {
+      "ns": [
+        349396.8,
+        301763.2,
+        303854.4,
+        302912.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 38
+    },
+    {
+      "ns": [
+        349396.8,
+        301776.0,
+        300150.4,
+        301728.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 39
+    },
+    {
+      "ns": [
+        347062.4,
+        299704.0,
+        299712.0,
+        299726.4
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 40
+    },
+    {
+      "ns": [
+        349388.8,
+        299904.0,
+        301812.8,
+        301777.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 41
+    },
+    {
+      "ns": [
+        351828.8,
+        302374.4,
+        302886.4,
+        303844.8
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 42
+    },
+    {
+      "ns": [
+        349382.4,
+        302939.2,
+        303848.0,
+        301756.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 43
+    },
+    {
+      "ns": [
+        351825.6,
+        303846.4,
+        304040.0,
+        303851.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 44
+    },
+    {
+      "ns": [
+        351851.2,
+        303868.8,
+        303875.2,
+        303857.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 45
+    },
+    {
+      "ns": [
+        351822.4,
+        303868.8,
+        303848.0,
+        303888.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 46
+    },
+    {
+      "ns": [
+        350616.0,
+        301744.0,
+        301771.2,
+        303883.2
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 47
+    },
+    {
+      "ns": [
+        349408.0,
+        301780.8,
+        301772.8,
+        303651.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 48
+    },
+    {
+      "ns": [
+        351851.2,
+        303040.0,
+        301756.8,
+        301761.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 49
+    },
+    {
+      "ns": [
+        351832.0,
+        303899.2,
+        303896.0,
+        303875.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 50
+    },
+    {
+      "ns": [
+        351811.2,
+        303872.0,
+        303875.2,
+        303884.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 51
+    },
+    {
+      "ns": [
+        351808.0,
+        303880.0,
+        303881.6,
+        303905.6
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 52
+    },
+    {
+      "ns": [
+        354376.0,
+        303870.4,
+        303841.6,
+        305000.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 53
+    },
+    {
+      "ns": [
+        351763.2,
+        303824.0,
+        305945.6,
+        304233.6
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 54
+    },
+    {
+      "ns": [
+        349401.6,
+        301780.8,
+        301731.2,
+        301982.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 55
+    },
+    {
+      "ns": [
+        349371.2,
+        300985.6,
+        299723.2,
+        299750.4
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 56
+    },
+    {
+      "ns": [
+        351828.8,
+        299702.4,
+        302166.4,
+        303872.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 57
+    },
+    {
+      "ns": [
+        351832.0,
+        301982.4,
+        303908.8,
+        303888.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 58
+    },
+    {
+      "ns": [
+        349377.6,
+        299840.0,
+        299651.2,
+        301768.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 59
+    },
+    {
+      "ns": [
+        347028.8,
+        297944.0,
+        297692.8,
+        297726.4
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 60
+    },
+    {
+      "ns": [
+        346206.4,
+        297732.8,
+        297702.4,
+        297710.4
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 61
+    },
+    {
+      "ns": [
+        347012.8,
+        299715.2,
+        299737.6,
+        299768.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 62
+    },
+    {
+      "ns": [
+        347036.8,
+        299748.8,
+        299313.6,
+        299689.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 63
+    },
+    {
+      "ns": [
+        344696.0,
+        295937.6,
+        295688.0,
+        296892.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 64
+    },
+    {
+      "ns": [
+        347033.6,
+        297723.2,
+        297729.6,
+        298849.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 65
+    },
+    {
+      "ns": [
+        344664.0,
+        297702.4,
+        299688.0,
+        298448.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 66
+    },
+    {
+      "ns": [
+        342392.0,
+        295758.4,
+        295688.0,
+        296382.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 67
+    },
+    {
+      "ns": [
+        342395.2,
+        295732.8,
+        296412.8,
+        297660.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 68
+    },
+    {
+      "ns": [
+        349422.4,
+        297672.0,
+        298729.6,
+        301715.2
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 69
+    },
+    {
+      "ns": [
+        349404.8,
+        301750.4,
+        301795.2,
+        301737.6
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 70
+    },
+    {
+      "ns": [
+        349417.6,
+        300043.2,
+        298852.8,
+        301747.2
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 71
+    },
+    {
+      "ns": [
+        344680.0,
+        297382.4,
+        295739.2,
+        295689.6
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 72
+    },
+    {
+      "ns": [
+        347016.0,
+        296641.6,
+        299641.6,
+        299721.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 73
+    },
+    {
+      "ns": [
+        347035.2,
+        299718.4,
+        299707.2,
+        299723.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 74
+    },
+    {
+      "ns": [
+        347011.2,
+        299838.4,
+        299713.6,
+        299734.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 75
+    },
+    {
+      "ns": [
+        347148.8,
+        299739.2,
+        299697.6,
+        299704.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 76
+    },
+    {
+      "ns": [
+        351820.8,
+        299700.8,
+        299697.6,
+        300056.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 77
+    },
+    {
+      "ns": [
+        351750.4,
+        303875.2,
+        303790.4,
+        303835.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 78
+    },
+    {
+      "ns": [
+        350294.4,
+        303908.8,
+        303334.4,
+        302249.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 79
+    },
+    {
+      "ns": [
+        347022.4,
+        299745.6,
+        300275.2,
+        301737.6
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 80
+    },
+    {
+      "ns": [
+        351833.6,
+        301740.8,
+        301980.8,
+        303817.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 81
+    },
+    {
+      "ns": [
+        349409.6,
+        301193.6,
+        303436.8,
+        301721.6
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 82
+    },
+    {
+      "ns": [
+        347036.8,
+        299926.4,
+        301793.6,
+        299696.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 83
+    },
+    {
+      "ns": [
+        349374.4,
+        301793.6,
+        301750.4,
+        301779.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 84
+    },
+    {
+      "ns": [
+        351777.6,
+        301980.8,
+        303798.4,
+        303817.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 85
+    },
+    {
+      "ns": [
+        351324.8,
+        301764.8,
+        303849.6,
+        303854.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 86
+    },
+    {
+      "ns": [
+        349088.0,
+        299732.8,
+        299667.2,
+        301774.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 87
+    },
+    {
+      "ns": [
+        348574.4,
+        303883.2,
+        303848.0,
+        303420.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 88
+    },
+    {
+      "ns": [
+        351822.4,
+        301763.2,
+        301747.2,
+        301960.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 89
+    },
+    {
+      "ns": [
+        349398.4,
+        301763.2,
+        303876.8,
+        303574.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 90
+    },
+    {
+      "ns": [
+        349369.6,
+        301782.4,
+        301792.0,
+        301820.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 91
+    },
+    {
+      "ns": [
+        349393.6,
+        301748.8,
+        301753.6,
+        301761.6
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 92
+    },
+    {
+      "ns": [
+        349444.8,
+        301792.0,
+        301760.0,
+        301777.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 93
+    },
+    {
+      "ns": [
+        349428.8,
+        301948.8,
+        301782.4,
+        301816.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 94
+    },
+    {
+      "ns": [
+        347000.0,
+        299956.8,
+        301753.6,
+        299745.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 95
+    },
+    {
+      "ns": [
+        349452.8,
+        301827.2,
+        301745.6,
+        301792.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 96
+    },
+    {
+      "ns": [
+        349424.0,
+        301787.2,
+        301788.8,
+        301785.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 97
+    },
+    {
+      "ns": [
+        349417.6,
+        299811.2,
+        301737.6,
+        301774.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 98
+    },
+    {
+      "ns": [
+        347107.2,
+        301780.8,
+        301774.4,
+        299696.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 99
+    },
+    {
+      "ns": [
+        349406.4,
+        301740.8,
+        301779.2,
+        301774.4
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 100
+    },
+    {
+      "ns": [
+        351804.8,
+        301761.6,
+        301747.2,
+        302286.4
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 101
+    },
+    {
+      "ns": [
+        347859.2,
+        299716.8,
+        301814.4,
+        301739.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 102
+    },
+    {
+      "ns": [
+        348846.4,
+        301795.2,
+        301780.8,
+        299676.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 103
+    },
+    {
+      "ns": [
+        349403.2,
+        301785.6,
+        301804.8,
+        301753.6
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 104
+    },
+    {
+      "ns": [
+        351809.6,
+        301772.8,
+        301721.6,
+        302587.2
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 105
+    },
+    {
+      "ns": [
+        349342.4,
+        301776.0,
+        303844.8,
+        303358.4
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 106
+    },
+    {
+      "ns": [
+        349403.2,
+        301729.6,
+        301787.2,
+        301790.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 107
+    },
+    {
+      "ns": [
+        349401.6,
+        301700.8,
+        301697.6,
+        301732.8
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 108
+    },
+    {
+      "ns": [
+        349446.4,
+        301806.4,
+        301769.6,
+        301772.8
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 109
+    },
+    {
+      "ns": [
+        347064.0,
+        299721.6,
+        301774.4,
+        299820.8
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 110
+    },
+    {
+      "ns": [
+        347057.6,
+        299724.8,
+        299732.8,
+        299739.2
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 111
+    },
+    {
+      "ns": [
+        347012.8,
+        299713.6,
+        299739.2,
+        299713.6
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 112
+    },
+    {
+      "ns": [
+        349529.6,
+        299844.8,
+        301872.0,
+        301785.6
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 113
+    },
+    {
+      "ns": [
+        349083.2,
+        299683.2,
+        301760.0,
+        301763.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 114
+    },
+    {
+      "ns": [
+        347382.4,
+        301731.2,
+        301784.0,
+        299745.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 115
+    },
+    {
+      "ns": [
+        349387.2,
+        301771.2,
+        301942.4,
+        301824.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 116
+    },
+    {
+      "ns": [
+        347467.2,
+        301761.6,
+        301878.4,
+        301790.4
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 117
+    },
+    {
+      "ns": [
+        347004.8,
+        299734.4,
+        299747.2,
+        299723.2
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 118
+    },
+    {
+      "ns": [
+        349305.6,
+        301753.6,
+        301809.6,
+        299686.4
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 119
+    }
+  ],
+  "schema": "bce-result-4",
+  "slots": [
+    "no_bce",
+    "bce",
+    "bce_dup",
+    "unchecked"
+  ],
+  "statics": [
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 0,
+      "slot": "no_bce",
+      "spv_sha256": "5d276ba00aa2a5500c219bb9d70ba49dd622b06f514e9b9fad090e18386f6f96",
+      "spv_words": 490,
+      "umin_clamps": 2
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 2,
+      "slot": "bce",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 2,
+      "slot": "bce_dup",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    },
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Unchecked",
+      "op_u_less_than": 1,
+      "proven_accesses": 0,
+      "slot": "unchecked",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    }
+  ],
+  "valid": true,
+  "warmup_last_window_change_pct": 0.2976169892963895,
+  "warmup_rounds": 30,
+  "warmup_rounds_done": 188,
+  "warmup_seconds": 5.009975478,
+  "workgroup_size": [
+    256,
+    1,
+    1
+  ]
+}
