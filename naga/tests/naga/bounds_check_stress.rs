@@ -1705,3 +1705,44 @@ fn top_guard_equality_exit_elides() {
     let retain = elide.replace("i == 8u", "i == 9u");
     assert_eq!(access_proofs(&retain), [false]);
 }
+
+// ---------------------------------------------------------------------------
+// A loop guard only bounds the loop variable if every iteration passes it: a
+// `continue` before the guard skips it while the `continuing` update still runs.
+// ---------------------------------------------------------------------------
+
+const CONTINUE_BEFORE_GUARD: &str = "@group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+    var<workgroup> t: array<u32, 9>;
+    @compute @workgroup_size(1)
+    fn main() {
+        var i = 0u;
+        loop {
+            t[i] = 1u;
+            if (xs[0] == 1u) { continue; }
+            if (i >= 8u) { break; }
+            continuing { i = i + 1u; }
+        }
+    }";
+
+#[test]
+fn continue_before_loop_guard_retains_check() {
+    // With xs[0] == 1 the guard never runs and i passes 8: t[9] is out of bounds.
+    assert_eq!(access_proofs(CONTINUE_BEFORE_GUARD), [false]);
+}
+
+#[test]
+fn loop_guard_without_continue_still_bounds_variable() {
+    let source = CONTINUE_BEFORE_GUARD.replace("if (xs[0] == 1u) { continue; }\n", "");
+    assert_eq!(access_proofs(&source), [true]);
+}
+
+#[test]
+fn continue_after_loop_guard_still_bounds_variable() {
+    let source = CONTINUE_BEFORE_GUARD
+        .replace("            if (xs[0] == 1u) { continue; }\n", "")
+        .replace(
+            "if (i >= 8u) { break; }",
+            "if (i >= 8u) { break; }\n            if (xs[0] == 1u) { continue; }",
+        );
+    assert_eq!(access_proofs(&source), [true]);
+}

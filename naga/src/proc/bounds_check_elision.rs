@@ -403,6 +403,11 @@ impl Analysis<'_> {
             } else {
                 let (condition, breaks_when_true, guard_position) =
                     loop_guard(body, local, self.function)?;
+                // A `continue` before the guard skips it while the update still
+                // runs, so the guard would not bound every iteration.
+                if body.iter().take(guard_position).any(may_continue) {
+                    return None;
+                }
                 let terminal_reaches_header = match update_location {
                     UpdateLocation::Body(position) => position >= guard_position,
                     UpdateLocation::Continuing => true,
@@ -1028,6 +1033,23 @@ fn direct_update(
         _ => return None,
     };
     Some((local, step, constant))
+}
+
+/// Whether `statement` can execute a `continue` of the enclosing loop.
+#[allow(clippy::pattern_type_mismatch)]
+fn may_continue(statement: &Statement) -> bool {
+    match statement {
+        Statement::Continue => true,
+        Statement::Block(block) => block.iter().any(may_continue),
+        Statement::If { accept, reject, .. } => {
+            accept.iter().any(may_continue) || reject.iter().any(may_continue)
+        }
+        Statement::Switch { cases, .. } => {
+            cases.iter().any(|case| case.body.iter().any(may_continue))
+        }
+        // A nested loop's `continue` targets that loop.
+        _ => false,
+    }
 }
 
 fn loop_guard(
