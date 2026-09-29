@@ -80,10 +80,12 @@ fn compile_msl(text: &str) -> String {
     let info = Validator::new(ValidationFlags::all(), Capabilities::all())
         .validate(&module)
         .expect("validation");
-    let mut options = naga::back::msl::Options::default();
-    options.bounds_check_policies = BoundsCheckPolicies {
-        index: BoundsCheckPolicy::Restrict,
-        buffer: BoundsCheckPolicy::Restrict,
+    let options = naga::back::msl::Options {
+        bounds_check_policies: BoundsCheckPolicies {
+            index: BoundsCheckPolicy::Restrict,
+            buffer: BoundsCheckPolicy::Restrict,
+            ..Default::default()
+        },
         ..Default::default()
     };
     naga::back::msl::write_string(
