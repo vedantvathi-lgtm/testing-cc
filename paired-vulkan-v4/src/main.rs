@@ -446,6 +446,15 @@ fn main() {
         data.push(Round { round: r, order: order.iter().map(|&s| SLOTS[s].to_string()).collect(), ns });
     }
     let measure_end_unix_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
+    // Noise gate, second half: another GPU compute process that appeared *during*
+    // the measurement invalidates the run (our own process is excluded).
+    let own_pid = std::process::id().to_string();
+    let compute_apps_after: Vec<String> = sh("nvidia-smi", &["--query-compute-apps=pid,process_name", "--format=csv,noheader"])
+        .lines()
+        .filter(|line| !line.trim().is_empty() && line.split(',').next().map(str::trim) != Some(own_pid.as_str()))
+        .map(str::to_string)
+        .collect();
+    let quiet_during_run = compute_apps_after.is_empty();
     let after: Vec<usize> = (0..4).map(check).collect();
     if let Some(t) = telemetry.as_mut() {
         let _ = t.kill();
@@ -538,13 +547,15 @@ fn main() {
         "warmup_last_window_change_pct": warmup_last_window_change_pct,
         "measure_window_unix_ms": [measure_start_unix_ms, measure_end_unix_ms],
         "correctness": correctness,
-        "valid": correct && control_ok,
+        "gpu_compute_apps_after": compute_apps_after,
+        "quiet_during_run": quiet_during_run,
+        "valid": correct && control_ok && quiet_during_run,
         "rounds_raw": data,
     });
     std::fs::write(run_dir.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     println!(
         "{} valid={} bce_changes_binary={} bce={:.0}ns no_bce/bce={:.4} [{:.4},{:.4}] control={:.4} [{:.4},{:.4}] bce/unchecked={:.4} warmup={}r/{:.1}s -> {}",
-        kernel.name, correct && control_ok, bce_changes_binary, medians[1], effect_ratio.median, effect_ratio.ci95_lo, effect_ratio.ci95_hi,
+        kernel.name, correct && control_ok && quiet_during_run, bce_changes_binary, medians[1], effect_ratio.median, effect_ratio.ci95_lo, effect_ratio.ci95_hi,
         control_ratio.median, control_ratio.ci95_lo, control_ratio.ci95_hi, residual_ratio.median, warmup_rounds_done, warmup_seconds, run_dir.display()
     );
 }

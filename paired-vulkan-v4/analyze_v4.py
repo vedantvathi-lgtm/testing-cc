@@ -77,6 +77,8 @@ for path in sorted(glob.glob(os.path.join(root, "2*", "result.json"))):
         continue
     if not adapter_filter and "nvidia" not in adapter.lower():
         continue  # default report: NVIDIA only; pass an adapter substring for others
+    if r.get("quiet_during_run") is False:
+        continue  # another GPU compute process appeared during the measurement
     runs.setdefault(r["kernel"], []).append((os.path.dirname(path), r))
 print(f"adapters seen: {sorted(adapters)}; reporting: {adapter_filter or 'NVIDIA'}; wgpu rev: {args.rev or 'any'}\n")
 
