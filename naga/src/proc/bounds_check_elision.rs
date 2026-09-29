@@ -111,6 +111,20 @@ impl IntRange {
         }
     }
 
+    fn min_i64(self) -> i64 {
+        match self {
+            Self::U32 { min, .. } => i64::from(min),
+            Self::I32 { min, .. } => i64::from(min),
+        }
+    }
+
+    fn max_i64(self) -> i64 {
+        match self {
+            Self::U32 { max, .. } => i64::from(max),
+            Self::I32 { max, .. } => i64::from(max),
+        }
+    }
+
     fn fits(self, length: u32) -> bool {
         match self {
             Self::U32 { max, .. } => max < length,
@@ -147,6 +161,13 @@ impl IntRange {
             }
         }
     }
+}
+
+/// What a branch condition refines.
+#[derive(Clone, Copy)]
+enum Target {
+    Local(Handle<LocalVariable>),
+    Value(Handle<Expression>),
 }
 
 #[derive(Clone)]
@@ -224,11 +245,11 @@ impl Analysis<'_> {
                     reject,
                 } => {
                     let accept_flow = self
-                        .refine(*condition, true, ranges.clone(), &values)
-                        .map(|facts| self.analyze_block(accept, facts, values.clone()));
+                        .refine(*condition, true, ranges.clone(), values.clone())
+                        .map(|(facts, known)| self.analyze_block(accept, facts, known));
                     let reject_flow = self
-                        .refine(*condition, false, ranges.clone(), &values)
-                        .map(|facts| self.analyze_block(reject, facts, values.clone()));
+                        .refine(*condition, false, ranges.clone(), values.clone())
+                        .map(|(facts, known)| self.analyze_block(reject, facts, known));
                     match (accept_flow, reject_flow) {
                         (Some(left), Some(right)) if left.falls_through && right.falls_through => {
                             ranges = join_ranges(&left.ranges, &right.ranges);
@@ -369,6 +390,11 @@ impl Analysis<'_> {
                     })
                 })
             })?;
+        // `i = i >> c` / `i = i / c` only move a non-negative `i` towards zero, so
+        // every value the loop sees lies in [0, start] whatever the exit test.
+        if shrinking_update(local, body, continuing, self.function, self.module) {
+            return make_range(self.local_full_range(local)?, 0, start).filter(|_| start >= 0);
+        }
         let (step, template, update_location) =
             single_update(local, body, continuing, self.function, self.module)?;
         let (condition, breaks_when_true, terminal_reaches_header) =
@@ -424,18 +450,81 @@ impl Analysis<'_> {
             Expression::FunctionArgument(index) => self.argument_range(index),
             Expression::AccessIndex { base, index } => self.builtin_component_range(base, index),
             Expression::Load { .. } => None,
-            Expression::Binary { op, left, right } => {
-                let left = self.expression_range(left, values)?;
-                let right = self.expression_range(right, values)?;
-                match op {
-                    BinaryOperator::Add => left.add(right),
-                    BinaryOperator::Subtract => left.sub(right),
-                    BinaryOperator::Multiply => left.mul(right),
+            Expression::Binary { op, left, right } => match op {
+                BinaryOperator::Add => self
+                    .expression_range(left, values)?
+                    .add(self.expression_range(right, values)?),
+                BinaryOperator::Subtract => self
+                    .expression_range(left, values)?
+                    .sub(self.expression_range(right, values)?),
+                BinaryOperator::Multiply => self
+                    .expression_range(left, values)?
+                    .mul(self.expression_range(right, values)?),
+                BinaryOperator::ShiftLeft => shift_left(
+                    self.expression_range(left, values)?,
+                    self.expression_range(right, values)?,
+                ),
+                // These bound their result even when the left operand is unknown.
+                BinaryOperator::Divide => divide(
+                    self.range_or_full(left, values)?,
+                    self.expression_range(right, values)?,
+                ),
+                BinaryOperator::Modulo => modulo(
+                    self.range_or_full(left, values)?,
+                    self.expression_range(right, values)?,
+                ),
+                BinaryOperator::ShiftRight => shift_right(
+                    self.range_or_full(left, values)?,
+                    self.expression_range(right, values)?,
+                ),
+                BinaryOperator::And => bit_and(
+                    self.range_or_full(left, values)?,
+                    self.range_or_full(right, values)?,
+                ),
+                _ => None,
+            },
+            Expression::Math {
+                fun,
+                arg,
+                arg1,
+                arg2,
+                ..
+            } => {
+                let first = self.range_or_full(arg, values)?;
+                match fun {
+                    crate::MathFunction::Min => {
+                        min_range(first, self.range_or_full(arg1?, values)?)
+                    }
+                    crate::MathFunction::Max => {
+                        max_range(first, self.range_or_full(arg1?, values)?)
+                    }
+                    crate::MathFunction::Clamp => min_range(
+                        max_range(first, self.range_or_full(arg1?, values)?)?,
+                        self.range_or_full(arg2?, values)?,
+                    ),
                     _ => None,
                 }
             }
+            Expression::Select { accept, reject, .. } => self
+                .expression_range(accept, values)?
+                .join(self.expression_range(reject, values)?),
+            Expression::As {
+                expr,
+                kind,
+                convert: None | Some(4),
+            } => convert_range(self.expression_range(expr, values)?, kind),
             _ => None,
         }
+    }
+
+    /// The known range of `handle`, or the full range of its 32-bit integer type.
+    fn range_or_full(&self, handle: Handle<Expression>, values: &Values) -> Option<IntRange> {
+        self.expression_range(handle, values).or_else(|| {
+            match *self.info[handle].ty.inner_with(&self.module.types) {
+                TypeInner::Scalar(scalar) if scalar.width == 4 => IntRange::full(scalar.kind),
+                _ => None,
+            }
+        })
     }
 
     fn prove_access(&mut self, handle: Handle<Expression>, values: &Values) {
@@ -467,8 +556,8 @@ impl Analysis<'_> {
         condition: Handle<Expression>,
         truth: bool,
         mut ranges: Ranges,
-        values: &Values,
-    ) -> Option<Ranges> {
+        mut values: Values,
+    ) -> Option<(Ranges, Values)> {
         let Expression::Binary { op, left, right } = self.function.expressions[condition] else {
             if let Expression::Unary {
                 op: crate::UnaryOperator::LogicalNot,
@@ -477,32 +566,43 @@ impl Analysis<'_> {
             {
                 return self.refine(expr, !truth, ranges, values);
             }
-            return Some(ranges);
+            return Some((ranges, values));
         };
         match (op, truth) {
             (BinaryOperator::LogicalAnd, true) | (BinaryOperator::LogicalOr, false) => {
-                let ranges = self.refine(left, truth, ranges, values)?;
+                let (ranges, values) = self.refine(left, truth, ranges, values)?;
                 return self.refine(right, truth, ranges, values);
             }
             (BinaryOperator::LogicalAnd, false) | (BinaryOperator::LogicalOr, true) => {
-                return Some(ranges);
+                return Some((ranges, values));
             }
             _ => {}
         }
         // A condition we cannot model teaches us nothing: keep the facts as they
         // are. Only an empty refined range makes this edge infeasible.
-        let Some((local, op, bound, current)) =
-            self.comparison_fact(op, left, right, truth, &ranges, values)
+        let Some((target, refined)) =
+            self.comparison_fact(op, left, right, truth, &ranges, &values)
         else {
-            return Some(ranges);
+            return Some((ranges, values));
         };
-        ranges.insert(local, refine_range(current, op, bound)?);
-        Some(ranges)
+        let refined = refined?;
+        match target {
+            Target::Local(local) => {
+                ranges.insert(local, refined);
+            }
+            // The expression's value was computed before the branch and cannot
+            // change inside it, so its refined range holds for the whole edge.
+            Target::Value(handle) => {
+                values.insert(handle, refined);
+            }
+        }
+        Some((ranges, values))
     }
 
-    /// The local, comparison, exact bound and current range that `left op right`
-    /// constrains when it evaluates to `truth`, or `None` if it constrains
-    /// nothing we track.
+    /// What `left op right` constrains when it evaluates to `truth`: the target
+    /// (a local variable or an already-computed integer value) and its refined
+    /// range, where `Some(None)` means the refined range is empty. Returns
+    /// `None` if the condition constrains nothing we track.
     fn comparison_fact(
         &self,
         op: BinaryOperator,
@@ -511,26 +611,54 @@ impl Analysis<'_> {
         truth: bool,
         ranges: &Ranges,
         values: &Values,
-    ) -> Option<(Handle<LocalVariable>, BinaryOperator, i64, IntRange)> {
+    ) -> Option<(Target, Option<IntRange>)> {
         // Also rejects non-comparison operators (e.g. boolean `&`) on both edges.
         let negated = negate_comparison(op)?;
         let op = if truth { op } else { negated };
-        let (local, op, bound) = if let Some(local) = loaded_local(left, self.function) {
-            (local, op, self.expression_range(right, values)?.exact()?)
-        } else if let Some(local) = loaded_local(right, self.function) {
-            (
-                local,
-                swap_comparison(op)?,
-                self.expression_range(left, values)?.exact()?,
-            )
-        } else {
-            return None;
+        let (subject, op, other) = match (
+            self.target(left, ranges, values),
+            self.target(right, ranges, values),
+        ) {
+            (Some(target), _) => (target, op, right),
+            (None, Some(target)) => (target, swap_comparison(op)?, left),
+            (None, None) => return None,
         };
-        let current = ranges
-            .get(&local)
-            .copied()
-            .or_else(|| self.local_full_range(local))?;
-        Some((local, op, bound, current))
+        let (target, current) = subject;
+        let bound = self.expression_range(other, values)?;
+        let refined = match (op, bound.exact()) {
+            (_, Some(exact)) => refine_range(current, op, exact),
+            // A bound known only as a range: `x < e` with `e <= hi` gives `x < hi`, etc.
+            (BinaryOperator::Less | BinaryOperator::LessEqual, None) => {
+                refine_range(current, op, bound.max_i64())
+            }
+            (BinaryOperator::Greater | BinaryOperator::GreaterEqual, None) => {
+                refine_range(current, op, bound.min_i64())
+            }
+            (BinaryOperator::Equal, None) => current
+                .lower(bound.min_i64())
+                .and_then(|range| range.upper(bound.max_i64())),
+            _ => Some(current),
+        };
+        Some((target, refined))
+    }
+
+    /// A comparison operand we can refine, with its current range: a loaded
+    /// 32-bit integer local, or an integer value whose range we already know.
+    fn target(
+        &self,
+        handle: Handle<Expression>,
+        ranges: &Ranges,
+        values: &Values,
+    ) -> Option<(Target, IntRange)> {
+        if let Some(local) = loaded_local(handle, self.function) {
+            let current = ranges
+                .get(&local)
+                .copied()
+                .or_else(|| self.local_full_range(local))?;
+            return Some((Target::Local(local), current));
+        }
+        let current = self.expression_range(handle, values)?;
+        Some((Target::Value(handle), current))
     }
 
     #[allow(clippy::pattern_type_mismatch)]
@@ -648,6 +776,8 @@ fn refine_range(range: IntRange, op: BinaryOperator, bound: i64) -> Option<IntRa
         BinaryOperator::Equal => range.lower(bound)?.upper(bound),
         BinaryOperator::NotEqual => match range.exact() {
             Some(value) if value == bound => None,
+            _ if bound == range.max_i64() => range.upper(bound - 1),
+            _ if bound == range.min_i64() => range.lower(bound + 1),
             _ => Some(range),
         },
         _ => None,
@@ -787,6 +917,44 @@ fn single_update(
         .filter(|statement| initializer_store(local, statement, function, module).is_some())
         .count();
     (mutations == 1 || (mutations == 2 && initializers == 1)).then(|| updates[0])
+}
+
+/// Whether the only mutation of `local` in the loop is `local = local >> c`
+/// (`c >= 1`) or `local = local / c` (`c >= 2`) with a constant `c`.
+fn shrinking_update(
+    local: Handle<LocalVariable>,
+    body: &Block,
+    continuing: &Block,
+    function: &Function,
+    module: &Module,
+) -> bool {
+    let is_shrink = |statement: &Statement| {
+        let Statement::Store { pointer, value } = *statement else {
+            return false;
+        };
+        if function.expressions[pointer] != Expression::LocalVariable(local) {
+            return false;
+        }
+        let Expression::Binary { op, left, right } = function.expressions[value] else {
+            return false;
+        };
+        if loaded_local(left, function) != Some(local) {
+            return false;
+        }
+        match (op, exact_constant(right, function, module)) {
+            (BinaryOperator::ShiftRight, Some(c)) => (1..32).contains(&c),
+            (BinaryOperator::Divide, Some(c)) => c >= 2,
+            _ => false,
+        }
+    };
+    let shrinks = body
+        .iter()
+        .chain(continuing.iter())
+        .filter(|s| is_shrink(s))
+        .count();
+    let mutations = local_mutation_count(body, local, function)
+        .saturating_add(local_mutation_count(continuing, local, function));
+    shrinks == 1 && mutations == 1
 }
 
 fn initializer_store(
@@ -978,6 +1146,168 @@ fn recurrence_ranges(
         make_range(template, min, max)?,
         make_range(template, exit, exit)?,
     ))
+}
+
+const fn divide(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    match (left, right) {
+        (U32 { min: a, max: b }, U32 { min: c, max: d }) if c > 0 => Some(U32 {
+            min: a / d,
+            max: b / c,
+        }),
+        (I32 { min: a, max: b }, I32 { min: c, max: d }) if a >= 0 && c > 0 => Some(I32 {
+            min: a / d,
+            max: b / c,
+        }),
+        _ => None,
+    }
+}
+
+/// `left % k` for a constant `k > 0`. Signed operands must be non-negative,
+/// since WGSL `%` keeps the sign of the dividend.
+fn modulo(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    let k = right.exact()?;
+    match left {
+        U32 { min, max } => {
+            let k = u32::try_from(k).ok().filter(|&k| k > 0)?;
+            Some(if min / k == max / k {
+                U32 {
+                    min: min % k,
+                    max: max % k,
+                }
+            } else {
+                U32 { min: 0, max: k - 1 }
+            })
+        }
+        I32 { min, max } if min >= 0 => {
+            let k = i32::try_from(k).ok().filter(|&k| k > 0)?;
+            Some(if min / k == max / k {
+                I32 {
+                    min: min % k,
+                    max: max % k,
+                }
+            } else {
+                I32 { min: 0, max: k - 1 }
+            })
+        }
+        I32 { .. } => None,
+    }
+}
+
+/// Shift amounts are taken modulo 32 by WGSL, so only `[0, 31]` is modelled.
+const fn shift_amounts(right: IntRange) -> Option<(u32, u32)> {
+    match right {
+        IntRange::U32 { min, max } if max < 32 => Some((min, max)),
+        _ => None,
+    }
+}
+
+fn shift_right(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    let (c, d) = shift_amounts(right)?;
+    match left {
+        U32 { min, max } => Some(U32 {
+            min: min >> d,
+            max: max >> c,
+        }),
+        I32 { min, max } if min >= 0 => Some(I32 {
+            min: min >> d,
+            max: max >> c,
+        }),
+        I32 { .. } => None,
+    }
+}
+
+fn shift_left(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    let (c, d) = shift_amounts(right)?;
+    match left {
+        U32 { min, max } => {
+            let high = u32::try_from(u64::from(max) << d).ok()?;
+            Some(U32 {
+                min: min << c,
+                max: high,
+            })
+        }
+        I32 { min, max } if min >= 0 => {
+            let high = i32::try_from(i64::from(max) << d).ok()?;
+            Some(I32 {
+                min: min << c,
+                max: high,
+            })
+        }
+        I32 { .. } => None,
+    }
+}
+
+/// `left & right` is at most the smaller non-negative operand's maximum.
+fn bit_and(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    match (left, right) {
+        (U32 { max: a, .. }, U32 { max: b, .. }) => Some(U32 {
+            min: 0,
+            max: a.min(b),
+        }),
+        (I32 { min: a, max: b }, I32 { min: c, max: d }) => match (a >= 0, c >= 0) {
+            (true, true) => Some(I32 {
+                min: 0,
+                max: b.min(d),
+            }),
+            (true, false) => Some(I32 { min: 0, max: b }),
+            (false, true) => Some(I32 { min: 0, max: d }),
+            (false, false) => None,
+        },
+        _ => None,
+    }
+}
+
+fn min_range(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    match (left, right) {
+        (U32 { min: a, max: b }, U32 { min: c, max: d }) => Some(U32 {
+            min: a.min(c),
+            max: b.min(d),
+        }),
+        (I32 { min: a, max: b }, I32 { min: c, max: d }) => Some(I32 {
+            min: a.min(c),
+            max: b.min(d),
+        }),
+        _ => None,
+    }
+}
+
+fn max_range(left: IntRange, right: IntRange) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    match (left, right) {
+        (U32 { min: a, max: b }, U32 { min: c, max: d }) => Some(U32 {
+            min: a.max(c),
+            max: b.max(d),
+        }),
+        (I32 { min: a, max: b }, I32 { min: c, max: d }) => Some(I32 {
+            min: a.max(c),
+            max: b.max(d),
+        }),
+        _ => None,
+    }
+}
+
+/// Integer conversion (or bitcast) between `u32` and `i32`: value-preserving
+/// only when the whole range is representable in the target type.
+fn convert_range(range: IntRange, kind: ScalarKind) -> Option<IntRange> {
+    use IntRange::{I32, U32};
+    match (range, kind) {
+        (U32 { .. }, ScalarKind::Uint) | (I32 { .. }, ScalarKind::Sint) => Some(range),
+        (U32 { min, max }, ScalarKind::Sint) => Some(I32 {
+            min: i32::try_from(min).ok()?,
+            max: i32::try_from(max).ok()?,
+        }),
+        (I32 { min, max }, ScalarKind::Uint) => Some(U32 {
+            min: u32::try_from(min).ok()?,
+            max: u32::try_from(max).ok()?,
+        }),
+        _ => None,
+    }
 }
 
 fn ceil_div(numerator: i64, denominator: i64) -> Option<i64> {

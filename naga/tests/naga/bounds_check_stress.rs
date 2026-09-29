@@ -1531,3 +1531,177 @@ fn wgsl_bool_equality_else_assignment_retains_check() {
     "#;
     assert_eq!(access_proofs(source), [false]);
 }
+
+// ---------------------------------------------------------------------------
+// Feature 005: rules targeted at the residual checks measured by paired-vulkan-4
+// (runs-v4/summary-{nvidia,intel}.json). Each rule has a must-elide test and a
+// must-retain neighbour that differs by one constant.
+// ---------------------------------------------------------------------------
+
+/// Proof of the single dynamic access `t[<index>]` in a compute shader with
+/// `t: array<u32, len>`, workgroup size `wg`, a runtime `x: u32`, runtime
+/// `xi: i32`, and `prelude` statements before the access.
+fn single_proof(len: u32, wg: u32, prelude: &str, index: &str) -> bool {
+    let source = format!(
+        "@group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+        @group(0) @binding(1) var<storage, read> xis: array<i32, 4>;
+        var<workgroup> t: array<u32, {len}>;
+        @compute @workgroup_size({wg})
+        fn main(@builtin(local_invocation_index) lid: u32) {{
+            let x = xs[1];
+            let xi = xis[1];
+            {prelude}
+            t[{index}] = lid;
+        }}"
+    );
+    let proofs = access_proofs(&source);
+    assert_eq!(
+        proofs.len(),
+        1,
+        "expected exactly one dynamic access: {proofs:?}"
+    );
+    proofs[0]
+}
+
+#[test]
+fn modulo_by_constant_bounds_index() {
+    assert!(single_proof(8, 64, "", "lid % 8u"));
+    assert!(!single_proof(8, 64, "", "lid % 9u"));
+    assert!(single_proof(8, 1, "", "x % 8u"));
+}
+
+#[test]
+fn signed_modulo_of_unknown_value_is_not_non_negative() {
+    // xi % 8 is in [-7, 7] for i32; converting to u32 can wrap to a huge index.
+    assert!(!single_proof(8, 1, "", "u32(xi % 8)"));
+}
+
+#[test]
+fn shift_right_and_divide_by_constant_bound_index() {
+    assert!(single_proof(8, 64, "", "lid >> 3u"));
+    assert!(!single_proof(8, 64, "", "lid >> 2u"));
+    assert!(single_proof(8, 64, "", "lid / 8u"));
+    assert!(!single_proof(8, 64, "", "lid / 4u"));
+}
+
+#[test]
+fn and_mask_bounds_index() {
+    assert!(single_proof(8, 1, "", "x & 7u"));
+    assert!(!single_proof(8, 1, "", "x & 8u"));
+}
+
+#[test]
+fn min_max_clamp_bound_index() {
+    assert!(single_proof(8, 1, "", "min(x, 7u)"));
+    assert!(!single_proof(8, 1, "", "min(x, 8u)"));
+    assert!(single_proof(8, 1, "", "clamp(x, 0u, 7u)"));
+    assert!(!single_proof(8, 1, "", "clamp(x, 0u, 8u)"));
+    assert!(!single_proof(8, 1, "", "max(x, 3u)"));
+}
+
+#[test]
+fn select_joins_both_arms() {
+    assert!(single_proof(8, 1, "", "select(1u, 7u, x > 3u)"));
+    assert!(!single_proof(8, 1, "", "select(1u, 8u, x > 3u)"));
+}
+
+#[test]
+fn int_conversion_keeps_proven_non_negative_range() {
+    let source = "var<workgroup> t: array<u32, 4>;
+        @compute @workgroup_size(1)
+        fn main() {
+            for (var c = 0; c < 4; c = c + 1) {
+                t[u32(c)] = 1u;
+            }
+        }";
+    assert_eq!(access_proofs(source), [true]);
+    // an unknown i32 may be negative and wrap
+    assert!(!single_proof(8, 1, "", "u32(xi)"));
+}
+
+#[test]
+fn guard_on_builtin_refines_builtin() {
+    assert!(single_proof(8, 64, "if lid >= 8u { return; }", "lid"));
+    assert!(!single_proof(8, 64, "if lid >= 9u { return; }", "lid"));
+}
+
+#[test]
+fn guard_with_range_valued_bound_refines() {
+    // n is in [0, 8] (min), so i < n implies i <= 7.
+    let elide = "var<workgroup> t: array<u32, 8>;
+        @group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+        @compute @workgroup_size(1)
+        fn main() {
+            let n = min(xs[1], 8u);
+            for (var i = 0u; i < n; i = i + 1u) {
+                t[i] = 1u;
+            }
+        }";
+    assert_eq!(access_proofs(elide), [true]);
+    let retain = elide.replace("min(xs[1], 8u)", "min(xs[1], 9u)");
+    assert_eq!(access_proofs(&retain), [false]);
+}
+
+#[test]
+fn shift_right_recurrence_bounds_loop_variable() {
+    let elide = "var<workgroup> t: array<u32, 128>;
+        @compute @workgroup_size(1)
+        fn main() {
+            for (var s = 128u; s > 0u; s = s >> 1u) {
+                t[s - 1u] = 1u;
+            }
+        }";
+    assert_eq!(access_proofs(elide), [true]);
+    let retain = elide.replace("array<u32, 128>", "array<u32, 127>");
+    assert_eq!(access_proofs(&retain), [false]);
+}
+
+#[test]
+fn shift_recurrence_with_second_mutation_retains_check() {
+    let source = "var<workgroup> t: array<u32, 128>;
+        @group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+        @compute @workgroup_size(1)
+        fn main() {
+            for (var s = 128u; s > 0u; s = s >> 1u) {
+                if xs[0] == 1u { s = 1000u; }
+                t[s - 1u] = 1u;
+            }
+        }";
+    assert_eq!(access_proofs(source), [false]);
+}
+
+#[test]
+fn tree_reduction_partner_access_elides() {
+    // The reduce_tree benchmark kernel: s[lid + stride] under `lid < stride`.
+    let elide = "var<workgroup> s: array<u32, 256>;
+        @compute @workgroup_size(256)
+        fn main(@builtin(local_invocation_index) lid: u32) {
+            for (var stride = 128u; stride > 0u; stride = stride >> 1u) {
+                if (lid < stride) {
+                    s[lid] = s[lid] + s[lid + stride];
+                }
+                workgroupBarrier();
+            }
+        }";
+    assert_eq!(access_proofs(elide), [true, true, true]);
+    // stride starting at 256 lets lid + stride reach 511
+    let retain = elide.replace("var stride = 128u", "var stride = 256u");
+    assert_eq!(access_proofs(&retain), [true, true, false]);
+}
+
+#[test]
+fn top_guard_equality_exit_elides() {
+    let elide = "var<workgroup> t: array<u32, 8>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 0u;
+            loop {
+                if (i == 8u) { break; }
+                t[i] = 1u;
+                i = i + 1u;
+            }
+        }";
+    assert_eq!(access_proofs(elide), [true]);
+    let retain = elide.replace("i == 8u", "i == 9u");
+    assert_eq!(access_proofs(&retain), [false]);
+}
