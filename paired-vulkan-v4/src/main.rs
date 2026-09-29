@@ -299,6 +299,12 @@ fn git(path: &Path, args: &[&str]) -> String {
     Command::new("git").args(args).current_dir(path).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()
 }
 
+/// sha256 of the raw `git diff HEAD -- naga/src` bytes (same as `git diff ... | sha256sum`).
+fn naga_diff_sha(wgpu: &Path) -> String {
+    let out = Command::new("git").args(["diff", "HEAD", "--", "naga/src"]).current_dir(wgpu).output().map(|o| o.stdout).unwrap_or_default();
+    sha256(&out)
+}
+
 fn env_usize(name: &str, default: usize) -> usize {
     std::env::var(name).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
 }
@@ -323,6 +329,22 @@ fn main() {
     let run_dir = framework.join("runs-v4").join(format!("{utc_start}-{}{adapter_tag}", kernel.name));
     let art = run_dir.join("artifacts");
     std::fs::create_dir_all(&art).unwrap();
+
+    // Provenance gate: the binary must have been built from the source it reports.
+    // run_campaign.sh builds with BCE_BUILD_WGPU_REV / BCE_BUILD_NAGA_DIFF_SHA set.
+    let runtime_rev = git(&project.join("wgpu"), &["rev-parse", "HEAD"]);
+    let runtime_diff = naga_diff_sha(&project.join("wgpu"));
+    let build_rev = option_env!("BCE_BUILD_WGPU_REV").unwrap_or("unknown");
+    let build_diff = option_env!("BCE_BUILD_NAGA_DIFF_SHA").unwrap_or("unknown");
+    if build_rev != runtime_rev || build_diff != runtime_diff {
+        std::fs::write(
+            run_dir.join("environment-blocked.txt"),
+            format!("provenance mismatch: built from wgpu {build_rev} (naga/src diff {build_diff}), source now {runtime_rev} (diff {runtime_diff}); rebuild with run_campaign.sh\n"),
+        )
+        .unwrap();
+        eprintln!("refusing to run: binary was not built from the current wgpu source");
+        std::process::exit(4);
+    }
 
     // Noise gate (benchmarking notes §11): no other GPU compute work may be running.
     let compute_apps = sh("nvidia-smi", &["--query-compute-apps=pid,process_name", "--format=csv,noheader"]);
@@ -468,9 +490,10 @@ fn main() {
         "sources": {
             "wgpu": {"rev": git(&project.join("wgpu"), &["rev-parse", "HEAD"]), "branch": git(&project.join("wgpu"), &["branch", "--show-current"]),
                       "dirty_files": git(&project.join("wgpu"), &["status", "--porcelain", "--", "naga/src", "wgpu", "wgpu-core", "wgpu-hal"]),
-                      "naga_src_diff_sha256": sha256(git(&project.join("wgpu"), &["diff", "HEAD", "--", "naga/src"]).as_bytes())},
+                      "naga_src_diff_sha256": runtime_diff},
             "framework": {"rev": git(&framework, &["rev-parse", "HEAD"]), "dirty": !git(&framework, &["status", "--porcelain"]).is_empty()},
             "rustc": sh("rustc", &["-V"]), "cargo": sh("cargo", &["-V"]),
+            "build": {"wgpu_rev": build_rev, "naga_src_diff_sha256": build_diff},
         },
         "machine": {
             "adapter": adapter.name, "backend": format!("{:?}", adapter.backend), "driver": adapter.driver, "driver_info": adapter.driver_info,

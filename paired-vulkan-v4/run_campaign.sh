@@ -3,8 +3,16 @@
 # slow drift (thermals, background) is not confounded with any kernel.
 set -u
 N=${N:-10}
-BIN="${BIN:-$(dirname "$0")/target/release/bce-paired-vulkan-v4}"
-LOG="$(dirname "$0")/../runs-v4/campaign-$(date -u +%Y%m%dT%H%M%SZ).log"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+BIN="${BIN:-$HERE/target/release/bce-paired-vulkan-v4}"
+LOG="$HERE/../runs-v4/campaign-$(date -u +%Y%m%dT%H%M%SZ).log"
+# Build right before running, embedding the source revision the binary is built from;
+# the harness refuses to run if the wgpu source changes after this build.
+WGPU="$(cd "$HERE/../../wgpu" && pwd)"
+export BCE_BUILD_WGPU_REV="$(git -C "$WGPU" rev-parse HEAD)"
+export BCE_BUILD_NAGA_DIFF_SHA="$(git -C "$WGPU" diff HEAD -- naga/src | sha256sum | cut -d' ' -f1)"
+TARGET_DIR="$(cd "$(dirname "$BIN")/.." && pwd)"   # .../target or .../target-multi
+( cd "$HERE" && CARGO_TARGET_DIR="$TARGET_DIR" cargo build --release -q ) || { echo "build failed"; exit 1; }
 mapfile -t KERNELS < <("$BIN" --list)
 echo "campaign N=$N kernels=${KERNELS[*]} start=$(date -u +%FT%TZ)" | tee -a "$LOG"
 for cycle in $(seq 1 "$N"); do
