@@ -456,6 +456,12 @@ impl Analysis<'_> {
         }
     }
 
+    /// Facts that hold on the edge where `condition` evaluates to `truth`.
+    ///
+    /// `None` means the edge is infeasible: the refined range of some local is
+    /// empty. It never means "cannot refine" — a condition the analysis does not
+    /// model returns the facts unchanged. Treating unknown as infeasible would
+    /// discard the effects of a branch that can actually run.
     fn refine(
         &self,
         condition: Handle<Expression>,
@@ -483,7 +489,32 @@ impl Analysis<'_> {
             }
             _ => {}
         }
-        let op = if truth { op } else { negate_comparison(op)? };
+        // A condition we cannot model teaches us nothing: keep the facts as they
+        // are. Only an empty refined range makes this edge infeasible.
+        let Some((local, op, bound, current)) =
+            self.comparison_fact(op, left, right, truth, &ranges, values)
+        else {
+            return Some(ranges);
+        };
+        ranges.insert(local, refine_range(current, op, bound)?);
+        Some(ranges)
+    }
+
+    /// The local, comparison, exact bound and current range that `left op right`
+    /// constrains when it evaluates to `truth`, or `None` if it constrains
+    /// nothing we track.
+    fn comparison_fact(
+        &self,
+        op: BinaryOperator,
+        left: Handle<Expression>,
+        right: Handle<Expression>,
+        truth: bool,
+        ranges: &Ranges,
+        values: &Values,
+    ) -> Option<(Handle<LocalVariable>, BinaryOperator, i64, IntRange)> {
+        // Also rejects non-comparison operators (e.g. boolean `&`) on both edges.
+        let negated = negate_comparison(op)?;
+        let op = if truth { op } else { negated };
         let (local, op, bound) = if let Some(local) = loaded_local(left, self.function) {
             (local, op, self.expression_range(right, values)?.exact()?)
         } else if let Some(local) = loaded_local(right, self.function) {
@@ -493,14 +524,13 @@ impl Analysis<'_> {
                 self.expression_range(left, values)?.exact()?,
             )
         } else {
-            return Some(ranges);
+            return None;
         };
         let current = ranges
             .get(&local)
             .copied()
             .or_else(|| self.local_full_range(local))?;
-        ranges.insert(local, refine_range(current, op, bound)?);
-        Some(ranges)
+        Some((local, op, bound, current))
     }
 
     #[allow(clippy::pattern_type_mismatch)]

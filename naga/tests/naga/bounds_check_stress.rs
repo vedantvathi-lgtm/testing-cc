@@ -1270,3 +1270,264 @@ fn hlsl_uses_access_specific_proof() {
     assert!(!compile_hlsl(safe).contains("min(uint("));
     assert!(compile_hlsl(unsafe_source).contains("min(uint("));
 }
+
+// ---------------------------------------------------------------------------
+// Branch refinement: an unmodellable condition must mean "nothing learned",
+// never "branch infeasible". WGSL lowers `&&`/`||` to control flow, but the
+// GLSL and SPIR-V front ends produce `LogicalAnd`/`LogicalOr` expressions, so
+// those inputs are needed to reach the conjunction/disjunction refinement.
+// ---------------------------------------------------------------------------
+
+/// Proof results for every `Access` in every function of `module`.
+fn module_access_proofs(module: &naga::Module) -> Vec<bool> {
+    module_access_proofs_where(module, |_| true)
+}
+
+/// Proof results for `Access` expressions whose base is a `var<workgroup>`
+/// global. The SPIR-V front end turns constant buffer indexing into `Access`
+/// too, so tests on SPIR-V input select the workgroup array explicitly.
+fn workgroup_access_proofs(module: &naga::Module) -> Vec<bool> {
+    module_access_proofs_where(module, |base| {
+        base.is_some_and(|global| {
+            module.global_variables[global].space == naga::AddressSpace::WorkGroup
+        })
+    })
+}
+
+fn module_access_proofs_where(
+    module: &naga::Module,
+    keep: impl Fn(Option<naga::Handle<naga::GlobalVariable>>) -> bool,
+) -> Vec<bool> {
+    let info = Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(module)
+        .expect("validation");
+    let mut proofs = Vec::new();
+    for (handle, function) in module.functions.iter() {
+        let function_info = &info[handle];
+        proofs.extend(function.expressions.iter().filter_map(
+            |(expr, expression)| match *expression {
+                naga::Expression::Access { base, .. } if keep(base_global(function, base)) => {
+                    Some(function_info.safe_accesses.contains(&expr))
+                }
+                _ => None,
+            },
+        ));
+    }
+    for (index, entry_point) in module.entry_points.iter().enumerate() {
+        let function_info = info.get_entry_point(index);
+        let function = &entry_point.function;
+        proofs.extend(function.expressions.iter().filter_map(
+            |(expr, expression)| match *expression {
+                naga::Expression::Access { base, .. } if keep(base_global(function, base)) => {
+                    Some(function_info.safe_accesses.contains(&expr))
+                }
+                _ => None,
+            },
+        ));
+    }
+    proofs
+}
+
+fn base_global(
+    function: &naga::Function,
+    base: naga::Handle<naga::Expression>,
+) -> Option<naga::Handle<naga::GlobalVariable>> {
+    match function.expressions[base] {
+        naga::Expression::GlobalVariable(global) => Some(global),
+        naga::Expression::Access { base, .. } | naga::Expression::AccessIndex { base, .. } => {
+            base_global(function, base)
+        }
+        _ => None,
+    }
+}
+
+fn parse_glsl_compute(text: &str) -> naga::Module {
+    naga::front::glsl::Frontend::default()
+        .parse(
+            &naga::front::glsl::Options::from(naga::ShaderStage::Compute),
+            text,
+        )
+        .expect("GLSL parse")
+}
+
+fn glsl_access_proofs(text: &str) -> Vec<bool> {
+    module_access_proofs(&parse_glsl_compute(text))
+}
+
+/// Compile GLSL to SPIR-V with naga, then analyse the module produced by the
+/// SPIR-V front end, so the conjunction arrives through SPIR-V input.
+fn spv_roundtrip_access_proofs(text: &str) -> Vec<bool> {
+    let module = parse_glsl_compute(text);
+    let info = Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(&module)
+        .expect("validation");
+    let words = spv::write_vec(&module, &info, &spv::Options::default(), None).expect("SPIR-V out");
+    let bytes: Vec<u8> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
+    let module = naga::front::spv::parse_u8_slice(&bytes, &naga::front::spv::Options::default())
+        .expect("SPIR-V parse");
+    workgroup_access_proofs(&module)
+}
+
+const GLSL_PRELUDE: &str = "#version 450
+layout(local_size_x = 1) in;
+layout(std430, set = 0, binding = 0) buffer B { int o[4]; };
+shared float t[8];
+void main() {
+    int a = o[0];
+    int b = o[1];
+";
+
+#[test]
+fn glsl_and_branch_assignment_retains_check() {
+    let source = format!(
+        "{GLSL_PRELUDE}    uint i = 0u;
+    if (a < b && b > 0) {{ i = 100u; }}
+    t[i] = 1.0;
+}}
+"
+    );
+    assert_eq!(glsl_access_proofs(&source), [false]);
+}
+
+#[test]
+fn glsl_or_else_assignment_retains_check() {
+    let source = format!(
+        "{GLSL_PRELUDE}    uint i = 0u;
+    if (a < b || b > 0) {{ }} else {{ i = 100u; }}
+    t[i] = 1.0;
+}}
+"
+    );
+    assert_eq!(glsl_access_proofs(&source), [false]);
+}
+
+#[test]
+fn spv_input_and_branch_assignment_retains_check() {
+    let source = format!(
+        "{GLSL_PRELUDE}    uint i = 0u;
+    if (a < b && b > 0) {{ i = 100u; }}
+    t[i] = 1.0;
+}}
+"
+    );
+    assert_eq!(spv_roundtrip_access_proofs(&source), [false]);
+}
+
+#[test]
+fn glsl_and_branch_safe_assignment_elides() {
+    let source = format!(
+        "{GLSL_PRELUDE}    uint i = 0u;
+    if (a < b && b > 0) {{ i = 3u; }}
+    t[i] = 1.0;
+}}
+"
+    );
+    assert_eq!(glsl_access_proofs(&source), [true]);
+}
+
+#[test]
+fn glsl_and_modellable_part_still_refines() {
+    let source = format!(
+        "{GLSL_PRELUDE}    uint i = uint(o[2]);
+    if (i < 4u && a < b) {{ t[i] = 1.0; }}
+}}
+"
+    );
+    assert_eq!(glsl_access_proofs(&source), [true]);
+}
+
+#[test]
+fn two_variable_comparison_does_not_stop_analysis() {
+    let source = r#"
+        @group(0) @binding(0) var<uniform> n: vec2<i32>;
+        var<workgroup> sh: array<u32, 256>;
+        @compute @workgroup_size(256)
+        fn main(@builtin(local_invocation_id) local_id: vec3<u32>) {
+            var a = n.x;
+            var b = n.y;
+            if a < b {}
+            sh[local_id.x] = 1u;
+        }
+    "#;
+    assert_eq!(access_proofs(source), [true]);
+}
+
+#[test]
+fn two_variable_comparison_if_else_does_not_stop_analysis() {
+    let source = r#"
+        @group(0) @binding(0) var<uniform> n: vec2<i32>;
+        var<workgroup> sh: array<u32, 256>;
+        @compute @workgroup_size(256)
+        fn main(@builtin(local_invocation_id) local_id: vec3<u32>) {
+            var a = n.x;
+            var b = n.y;
+            var c = 0;
+            if a < b {
+                c = a;
+            } else {
+                c = b;
+            }
+            sh[local_id.x] = 1u;
+        }
+    "#;
+    assert_eq!(access_proofs(source), [true]);
+}
+
+#[test]
+fn infeasible_branch_still_recognised() {
+    let source = r#"
+        var<workgroup> t: array<f32, 8>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 5u;
+            if i < 3u {
+                i = 100u;
+            }
+            t[i] = 1.0;
+        }
+    "#;
+    assert_eq!(access_proofs(source), [true]);
+}
+
+#[test]
+fn wgsl_non_short_circuit_and_else_assignment_retains_check() {
+    // `&` on booleans is not lowered to control flow, so the condition reaches
+    // refinement as `Binary And`, which is not a comparison.
+    let source = r#"
+        @group(0) @binding(0) var<uniform> n: vec2<i32>;
+        var<workgroup> t: array<f32, 8>;
+        @compute @workgroup_size(1)
+        fn main() {
+            let a = n.x;
+            let b = n.y;
+            var i = 0u;
+            if (a < b) & (b > 0) {
+            } else {
+                i = 100u;
+            }
+            t[i] = 1.0;
+        }
+    "#;
+    assert_eq!(access_proofs(source), [false]);
+}
+
+#[test]
+fn wgsl_bool_equality_else_assignment_retains_check() {
+    // Comparing a `bool` local: the local is not a 32-bit integer, so there is
+    // nothing to refine — which must not make either branch infeasible.
+    let source = r#"
+        @group(0) @binding(0) var<uniform> n: vec2<i32>;
+        var<workgroup> t: array<f32, 8>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var flag = n.x > 0;
+            var i = 0u;
+            if flag == true {
+            } else {
+                i = 100u;
+            }
+            t[i] = 1.0;
+        }
+    "#;
+    assert_eq!(access_proofs(source), [false]);
+}
