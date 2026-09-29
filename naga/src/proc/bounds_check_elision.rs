@@ -1694,13 +1694,13 @@ mod tests {
     fn a_min(r: IntRange) -> u32 {
         match r {
             IntRange::U32 { min, .. } => min,
-            _ => unreachable!("u32 helper used on i32"),
+            IntRange::I32 { .. } => unreachable!("u32 helper used on i32"),
         }
     }
     fn a_max(r: IntRange) -> u32 {
         match r {
             IntRange::U32 { max, .. } => max,
-            _ => unreachable!("u32 helper used on i32"),
+            IntRange::I32 { .. } => unreachable!("u32 helper used on i32"),
         }
     }
     fn a_min_of(r: IntRange) -> u32 {
@@ -1712,13 +1712,13 @@ mod tests {
     fn i_min(r: IntRange) -> i32 {
         match r {
             IntRange::I32 { min, .. } => min,
-            _ => unreachable!("i32 helper used on u32"),
+            IntRange::U32 { .. } => unreachable!("i32 helper used on u32"),
         }
     }
     fn i_max(r: IntRange) -> i32 {
         match r {
             IntRange::I32 { max, .. } => max,
-            _ => unreachable!("i32 helper used on u32"),
+            IntRange::U32 { .. } => unreachable!("i32 helper used on u32"),
         }
     }
     fn i_min_of(r: IntRange) -> i32 {
