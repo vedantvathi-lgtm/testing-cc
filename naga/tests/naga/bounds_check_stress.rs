@@ -1746,3 +1746,72 @@ fn continue_after_loop_guard_still_bounds_variable() {
         );
     assert_eq!(access_proofs(&source), [true]);
 }
+
+// ---------------------------------------------------------------------------
+// Feature 006: relational facts (a >= b gives a - b >= 0) and geometric loop
+// variables (i *= c, i <<= c). Target: the Hillis-Steele scan residual measured
+// by paired-vulkan-4 (+3.65% Intel, +0.71% NVIDIA).
+// ---------------------------------------------------------------------------
+
+const PREFIX_SCAN: &str = "var<workgroup> s: array<u32, 256>;
+    @compute @workgroup_size(256)
+    fn main(@builtin(local_invocation_index) lid: u32) {
+        for (var off = 1u; off < 256u; off = off * 2u) {
+            var t = 0u;
+            if (lid >= off) {
+                t = s[lid - off];
+            }
+            workgroupBarrier();
+            s[lid] = s[lid] + t;
+            workgroupBarrier();
+        }
+    }";
+
+#[test]
+fn guarded_difference_is_non_negative() {
+    // s[lid - off], s[lid] (store), s[lid] (load)
+    assert_eq!(access_proofs(PREFIX_SCAN), [true, true, true]);
+}
+
+#[test]
+fn guarded_difference_minus_one_retains_check() {
+    let source = PREFIX_SCAN.replace("s[lid - off]", "s[lid - off - 1u]");
+    assert_eq!(access_proofs(&source), [false, true, true]);
+}
+
+#[test]
+fn relation_is_dropped_when_operand_is_mutated() {
+    let source = PREFIX_SCAN.replace(
+        "t = s[lid - off];",
+        "off = off + 1u;\n                t = s[lid - off];",
+    );
+    assert!(!access_proofs(&source)[0]);
+}
+
+#[test]
+fn relation_does_not_survive_the_branch() {
+    let source = PREFIX_SCAN.replace(
+        "if (lid >= off) {\n                t = s[lid - off];\n            }",
+        "if (lid >= off) {\n                t = 1u;\n            }\n            t = t + s[lid - off];",
+    );
+    assert!(!access_proofs(&source)[0]);
+}
+
+#[test]
+fn geometric_loop_variable_is_bounded_by_its_exit() {
+    let elide = "var<workgroup> t: array<u32, 255>;
+        @compute @workgroup_size(1)
+        fn main() {
+            for (var off = 1u; off < 256u; off = off * 2u) {
+                t[off - 1u] = 1u;
+            }
+        }";
+    assert_eq!(access_proofs(elide), [true]);
+    let shift = elide.replace("off = off * 2u", "off = off << 1u");
+    assert_eq!(access_proofs(&shift), [true]);
+    // off reaches 128, so t[off] needs 129 elements
+    let retain = elide
+        .replace("array<u32, 255>", "array<u32, 128>")
+        .replace("t[off - 1u]", "t[off]");
+    assert_eq!(access_proofs(&retain), [false]);
+}

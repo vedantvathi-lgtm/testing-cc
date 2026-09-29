@@ -8,7 +8,50 @@ use crate::{
 };
 
 type Ranges = crate::FastHashMap<Handle<LocalVariable>, IntRange>;
-type Values = crate::FastHashMap<Handle<Expression>, IntRange>;
+/// Facts about already-computed values: their ranges, and `big >= small`
+/// (or `>`) relations between values and local variables. Relations naming a
+/// local are dropped whenever that local may change (`forget_local`).
+#[derive(Clone, Default)]
+struct Values {
+    ranges: crate::FastHashMap<Handle<Expression>, IntRange>,
+    relations: Vec<Relation>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Relation {
+    big: Target,
+    small: Target,
+    strict: bool,
+}
+
+impl Values {
+    fn get(&self, handle: &Handle<Expression>) -> Option<&IntRange> {
+        self.ranges.get(handle)
+    }
+
+    fn insert(&mut self, handle: Handle<Expression>, range: IntRange) {
+        self.ranges.insert(handle, range);
+    }
+
+    fn remove(&mut self, handle: &Handle<Expression>) {
+        self.ranges.remove(handle);
+    }
+
+    fn forget_local(&mut self, local: Handle<LocalVariable>) {
+        let target = Target::Local(local);
+        self.relations
+            .retain(|relation| relation.big != target && relation.small != target);
+    }
+
+    /// Whether `big >= small` is known, and if so whether strictly.
+    fn at_least(&self, big: Target, small: Target) -> Option<bool> {
+        self.relations
+            .iter()
+            .filter(|relation| relation.big == big && relation.small == small)
+            .map(|relation| relation.strict)
+            .max()
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum IntRange {
@@ -164,7 +207,7 @@ impl IntRange {
 }
 
 /// What a branch condition refines.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Target {
     Local(Handle<LocalVariable>),
     Value(Handle<Expression>),
@@ -278,14 +321,15 @@ impl Analysis<'_> {
                         collect_mutated(&case.body, self.function, &mut mutated);
                     }
                     let mut case_ranges = ranges.clone();
+                    let mut case_values = values.clone();
                     for &local in &mutated {
-                        self.reset_local(local, &mut case_ranges);
+                        self.reset_local(local, &mut case_ranges, &mut case_values);
                     }
                     for case in cases {
-                        self.analyze_block(&case.body, case_ranges.clone(), values.clone());
+                        self.analyze_block(&case.body, case_ranges.clone(), case_values.clone());
                     }
                     for local in mutated {
-                        self.reset_local(local, &mut ranges);
+                        self.reset_local(local, &mut ranges, &mut values);
                     }
                 }
                 Statement::Loop {
@@ -295,26 +339,27 @@ impl Analysis<'_> {
                 } => {
                     self.analyze_loop(body, continuing, *break_if, &ranges, &values);
                     for local in mutated_locals(body, continuing, self.function) {
-                        self.reset_local(local, &mut ranges);
+                        self.reset_local(local, &mut ranges, &mut values);
                     }
                 }
                 Statement::Store { pointer, value } => {
                     if let Expression::LocalVariable(local) = self.function.expressions[*pointer] {
                         if let Some(range) = self.expression_range(*value, &values) {
+                            values.forget_local(local);
                             ranges.insert(local, range);
                         } else {
-                            self.reset_local(local, &mut ranges);
+                            self.reset_local(local, &mut ranges, &mut values);
                         }
                     } else if let Some(local) = root_local(*pointer, self.function) {
-                        self.reset_local(local, &mut ranges);
+                        self.reset_local(local, &mut ranges, &mut values);
                     }
                 }
                 Statement::Atomic { pointer, .. } => {
                     if let Some(local) = root_local(*pointer, self.function) {
-                        self.reset_local(local, &mut ranges);
+                        self.reset_local(local, &mut ranges, &mut values);
                     }
                 }
-                Statement::Call { .. } => self.reset_all_locals(&mut ranges),
+                Statement::Call { .. } => self.reset_all_locals(&mut ranges, &mut values),
                 Statement::Break
                 | Statement::Continue
                 | Statement::Return { .. }
@@ -345,15 +390,16 @@ impl Analysis<'_> {
     ) {
         let mutated = mutated_locals(body, continuing, self.function);
         let mut entry = incoming.clone();
+        let mut entry_values = values.clone();
         for &local in &mutated {
-            self.reset_local(local, &mut entry);
+            self.reset_local(local, &mut entry, &mut entry_values);
         }
         for local in mutated {
             if let Some(range) = self.loop_range(local, body, continuing, break_if, incoming) {
                 entry.insert(local, range);
             }
         }
-        let body_flow = self.analyze_block(body, entry.clone(), values.clone());
+        let body_flow = self.analyze_block(body, entry.clone(), entry_values.clone());
         self.analyze_block(
             continuing,
             if body_flow.falls_through {
@@ -364,7 +410,7 @@ impl Analysis<'_> {
             if body_flow.falls_through {
                 body_flow.values
             } else {
-                values.clone()
+                entry_values
             },
         );
     }
@@ -394,6 +440,26 @@ impl Analysis<'_> {
         // every value the loop sees lies in [0, start] whatever the exit test.
         if shrinking_update(local, body, continuing, self.function, self.module) {
             return make_range(self.local_full_range(local)?, 0, start).filter(|_| start >= 0);
+        }
+        if let Some(factor) = growing_update(local, body, continuing, self.function, self.module) {
+            let (condition, breaks_when_true) = match break_if {
+                Some(condition) => (condition, true),
+                None => {
+                    let (condition, breaks_when_true, guard_position) =
+                        loop_guard(body, local, self.function)?;
+                    if body.iter().take(guard_position).any(may_continue) {
+                        return None;
+                    }
+                    (condition, breaks_when_true)
+                }
+            };
+            let (op, bound) = comparison(condition, local, self.function, self.module)?;
+            let exit_op = if breaks_when_true {
+                op
+            } else {
+                negate_comparison(op)?
+            };
+            return geometric_range(start, factor, exit_op, bound, self.local_full_range(local)?);
         }
         let (step, template, update_location) =
             single_update(local, body, continuing, self.function, self.module)?;
@@ -459,9 +525,19 @@ impl Analysis<'_> {
                 BinaryOperator::Add => self
                     .expression_range(left, values)?
                     .add(self.expression_range(right, values)?),
-                BinaryOperator::Subtract => self
-                    .expression_range(left, values)?
-                    .sub(self.expression_range(right, values)?),
+                BinaryOperator::Subtract => {
+                    let plain = self
+                        .expression_range(left, values)
+                        .zip(self.expression_range(right, values))
+                        .and_then(|(left, right)| left.sub(right));
+                    match (plain, self.related_difference(left, right, values)) {
+                        (Some(plain), Some(related)) => plain
+                            .lower(related.min_i64())
+                            .and_then(|range| range.upper(related.max_i64()))
+                            .or(Some(related)),
+                        (plain, related) => plain.or(related),
+                    }
+                }
                 BinaryOperator::Multiply => self
                     .expression_range(left, values)?
                     .mul(self.expression_range(right, values)?),
@@ -583,6 +659,9 @@ impl Analysis<'_> {
             }
             _ => {}
         }
+        if let Some(relation) = self.relation(op, left, right, truth, &values) {
+            values.relations.push(relation);
+        }
         // A condition we cannot model teaches us nothing: keep the facts as they
         // are. Only an empty refined range makes this edge infeasible.
         let Some((target, refined)) =
@@ -647,6 +726,55 @@ impl Analysis<'_> {
         Some((target, refined))
     }
 
+    /// The `big >= small` relation that `left op right == truth` establishes
+    /// between two integer operands, if `op` is an ordering comparison.
+    fn relation(
+        &self,
+        op: BinaryOperator,
+        left: Handle<Expression>,
+        right: Handle<Expression>,
+        truth: bool,
+        values: &Values,
+    ) -> Option<Relation> {
+        let negated = negate_comparison(op)?;
+        let op = if truth { op } else { negated };
+        self.range_or_full(left, values)?;
+        let (big, small, strict) = match op {
+            BinaryOperator::Greater => (left, right, true),
+            BinaryOperator::GreaterEqual => (left, right, false),
+            BinaryOperator::Less => (right, left, true),
+            BinaryOperator::LessEqual => (right, left, false),
+            _ => return None,
+        };
+        Some(Relation {
+            big: self.key(big),
+            small: self.key(small),
+            strict,
+        })
+    }
+
+    /// How a relation names an operand: a loaded local by the local (valid until
+    /// the local changes), anything else by its value handle.
+    fn key(&self, handle: Handle<Expression>) -> Target {
+        loaded_local(handle, self.function).map_or(Target::Value(handle), Target::Local)
+    }
+
+    /// `left - right` when `left >= right` is known: no underflow, and at most
+    /// `max(left) - min(right)`.
+    fn related_difference(
+        &self,
+        left: Handle<Expression>,
+        right: Handle<Expression>,
+        values: &Values,
+    ) -> Option<IntRange> {
+        let strict = values.at_least(self.key(left), self.key(right))?;
+        let big = self.range_or_full(left, values)?;
+        let small = self.range_or_full(right, values)?;
+        let min = i64::from(strict);
+        let max = big.max_i64().checked_sub(small.min_i64())?;
+        (max >= min).then(|| make_range(big, min, max)).flatten()
+    }
+
     /// A comparison operand we can refine, with its current range: a loaded
     /// 32-bit integer local, or an integer value whose range we already know.
     fn target(
@@ -705,7 +833,9 @@ impl Analysis<'_> {
         }
     }
 
-    fn reset_local(&self, local: Handle<LocalVariable>, ranges: &mut Ranges) {
+    /// Forget everything known about `local`: its range and any relation naming it.
+    fn reset_local(&self, local: Handle<LocalVariable>, ranges: &mut Ranges, values: &mut Values) {
+        values.forget_local(local);
         if let Some(range) = self.local_full_range(local) {
             ranges.insert(local, range);
         } else {
@@ -713,9 +843,9 @@ impl Analysis<'_> {
         }
     }
 
-    fn reset_all_locals(&self, ranges: &mut Ranges) {
+    fn reset_all_locals(&self, ranges: &mut Ranges, values: &mut Values) {
         for (local, _) in self.function.local_variables.iter() {
-            self.reset_local(local, ranges);
+            self.reset_local(local, ranges, values);
         }
     }
 }
@@ -824,14 +954,25 @@ fn join_ranges(left: &Ranges, right: &Ranges) -> Ranges {
 }
 
 fn join_values(left: &Values, right: &Values) -> Values {
-    left.iter()
-        .filter_map(|(&expression, &range)| {
-            right
-                .get(&expression)
-                .and_then(|&other| range.join(other))
-                .map(|joined| (expression, joined))
-        })
-        .collect()
+    Values {
+        ranges: left
+            .ranges
+            .iter()
+            .filter_map(|(&expression, &range)| {
+                right
+                    .ranges
+                    .get(&expression)
+                    .and_then(|&other| range.join(other))
+                    .map(|joined| (expression, joined))
+            })
+            .collect(),
+        relations: left
+            .relations
+            .iter()
+            .filter(|relation| right.relations.contains(relation))
+            .copied()
+            .collect(),
+    }
 }
 
 fn mutated_locals(
@@ -960,6 +1101,68 @@ fn shrinking_update(
     let mutations = local_mutation_count(body, local, function)
         .saturating_add(local_mutation_count(continuing, local, function));
     shrinks == 1 && mutations == 1
+}
+
+/// The factor `c` if the only mutation of `local` in the loop is `local = local * c`
+/// (`c >= 2`) or `local = local << k` (`k` in 1..=31, factor `2^k`).
+fn growing_update(
+    local: Handle<LocalVariable>,
+    body: &Block,
+    continuing: &Block,
+    function: &Function,
+    module: &Module,
+) -> Option<i64> {
+    let factor_of = |statement: &Statement| {
+        let Statement::Store { pointer, value } = *statement else {
+            return None;
+        };
+        if function.expressions[pointer] != Expression::LocalVariable(local) {
+            return None;
+        }
+        let Expression::Binary { op, left, right } = function.expressions[value] else {
+            return None;
+        };
+        if loaded_local(left, function) != Some(local) {
+            return None;
+        }
+        match (op, exact_constant(right, function, module)?) {
+            (BinaryOperator::Multiply, c) if c >= 2 => Some(c),
+            (BinaryOperator::ShiftLeft, k) if (1..32).contains(&k) => Some(1i64 << k),
+            _ => None,
+        }
+    };
+    let factors: Vec<i64> = body
+        .iter()
+        .chain(continuing.iter())
+        .filter_map(factor_of)
+        .collect();
+    let mutations = local_mutation_count(body, local, function)
+        .saturating_add(local_mutation_count(continuing, local, function));
+    (factors.len() == 1 && mutations == 1).then(|| factors[0])
+}
+
+/// Header range of a loop variable that starts at `start >= 0`, is multiplied by
+/// `factor` each iteration, and leaves the loop once `exit_op bound` holds.
+/// Every value that stays in the loop is at most `last`, so the variable never
+/// exceeds `max(start, last) * factor`; that product must fit the type, which
+/// also rules out wrap-around of the multiplication itself.
+fn geometric_range(
+    start: i64,
+    factor: i64,
+    exit_op: BinaryOperator,
+    bound: i64,
+    template: IntRange,
+) -> Option<IntRange> {
+    if start < 0 || factor < 2 {
+        return None;
+    }
+    let last = match exit_op {
+        BinaryOperator::GreaterEqual => bound.checked_sub(1)?,
+        BinaryOperator::Greater => bound,
+        _ => return None,
+    };
+    let top = start.max(last).checked_mul(factor)?;
+    make_range(template, start, top.max(start))
 }
 
 fn initializer_store(
@@ -1446,6 +1649,30 @@ mod tests {
             .mul(IntRange::I32 { min: 2, max: 2 }),
             None
         );
+    }
+
+    #[test]
+    fn geometric_range_rejects_wrap_around() {
+        let template = IntRange::U32 { min: 0, max: 0 };
+        // off = 1, 2, 4, ...; leaves at off >= 256: header values up to 255 * 2
+        assert!(matches!(
+            geometric_range(1, 2, BinaryOperator::GreaterEqual, 256, template),
+            Some(IntRange::U32 { min: 1, max: 510 })
+        ));
+        // (bound - 1) * factor would exceed u32::MAX: the multiply could wrap
+        assert!(
+            geometric_range(1, 2, BinaryOperator::GreaterEqual, 3_000_000_000, template).is_none()
+        );
+        // only ordering exits give a last in-loop value
+        assert!(geometric_range(1, 2, BinaryOperator::Equal, 256, template).is_none());
+        assert!(geometric_range(
+            -1,
+            2,
+            BinaryOperator::GreaterEqual,
+            256,
+            IntRange::I32 { min: 0, max: 0 }
+        )
+        .is_none());
     }
 
     #[test]
