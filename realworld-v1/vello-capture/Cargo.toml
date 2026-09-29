@@ -1,0 +1,17 @@
+[package]
+name = "bce-vello-capture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Separate workspace: vello at a9f11bb needs wgpu 30 from crates.io; the harness uses the wgpu 29
+# fork under test. This tool never touches the fork; it only records vello's GPU command stream.
+[workspace]
+
+[dependencies]
+vello = { git = "https://github.com/linebender/vello", rev = "a9f11bbe752c391a2e420657d65cbd1fc97f4fae" }
+vello_shaders = { git = "https://github.com/linebender/vello", rev = "a9f11bbe752c391a2e420657d65cbd1fc97f4fae" }
+scenes = { git = "https://github.com/linebender/vello", rev = "a9f11bbe752c391a2e420657d65cbd1fc97f4fae" }
+pollster = "0.4"
+serde_json = "1"
+anyhow = "1"
