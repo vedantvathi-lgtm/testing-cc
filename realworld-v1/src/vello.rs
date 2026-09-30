@@ -330,14 +330,14 @@ impl Workload for Vello {
         self.state = Some(State { buffers, images, staging, groups, pipelines, uploads, ops, out_image, width, height, readback });
     }
 
-    fn record(&self, slot: usize, encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, reps: u32) {
+    fn record(&self, slot: usize, encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, ts: u32, reps: u32) {
         let s = self.state.as_ref().unwrap();
         // Empty passes carry the timestamps so the window covers every command of every frame.
-        encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None, timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: Some(0), end_of_pass_write_index: None }) });
+        encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None, timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: Some(ts), end_of_pass_write_index: None }) });
         for _ in 0..reps {
             self.frame(s, slot, encoder);
         }
-        encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None, timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: None, end_of_pass_write_index: Some(1) }) });
+        encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None, timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: None, end_of_pass_write_index: Some(ts + 1) }) });
     }
 
     fn reference_outputs(&self, adapter: &str) -> Option<Vec<Vec<u8>>> {

@@ -221,11 +221,11 @@ impl Workload for Blur {
         self.state = Some(State { pipelines, constants, groups, image, textures, readback, padded_row });
     }
 
-    fn record(&self, slot: usize, encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, reps: u32) {
+    fn record(&self, slot: usize, encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, ts: u32, reps: u32) {
         let s = self.state.as_ref().unwrap();
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: None,
-            timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: Some(0), end_of_pass_write_index: Some(1) }),
+            timestamp_writes: Some(wgpu::ComputePassTimestampWrites { query_set: queries, beginning_of_pass_write_index: Some(ts), end_of_pass_write_index: Some(ts + 1) }),
         });
         for _ in 0..reps {
             self.frame(s, &mut pass, slot);

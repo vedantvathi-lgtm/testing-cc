@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use workload::Workload;
 
-const HARNESS_VERSION: &str = "realworld-1";
+const HARNESS_VERSION: &str = "realworld-2";
 const BOOTSTRAP: usize = 10_000;
 const TARGET_SAMPLE_NS: f64 = 8_000_000.0;
 
@@ -126,25 +126,35 @@ impl Gpu {
             trace: wgpu::Trace::Off,
         }))
         .map_err(|e| format!("device: {e}"))?;
-        let queries = device.create_query_set(&wgpu::QuerySetDescriptor { label: Some("ts"), ty: wgpu::QueryType::Timestamp, count: 2 });
-        let resolve = device.create_buffer(&wgpu::BufferDescriptor { label: Some("qr"), size: 16, usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC, mapped_at_creation: false });
-        let readback = device.create_buffer(&wgpu::BufferDescriptor { label: Some("qrb"), size: 16, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });
+        let queries = device.create_query_set(&wgpu::QuerySetDescriptor { label: Some("ts"), ty: wgpu::QueryType::Timestamp, count: 8 });
+        let resolve = device.create_buffer(&wgpu::BufferDescriptor { label: Some("qr"), size: 64, usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC, mapped_at_creation: false });
+        let readback = device.create_buffer(&wgpu::BufferDescriptor { label: Some("qrb"), size: 64, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });
         let period = queue.get_timestamp_period();
         Ok((Gpu { device, queue, queries, resolve, readback, period }, info))
     }
 
-    /// GPU ns per repetition of the workload for `slot`.
-    fn time(&self, w: &dyn Workload, slot: usize, reps: u32) -> f64 {
+    /// GPU ns per repetition for each slot of one round. realworld-2: all slots of the round are
+    /// recorded back to back in one encoder and sent in one submission, so the GPU does not idle
+    /// (and change clock) between them (spec 005, pre-registration 2). `order` lists the slots in
+    /// execution order; the result is indexed by slot.
+    fn time_round(&self, w: &dyn Workload, order: &[usize], reps: u32) -> [f64; 4] {
         let mut enc = self.device.create_command_encoder(&Default::default());
-        w.record(slot, &mut enc, &self.queries, reps);
-        enc.resolve_query_set(&self.queries, 0..2, &self.resolve, 0);
-        enc.copy_buffer_to_buffer(&self.resolve, 0, &self.readback, 0, 16);
+        for (k, &slot) in order.iter().enumerate() {
+            w.record(slot, &mut enc, &self.queries, 2 * k as u32, reps);
+        }
+        let n = 2 * order.len() as u32;
+        enc.resolve_query_set(&self.queries, 0..n, &self.resolve, 0);
+        enc.copy_buffer_to_buffer(&self.resolve, 0, &self.readback, 0, 64);
         self.queue.submit([enc.finish()]);
         let bytes = workload::read_buffer(&self.device, &self.readback);
         let t: &[u64] = bytemuck::cast_slice(&bytes);
-        let ticks = t[1].checked_sub(t[0]).expect("non-monotonic timestamps");
-        assert!(ticks > 0);
-        ticks as f64 * f64::from(self.period) / f64::from(reps)
+        let mut ns = [f64::NAN; 4];
+        for (k, &slot) in order.iter().enumerate() {
+            let ticks = t[2 * k + 1].checked_sub(t[2 * k]).expect("non-monotonic timestamps");
+            assert!(ticks > 0);
+            ns[slot] = ticks as f64 * f64::from(self.period) / f64::from(reps);
+        }
+        ns
     }
 }
 
@@ -440,20 +450,15 @@ fn main() {
     let runs_before = if nondeterministic { collect(w.as_ref()) } else { Vec::new() };
     let before = correctness("before", &outputs_before, &mask, &refs);
 
-    let probe = gpu.time(w.as_ref(), 0, 3);
+    let probe = gpu.time_round(w.as_ref(), &[0], 3)[0];
     let reps = (TARGET_SAMPLE_NS / probe).round().clamp(1.0, 4000.0) as u32;
 
     let mut warm = Vec::new();
     let warm_start = std::time::Instant::now();
     let mut r = 0;
     loop {
-        for j in 0..4 {
-            let slot = (r + j) % 4;
-            let t = gpu.time(w.as_ref(), slot, reps);
-            if slot == 0 {
-                warm.push(t);
-            }
-        }
+        let order: Vec<usize> = (0..4).map(|j| (r + j) % 4).collect();
+        warm.push(gpu.time_round(w.as_ref(), &order, reps)[0]);
         r += 1;
         let elapsed = warm_start.elapsed().as_secs_f64();
         let n = warm.len();
@@ -470,10 +475,7 @@ fn main() {
     let mut data = Vec::with_capacity(rounds);
     for r in 0..rounds {
         let order: Vec<usize> = (0..4).map(|j| (r + j) % 4).collect();
-        let mut ns = [0.0; 4];
-        for &slot in &order {
-            ns[slot] = gpu.time(w.as_ref(), slot, reps);
-        }
+        let ns = gpu.time_round(w.as_ref(), &order, reps);
         data.push(Round { round: r, order: order.iter().map(|&s| SLOTS[s].to_string()).collect(), ns });
     }
     let measure_end_unix_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();

@@ -9,8 +9,8 @@ pub trait Workload {
     /// `modules[slot][shader]`, shaders in the order `shaders()` returned them.
     fn setup(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, modules: &[Vec<wgpu::ShaderModule>]);
     /// Record `reps` repetitions of the workload for `slot`. The first pass must write timestamp
-    /// 0 at its beginning and the last pass timestamp 1 at its end.
-    fn record(&self, slot: usize, encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, reps: u32);
+    /// `ts` at its beginning and the last pass timestamp `ts + 1` at its end.
+    fn record(&self, slot: usize, encoder: &mut wgpu::CommandEncoder, queries: &wgpu::QuerySet, ts: u32, reps: u32);
     /// Run the workload once for `slot` from a reset state and return its output bytes.
     fn output(&self, device: &wgpu::Device, queue: &wgpu::Queue, slot: usize) -> Vec<u8>;
     /// For workloads with a known, elision-independent race: `(element_bytes, mask)` where
