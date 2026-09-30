@@ -1815,3 +1815,160 @@ fn geometric_loop_variable_is_bounded_by_its_exit() {
         .replace("t[off - 1u]", "t[off]");
     assert_eq!(access_proofs(&retain), [false]);
 }
+
+// ---------------------------------------------------------------------------
+// Soundness regressions found by the 2026-10-01 audit (S1 stale loads, S2
+// `continue` edges into `continuing`, S3 in-body re-initialisation, and
+// override-sized workgroups). Every `retain` shader performs an out-of-bounds
+// access on some execution; before the fix its check was removed.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stale_load_snapshot_does_not_refine_the_current_value() {
+    let retain = "@group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+        var<workgroup> t: array<u32, 4>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = xs[0];
+            let small = i < 4u;
+            i = xs[1];
+            if (small) { t[i] = 1u; }
+        }";
+    assert_eq!(access_proofs(retain), [false]);
+    // Without the intervening store the guard does bound `i`.
+    let elide = retain.replace("            i = xs[1];\n", "");
+    assert_eq!(access_proofs(&elide), [true]);
+}
+
+#[test]
+fn loop_guard_on_a_pre_update_snapshot_retains_check() {
+    // `done` is computed before the update, so the loop still runs with i == 9.
+    let retain = "var<workgroup> t9: array<u32, 9>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 0u;
+            loop { t9[i] = 1u; let done = i >= 9u; i = i + 1u; if (done) { break; } }
+        }";
+    assert_eq!(access_proofs(retain), [false]);
+    let continuing = "var<workgroup> t9: array<u32, 9>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 0u;
+            loop {
+                t9[i] = 1u;
+                continuing { let d = i >= 9u; i = i + 1u; break if d; }
+            }
+        }";
+    assert_eq!(access_proofs(continuing), [false]);
+    // Comparing the updated value is fine: i < 9 at every access.
+    let elide = "var<workgroup> t9: array<u32, 9>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 0u;
+            loop { t9[i] = 1u; i = i + 1u; if (i >= 9u) { break; } }
+        }";
+    assert_eq!(access_proofs(elide), [true]);
+}
+
+#[test]
+fn glsl_postfix_increment_guard_retains_check() {
+    // `i++ < 7u` compares the old value; the access uses the new one (up to 7).
+    let retain = "#version 450
+layout(local_size_x = 1) in;
+layout(std430, set = 0, binding = 0) buffer X { uint xs[]; };
+shared uint t[7];
+void main() { uint i = xs[0]; if (i++ < 7u) { t[i] = 1u; } }
+";
+    assert!(glsl_access_proofs(retain).iter().all(|&proved| !proved));
+    let elide = retain.replace("if (i++ < 7u) { t[i] = 1u; }", "if (i < 7u) { t[i] = 1u; }");
+    assert!(glsl_access_proofs(&elide).contains(&true));
+}
+
+#[test]
+fn continue_edge_reaches_continuing_block() {
+    // With xs[0] == 1 the body continues before decrementing, so `continuing`
+    // sees i == 8.
+    let retain = "@group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+        var<workgroup> t: array<u32, 8>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 8u;
+            loop {
+                if (i == 0u) { break; }
+                if (xs[0] == 1u) { continue; }
+                i = i - 1u;
+                continuing { t[i] = 1u; }
+            }
+        }";
+    assert_eq!(access_proofs(retain), [false]);
+    let skip_guard = "var<workgroup> t: array<u32, 4>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 0u;
+            loop {
+                if (i >= 4u) { continue; }
+                continuing { t[i] = 1u; i = i + 1u; break if i >= 10u; }
+            }
+        }";
+    assert_eq!(access_proofs(skip_guard), [false]);
+    // Both paths into `continuing` keep i in [0, 2].
+    let elide = "@group(0) @binding(0) var<storage, read> xs: array<u32, 4>;
+        var<workgroup> t: array<u32, 4>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 0u;
+            loop {
+                if (i >= 3u) { break; }
+                if (xs[0] == 1u) { continue; }
+                continuing { t[i] = 1u; i = i + 1u; }
+            }
+        }";
+    assert_eq!(access_proofs(elide), [true]);
+}
+
+#[test]
+fn in_body_reinitialisation_is_not_a_loop_start() {
+    // The body resets i to 100, so the second iteration indexes t[99].
+    let retain = "var<workgroup> t: array<u32, 9>;
+        @compute @workgroup_size(1)
+        fn main() {
+            var i = 8u;
+            loop { t[i] = 1u; i = 100u; if (i == 0u) { break; } i = i - 1u; }
+        }";
+    assert_eq!(access_proofs(retain), [false]);
+}
+
+#[test]
+fn override_sized_workgroup_is_proved_only_after_overrides_resolve() {
+    let source = "override WG: u32 = 64;
+        var<workgroup> a: array<u32, 1>;
+        var<workgroup> b: array<u32, 64>;
+        @compute @workgroup_size(WG)
+        fn main(@builtin(local_invocation_id) l: vec3u) { a[l.x] = 1u; b[l.x] = 1u; }";
+    let module = naga::front::wgsl::parse_str(source).expect("WGSL parse");
+    let info = Validator::new(ValidationFlags::all(), Capabilities::all())
+        .validate(&module)
+        .expect("validation");
+    // Before overrides are resolved the size is a placeholder: nothing is proved.
+    assert!(info.get_entry_point(0).safe_accesses.is_empty());
+    let constants = naga::back::PipelineConstants::from_iter([("WG".to_string(), 64.0)]);
+    let (resolved, resolved_info) =
+        naga::back::pipeline_constants::process_overrides(&module, &info, None, &constants)
+            .expect("overrides");
+    let function = &resolved.entry_points[0].function;
+    let proofs: Vec<bool> = function
+        .expressions
+        .iter()
+        .filter_map(|(handle, expression)| match *expression {
+            naga::Expression::Access { .. } => Some(
+                resolved_info
+                    .get_entry_point(0)
+                    .safe_accesses
+                    .contains(&handle),
+            ),
+            _ => None,
+        })
+        .collect();
+    // l.x < 64: fits b (64 elements), not a (1 element).
+    assert_eq!(proofs, [false, true]);
+}

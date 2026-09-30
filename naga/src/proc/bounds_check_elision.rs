@@ -15,6 +15,11 @@ type Ranges = crate::FastHashMap<Handle<LocalVariable>, IntRange>;
 struct Values {
     ranges: crate::FastHashMap<Handle<Expression>, IntRange>,
     relations: Vec<Relation>,
+    /// Version of each local's current value: bumped (to a fresh number) by
+    /// every store, reset and call, and by a join whose sides disagree. A
+    /// `Load` of the local stands for the local's *current* value only while
+    /// the version it was emitted under is still current (absent means 0).
+    versions: crate::FastHashMap<Handle<LocalVariable>, u64>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -37,10 +42,15 @@ impl Values {
         self.ranges.remove(handle);
     }
 
-    fn forget_local(&mut self, local: Handle<LocalVariable>) {
+    fn forget_local(&mut self, local: Handle<LocalVariable>, version: u64) {
         let target = Target::Local(local);
         self.relations
             .retain(|relation| relation.big != target && relation.small != target);
+        self.versions.insert(local, version);
+    }
+
+    fn version(&self, local: Handle<LocalVariable>) -> u64 {
+        self.versions.get(&local).copied().unwrap_or(0)
     }
 
     /// Whether `big >= small` is known, and if so whether strictly.
@@ -218,6 +228,9 @@ struct Flow {
     ranges: Ranges,
     values: Values,
     falls_through: bool,
+    /// Join of the states at every `continue` of the innermost enclosing loop
+    /// reached inside this block (`continue` in a nested loop targets that loop).
+    continued: Option<(Ranges, Values)>,
 }
 
 struct Analysis<'a> {
@@ -225,17 +238,27 @@ struct Analysis<'a> {
     module: &'a Module,
     info: &'a mut FunctionInfo,
     workgroup_size: Option<[u32; 3]>,
+    /// The local version each `Load` of a local was emitted under.
+    load_versions: crate::FastHashMap<Handle<Expression>, u64>,
+    next_version: core::cell::Cell<u64>,
 }
 
 pub fn elide_bounds_checks(function: &Function, module: &Module, info: &mut FunctionInfo) {
+    // While an override-sized dimension is unresolved, `workgroup_size` holds a
+    // placeholder (the WGSL front end writes 1), so builtin ranges are unknown.
+    // `process_overrides` writes the real size and re-validates.
     let workgroup_size = module.entry_points.iter().find_map(|entry_point| {
-        core::ptr::eq(&entry_point.function, function).then_some(entry_point.workgroup_size)
+        core::ptr::eq(&entry_point.function, function)
+            .then_some(entry_point.workgroup_size)
+            .filter(|_| entry_point.workgroup_size_overrides.is_none())
     });
     let mut analysis = Analysis {
         function,
         module,
         info,
         workgroup_size,
+        load_versions: Default::default(),
+        next_version: core::cell::Cell::new(1),
     };
     let initial = analysis.default_ranges();
     analysis.analyze_block(&function.body, initial, Values::default());
@@ -261,10 +284,14 @@ impl Analysis<'_> {
 
     #[allow(clippy::pattern_type_mismatch)]
     fn analyze_block(&mut self, block: &Block, mut ranges: Ranges, mut values: Values) -> Flow {
+        let mut continued: Option<(Ranges, Values)> = None;
         for statement in block {
             match statement {
                 Statement::Emit(expressions) => {
                     for handle in expressions.clone() {
+                        if let Some(local) = loaded_local(handle, self.function) {
+                            self.load_versions.insert(handle, values.version(local));
+                        }
                         if let Some(range) = self.emitted_expression_range(handle, &ranges, &values)
                         {
                             values.insert(handle, range);
@@ -275,8 +302,10 @@ impl Analysis<'_> {
                     }
                 }
                 Statement::Block(nested) => {
-                    let flow = self.analyze_block(nested, ranges, values);
+                    let mut flow = self.analyze_block(nested, ranges, values);
+                    continued = self.join_states(continued, flow.continued.take());
                     if !flow.falls_through {
+                        flow.continued = continued;
                         return flow;
                     }
                     ranges = flow.ranges;
@@ -287,16 +316,22 @@ impl Analysis<'_> {
                     accept,
                     reject,
                 } => {
-                    let accept_flow = self
+                    let mut accept_flow = self
                         .refine(*condition, true, ranges.clone(), values.clone())
                         .map(|(facts, known)| self.analyze_block(accept, facts, known));
-                    let reject_flow = self
+                    let mut reject_flow = self
                         .refine(*condition, false, ranges.clone(), values.clone())
                         .map(|(facts, known)| self.analyze_block(reject, facts, known));
+                    for flow in [accept_flow.as_mut(), reject_flow.as_mut()]
+                        .into_iter()
+                        .flatten()
+                    {
+                        continued = self.join_states(continued, flow.continued.take());
+                    }
                     match (accept_flow, reject_flow) {
                         (Some(left), Some(right)) if left.falls_through && right.falls_through => {
                             ranges = join_ranges(&left.ranges, &right.ranges);
-                            values = join_values(&left.values, &right.values);
+                            values = self.join_values(&left.values, &right.values);
                         }
                         (Some(left), _) if left.falls_through => {
                             ranges = left.ranges;
@@ -311,6 +346,7 @@ impl Analysis<'_> {
                                 ranges,
                                 values,
                                 falls_through: false,
+                                continued,
                             };
                         }
                     }
@@ -326,7 +362,13 @@ impl Analysis<'_> {
                         self.reset_local(local, &mut case_ranges, &mut case_values);
                     }
                     for case in cases {
-                        self.analyze_block(&case.body, case_ranges.clone(), case_values.clone());
+                        let flow = self.analyze_block(
+                            &case.body,
+                            case_ranges.clone(),
+                            case_values.clone(),
+                        );
+                        // A `continue` inside a switch targets the enclosing loop.
+                        continued = self.join_states(continued, flow.continued);
                     }
                     for local in mutated {
                         self.reset_local(local, &mut ranges, &mut values);
@@ -345,7 +387,7 @@ impl Analysis<'_> {
                 Statement::Store { pointer, value } => {
                     if let Expression::LocalVariable(local) = self.function.expressions[*pointer] {
                         if let Some(range) = self.expression_range(*value, &values) {
-                            values.forget_local(local);
+                            values.forget_local(local, self.fresh_version());
                             ranges.insert(local, range);
                         } else {
                             self.reset_local(local, &mut ranges, &mut values);
@@ -360,14 +402,21 @@ impl Analysis<'_> {
                     }
                 }
                 Statement::Call { .. } => self.reset_all_locals(&mut ranges, &mut values),
-                Statement::Break
-                | Statement::Continue
-                | Statement::Return { .. }
-                | Statement::Kill => {
+                Statement::Continue => {
+                    continued = self.join_states(continued, Some((ranges.clone(), values.clone())));
                     return Flow {
                         ranges,
                         values,
                         falls_through: false,
+                        continued,
+                    };
+                }
+                Statement::Break | Statement::Return { .. } | Statement::Kill => {
+                    return Flow {
+                        ranges,
+                        values,
+                        falls_through: false,
+                        continued,
                     };
                 }
                 _ => {}
@@ -377,6 +426,40 @@ impl Analysis<'_> {
             ranges,
             values,
             falls_through: true,
+            continued,
+        }
+    }
+
+    fn fresh_version(&self) -> u64 {
+        let version = self.next_version.get();
+        self.next_version.set(version + 1);
+        version
+    }
+
+    fn join_values(&self, left: &Values, right: &Values) -> Values {
+        let mut joined = join_values(left, right);
+        for &local in left.versions.keys().chain(right.versions.keys()) {
+            let version = if left.version(local) == right.version(local) {
+                left.version(local)
+            } else {
+                self.fresh_version()
+            };
+            joined.versions.insert(local, version);
+        }
+        joined
+    }
+
+    fn join_states(
+        &self,
+        left: Option<(Ranges, Values)>,
+        right: Option<(Ranges, Values)>,
+    ) -> Option<(Ranges, Values)> {
+        match (left, right) {
+            (Some((left_ranges, left_values)), Some((right_ranges, right_values))) => Some((
+                join_ranges(&left_ranges, &right_ranges),
+                self.join_values(&left_values, &right_values),
+            )),
+            (state, None) | (None, state) => state,
         }
     }
 
@@ -400,19 +483,15 @@ impl Analysis<'_> {
             }
         }
         let body_flow = self.analyze_block(body, entry.clone(), entry_values.clone());
-        self.analyze_block(
-            continuing,
-            if body_flow.falls_through {
-                body_flow.ranges
-            } else {
-                entry
-            },
-            if body_flow.falls_through {
-                body_flow.values
-            } else {
-                entry_values
-            },
-        );
+        // `continuing` runs after the body falls through *and* after every
+        // `continue`, so it starts from the join of all of those states.
+        let fall_through = body_flow
+            .falls_through
+            .then(|| (body_flow.ranges.clone(), body_flow.values.clone()));
+        let (start_ranges, start_values) = self
+            .join_states(fall_through, body_flow.continued)
+            .unwrap_or((entry, entry_values));
+        self.analyze_block(continuing, start_ranges, start_values);
     }
 
     fn loop_range(
@@ -423,19 +502,10 @@ impl Analysis<'_> {
         break_if: Option<Handle<Expression>>,
         incoming: &Ranges,
     ) -> Option<IntRange> {
-        let guard_position =
-            loop_guard(body, local, self.function).map(|(_, _, position)| position);
-        let start = incoming
-            .get(&local)
-            .copied()
-            .and_then(IntRange::exact)
-            .or_else(|| {
-                guard_position.and_then(|position| {
-                    body.iter().take(position).find_map(|statement| {
-                        initializer_store(local, statement, self.function, self.module)
-                    })
-                })
-            })?;
+        // The recurrence starts from the value entering the loop. (A constant
+        // store inside the body would reset the local on every iteration, so it
+        // cannot serve as the start: that rule was unsound and is gone.)
+        let start = incoming.get(&local).copied().and_then(IntRange::exact)?;
         // `i = i >> c` / `i = i / c` only move a non-negative `i` towards zero, so
         // every value the loop sees lies in [0, start] whatever the exit test.
         if shrinking_update(local, body, continuing, self.function, self.module) {
@@ -443,7 +513,12 @@ impl Analysis<'_> {
         }
         if let Some(factor) = growing_update(local, body, continuing, self.function, self.module) {
             let (condition, breaks_when_true) = match break_if {
-                Some(condition) => (condition, true),
+                Some(condition) => {
+                    if !break_if_reads_current(condition, local, body, continuing, self.function) {
+                        return None;
+                    }
+                    (condition, true)
+                }
                 None => {
                     let (condition, breaks_when_true, guard_position) =
                         loop_guard(body, local, self.function)?;
@@ -465,6 +540,9 @@ impl Analysis<'_> {
             single_update(local, body, continuing, self.function, self.module)?;
         let (condition, breaks_when_true, terminal_reaches_header) =
             if let Some(condition) = break_if {
+                if !break_if_reads_current(condition, local, body, continuing, self.function) {
+                    return None;
+                }
                 (condition, true, false)
             } else {
                 let (condition, breaks_when_true, guard_position) =
@@ -747,16 +825,28 @@ impl Analysis<'_> {
             _ => return None,
         };
         Some(Relation {
-            big: self.key(big),
-            small: self.key(small),
+            big: self.key(big, values),
+            small: self.key(small, values),
             strict,
         })
     }
 
     /// How a relation names an operand: a loaded local by the local (valid until
     /// the local changes), anything else by its value handle.
-    fn key(&self, handle: Handle<Expression>) -> Target {
-        loaded_local(handle, self.function).map_or(Target::Value(handle), Target::Local)
+    fn key(&self, handle: Handle<Expression>, values: &Values) -> Target {
+        self.fresh_local(handle, values)
+            .map_or(Target::Value(handle), Target::Local)
+    }
+
+    /// The local a `Load` reads, if nothing has changed the local since the load
+    /// was emitted, so the loaded value *is* the local's current value.
+    fn fresh_local(
+        &self,
+        handle: Handle<Expression>,
+        values: &Values,
+    ) -> Option<Handle<LocalVariable>> {
+        let local = loaded_local(handle, self.function)?;
+        (self.load_versions.get(&handle) == Some(&values.version(local))).then_some(local)
     }
 
     /// `left - right` when `left >= right` is known: no underflow, and at most
@@ -767,7 +857,7 @@ impl Analysis<'_> {
         right: Handle<Expression>,
         values: &Values,
     ) -> Option<IntRange> {
-        let strict = values.at_least(self.key(left), self.key(right))?;
+        let strict = values.at_least(self.key(left, values), self.key(right, values))?;
         let big = self.range_or_full(left, values)?;
         let small = self.range_or_full(right, values)?;
         let min = i64::from(strict);
@@ -783,7 +873,7 @@ impl Analysis<'_> {
         ranges: &Ranges,
         values: &Values,
     ) -> Option<(Target, IntRange)> {
-        if let Some(local) = loaded_local(handle, self.function) {
+        if let Some(local) = self.fresh_local(handle, values) {
             let current = ranges
                 .get(&local)
                 .copied()
@@ -835,7 +925,7 @@ impl Analysis<'_> {
 
     /// Forget everything known about `local`: its range and any relation naming it.
     fn reset_local(&self, local: Handle<LocalVariable>, ranges: &mut Ranges, values: &mut Values) {
-        values.forget_local(local);
+        values.forget_local(local, self.fresh_version());
         if let Some(range) = self.local_full_range(local) {
             ranges.insert(local, range);
         } else {
@@ -972,6 +1062,8 @@ fn join_values(left: &Values, right: &Values) -> Values {
             .filter(|relation| right.relations.contains(relation))
             .copied()
             .collect(),
+        // Filled in by `Analysis::join_values`, which can mint fresh versions.
+        versions: Default::default(),
     }
 }
 
@@ -1058,11 +1150,7 @@ fn single_update(
     }
     let mutations = local_mutation_count(body, local, function)
         .checked_add(local_mutation_count(continuing, local, function))?;
-    let initializers = body
-        .iter()
-        .filter(|statement| initializer_store(local, statement, function, module).is_some())
-        .count();
-    (mutations == 1 || (mutations == 2 && initializers == 1)).then(|| updates[0])
+    (mutations == 1).then(|| updates[0])
 }
 
 /// Whether the only mutation of `local` in the loop is `local = local >> c`
@@ -1165,25 +1253,21 @@ fn geometric_range(
     make_range(template, start, top.max(start))
 }
 
-fn initializer_store(
-    local: Handle<LocalVariable>,
-    statement: &Statement,
-    function: &Function,
-    module: &Module,
-) -> Option<i64> {
-    let Statement::Store { pointer, value } = *statement else {
-        return None;
-    };
-    if function.expressions[pointer] != Expression::LocalVariable(local) {
-        return None;
-    }
-    exact_constant(value, function, module)
-}
-
-#[allow(clippy::pattern_type_mismatch)]
 fn local_mutation_count(block: &Block, local: Handle<LocalVariable>, function: &Function) -> usize {
     block
         .iter()
+        .map(|statement| statement_mutation_count(statement, local, function))
+        .fold(0usize, usize::saturating_add)
+}
+
+#[allow(clippy::pattern_type_mismatch)]
+fn statement_mutation_count(
+    statement: &Statement,
+    local: Handle<LocalVariable>,
+    function: &Function,
+) -> usize {
+    [statement]
+        .into_iter()
         .map(|statement| match statement {
             Statement::Store { pointer, .. } | Statement::Atomic { pointer, .. } => {
                 usize::from(root_local(*pointer, function) == Some(local))
@@ -1273,6 +1357,13 @@ fn loop_guard(
         if !condition_mentions(*condition, local, function) {
             return None;
         }
+        // The guard must compare the local's value *at the guard*: its load has
+        // to be emitted at top level with no mutation of the local in between.
+        let load = local_operand(*condition, local, function)?;
+        let emitted = emit_position(body, load)?;
+        if emitted >= position || statements_mutate(&body[emitted + 1..position], local, function) {
+            return None;
+        }
         if matches!(accept.last(), Some(Statement::Break)) {
             Some((*condition, true, position))
         } else if matches!(reject.last(), Some(Statement::Break)) {
@@ -1294,6 +1385,63 @@ fn condition_mentions(
                 || loaded_local(right, function) == Some(local)
         }
         _ => false,
+    }
+}
+
+/// The `Load` of `local` that `condition` (a binary comparison) compares.
+fn local_operand(
+    condition: Handle<Expression>,
+    local: Handle<LocalVariable>,
+    function: &Function,
+) -> Option<Handle<Expression>> {
+    let Expression::Binary { left, right, .. } = function.expressions[condition] else {
+        return None;
+    };
+    [left, right]
+        .into_iter()
+        .find(|&operand| loaded_local(operand, function) == Some(local))
+}
+
+/// Position of the top-level `Emit` in `block` that evaluates `handle`.
+fn emit_position(block: &Block, handle: Handle<Expression>) -> Option<usize> {
+    block.iter().position(|statement| match *statement {
+        Statement::Emit(ref range) => range.clone().any(|emitted| emitted == handle),
+        _ => false,
+    })
+}
+
+fn statements_mutate(
+    statements: &[Statement],
+    local: Handle<LocalVariable>,
+    function: &Function,
+) -> bool {
+    statements
+        .iter()
+        .any(|statement| statement_mutation_count(statement, local, function) > 0)
+}
+
+/// Whether a `break if` condition compares `local`'s value as of the end of
+/// `continuing`: its load must be emitted at top level after every mutation of
+/// the local (in `continuing`, or in the body when `continuing` leaves it alone).
+fn break_if_reads_current(
+    condition: Handle<Expression>,
+    local: Handle<LocalVariable>,
+    body: &Block,
+    continuing: &Block,
+    function: &Function,
+) -> bool {
+    let Some(load) = local_operand(condition, local, function) else {
+        return false;
+    };
+    if let Some(position) = emit_position(continuing, load) {
+        return !statements_mutate(&continuing[position + 1..], local, function);
+    }
+    match emit_position(body, load) {
+        Some(position) => {
+            !statements_mutate(&body[position + 1..], local, function)
+                && !statements_mutate(continuing, local, function)
+        }
+        None => false,
     }
 }
 
