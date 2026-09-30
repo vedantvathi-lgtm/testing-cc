@@ -339,12 +339,10 @@ pub fn access_needs_check(
         }
     };
 
-    if let GuardedIndex::Expression(expr) = index {
-        if info.safe_indices.contains(&expr)
-            || access.is_some_and(|handle| info.safe_accesses.contains(&handle))
-        {
-            return None;
-        }
+    if matches!(index, GuardedIndex::Expression(_))
+        && access.is_some_and(|handle| info.safe_accesses.contains(&handle))
+    {
+        return None;
     }
 
     Some(length)

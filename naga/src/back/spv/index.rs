@@ -518,9 +518,7 @@ impl BlockContext<'_> {
 
         // If our bounds check elision pass proved this index is safe, skip the check entirely.
         if let GuardedIndex::Expression(expr) = index {
-            if self.fun_info.safe_indices.contains(&expr)
-                || access.is_some_and(|handle| self.fun_info.safe_accesses.contains(&handle))
-            {
+            if access.is_some_and(|handle| self.fun_info.safe_accesses.contains(&handle)) {
                 return Ok(BoundsCheckResult::Computed(self.cached[expr]));
             }
         }

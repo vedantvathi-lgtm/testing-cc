@@ -248,8 +248,6 @@ pub struct FunctionInfo {
     pub uniformity: Uniformity,
     /// Function may kill the invocation.
     pub may_kill: bool,
-    /// Index expressions whose ranges are safe at every use.
-    pub safe_indices: crate::FastHashSet<Handle<crate::Expression>>,
     /// Access expressions proven safe at their specific program points.
     pub safe_accesses: crate::FastHashSet<Handle<crate::Expression>>,
 
@@ -1266,7 +1264,6 @@ impl ModuleInfo {
             available_stages: ShaderStages::all(),
             uniformity: Uniformity::new(),
             may_kill: false,
-            safe_indices: crate::FastHashSet::default(),
             safe_accesses: crate::FastHashSet::default(),
             sampling_set: crate::FastHashSet::default(),
             global_uses: vec![GlobalUse::empty(); module.global_variables.len()].into_boxed_slice(),
@@ -1404,7 +1401,6 @@ fn uniform_control_flow() {
         available_stages: ShaderStages::all(),
         uniformity: Uniformity::new(),
         may_kill: false,
-        safe_indices: crate::FastHashSet::default(),
         safe_accesses: crate::FastHashSet::default(),
         sampling_set: crate::FastHashSet::default(),
         global_uses: vec![GlobalUse::empty(); global_var_arena.len()].into_boxed_slice(),
