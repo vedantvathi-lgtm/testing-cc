@@ -269,6 +269,19 @@ fn ref_oracle(refs: &[Vec<u8>], runs: &[Vec<Vec<u8>>]) -> RefOracle {
     }
 }
 
+/// Kills the nvidia-smi sampler on every exit path, including panics (a panicking run used to
+/// leave it running; found 2026-09-30 after two Intel timestamp panics).
+struct TelemetryGuard(Option<std::process::Child>);
+
+impl Drop for TelemetryGuard {
+    fn drop(&mut self) {
+        if let Some(t) = self.0.as_mut() {
+            let _ = t.kill();
+            let _ = t.wait();
+        }
+    }
+}
+
 fn main() {
     let arg = std::env::args().nth(1).expect("usage: bce-realworld-v1 <workload>|--list");
     let framework = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf();
@@ -338,11 +351,12 @@ fn main() {
     }
 
     let telemetry_file = std::fs::File::create(art.join("telemetry.csv")).unwrap();
-    let mut telemetry = Command::new("nvidia-smi")
+    let mut telemetry = TelemetryGuard(Command::new("nvidia-smi")
         .args(["--query-gpu=timestamp,pstate,clocks.gr,clocks.mem,temperature.gpu,power.draw,utilization.gpu", "--format=csv,noheader", "-lms", "200"])
         .stdout(Stdio::from(telemetry_file))
         .spawn()
-        .ok();
+        .ok());
+    let telemetry = &mut telemetry.0;
     let (gpu, adapter) = match Gpu::new() {
         Ok(v) => v,
         Err(e) => {
@@ -376,21 +390,40 @@ fn main() {
     w.setup(&gpu.device, &gpu.queue, &modules);
 
     if let Ok(n) = std::env::var("BCE_DETERMINISM") {
+        // Diagnostic: n outputs per slot, slots interleaved; every distinct output saved per slot.
+        // Images are NOT saved (a 2026-09-30 probe that saved every distinct image filled the disk);
+        // varying-pixel sets are accumulated in memory against the first no_bce output instead.
         let n: usize = n.parse().unwrap();
-        for slot in 0..4 {
-            let seq: Vec<String> = (0..n)
-                .map(|_| {
-                    let o = w.output(&gpu.device, &gpu.queue, slot);
-                    let h = sha256(&o)[..8].to_string();
-                    let _ = std::fs::write(art.join(format!("determinism.{h}.bin")), &o);
-                    h
-                })
-                .collect();
-            let mut hashes = seq.clone();
-            hashes.sort();
-            hashes.dedup();
-            println!("determinism slot={} runs={} distinct_outputs={} sequence={}", SLOTS[slot], n, hashes.len(), seq.join(","));
+        let mut seen: Vec<std::collections::BTreeMap<String, usize>> = vec![Default::default(); 4];
+        let mut varying: Vec<std::collections::BTreeSet<usize>> = vec![Default::default(); 4];
+        let mut base: Option<Vec<u8>> = None;
+        for _ in 0..n {
+            for slot in 0..4 {
+                let o = w.output(&gpu.device, &gpu.queue, slot);
+                let b = base.get_or_insert_with(|| o.clone());
+                for k in 0..o.len() / 4 {
+                    if o[4 * k..4 * k + 4] != b[4 * k..4 * k + 4] {
+                        varying[slot].insert(k);
+                    }
+                }
+                *seen[slot].entry(sha256(&o)[..8].to_string()).or_default() += 1;
+            }
         }
+        let v0: std::collections::BTreeSet<usize> = varying[0].union(&varying[3]).copied().collect();
+        let v1: std::collections::BTreeSet<usize> = varying[1].union(&varying[2]).copied().collect();
+        let modal = |slot: usize| seen[slot].values().copied().max().unwrap_or(0);
+        let summary = serde_json::json!({
+            "dir": run_dir.display().to_string(), "adapter": adapter.name, "runs_per_slot": n, "base": "first no_bce output",
+            "distinct_outputs": {"no_bce": seen[0].len(), "bce": seen[1].len(), "bce_dup": seen[2].len(), "unchecked": seen[3].len()},
+            "runs_off_modal_image": {"no_bce": n - modal(0), "bce": n - modal(1), "bce_dup": n - modal(2), "unchecked": n - modal(3)},
+            "pixels_varying_no_elision": v0.len(), "pixels_varying_elided": v1.len(),
+            "elided_only_pixels": v1.difference(&v0).count(), "no_elision_only_pixels": v0.difference(&v1).count(),
+        });
+        println!("race-summary {summary}");
+        for slot in 0..4 {
+            println!("determinism slot={} runs={} outputs={:?}", SLOTS[slot], n, seen[slot]);
+        }
+        std::fs::write(art.join("determinism.json"), serde_json::to_vec_pretty(&serde_json::json!({"runs_per_slot": n, "adapter": adapter.name, "slots": SLOTS, "counts": seen})).unwrap()).unwrap();
         std::fs::write(run_dir.join("DIAGNOSTIC-ONLY.txt"), "determinism probe; not a measurement\n").unwrap();
         if let Some(t) = telemetry.as_mut() {
             let _ = t.kill();
