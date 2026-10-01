@@ -164,6 +164,20 @@ impl IntRange {
         }
     }
 
+    fn meet(self, rhs: Self) -> Option<Self> {
+        match (self, rhs) {
+            (Self::U32 { min: a, max: b }, Self::U32 { min: c, max: d }) => {
+                let (min, max) = (a.max(c), b.min(d));
+                (min <= max).then_some(Self::U32 { min, max })
+            }
+            (Self::I32 { min: a, max: b }, Self::I32 { min: c, max: d }) => {
+                let (min, max) = (a.max(c), b.min(d));
+                (min <= max).then_some(Self::I32 { min, max })
+            }
+            _ => None,
+        }
+    }
+
     fn min_i64(self) -> i64 {
         match self {
             Self::U32 { min, .. } => i64::from(min),
@@ -241,6 +255,32 @@ struct Analysis<'a> {
     /// The local version each `Load` of a local was emitted under.
     load_versions: crate::FastHashMap<Handle<Expression>, u64>,
     next_version: core::cell::Cell<u64>,
+    /// The first emitted expression with the same signature: both compute the
+    /// same value, so facts about one hold for the other.
+    canon: crate::FastHashMap<Handle<Expression>, Handle<Expression>>,
+    by_signature: crate::FastHashMap<Signature, Handle<Expression>>,
+}
+
+/// An operand of a [`Signature`]: a value identified independently of which
+/// expression handle computes it. A load of a local is identified by the
+/// local and the version it read.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Atom {
+    Expression(Handle<Expression>),
+    Int(i64, bool),
+    Constant(Handle<crate::Constant>),
+    Argument(u32),
+    Load(Handle<LocalVariable>, u64),
+}
+
+/// The structure of a pure integer expression over [`Atom`]s.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Signature {
+    Atom(Atom),
+    Index(Atom, u32),
+    Binary(BinaryOperator, Atom, Atom),
+    Unary(crate::UnaryOperator, Atom),
+    Cast(Atom, ScalarKind, Option<u8>),
 }
 
 pub fn elide_bounds_checks(function: &Function, module: &Module, info: &mut FunctionInfo) {
@@ -259,6 +299,8 @@ pub fn elide_bounds_checks(function: &Function, module: &Module, info: &mut Func
         workgroup_size,
         load_versions: Default::default(),
         next_version: core::cell::Cell::new(1),
+        canon: Default::default(),
+        by_signature: Default::default(),
     };
     let initial = analysis.default_ranges();
     analysis.analyze_block(&function.body, initial, Values::default());
@@ -292,8 +334,16 @@ impl Analysis<'_> {
                         if let Some(local) = loaded_local(handle, self.function) {
                             self.load_versions.insert(handle, values.version(local));
                         }
-                        if let Some(range) = self.emitted_expression_range(handle, &ranges, &values)
-                        {
+                        let canonical = self.canonicalize(handle);
+                        let computed = self.emitted_expression_range(handle, &ranges, &values);
+                        let known = (canonical != handle)
+                            .then(|| values.get(&canonical).copied())
+                            .flatten();
+                        let range = match (computed, known) {
+                            (Some(a), Some(b)) => a.meet(b).or(Some(a)),
+                            (a, b) => a.or(b),
+                        };
+                        if let Some(range) = range {
                             values.insert(handle, range);
                         } else {
                             values.remove(&handle);
@@ -401,7 +451,11 @@ impl Analysis<'_> {
                         self.reset_local(local, &mut ranges, &mut values);
                     }
                 }
-                Statement::Call { .. } => self.reset_all_locals(&mut ranges, &mut values),
+                Statement::Call { ref arguments, .. } => {
+                    for local in call_written_locals(arguments, self.function) {
+                        self.reset_local(local, &mut ranges, &mut values);
+                    }
+                }
                 Statement::Continue => {
                     continued = self.join_states(continued, Some((ranges.clone(), values.clone())));
                     return Flow {
@@ -428,6 +482,59 @@ impl Analysis<'_> {
             falls_through: true,
             continued,
         }
+    }
+
+    fn canonical(&self, handle: Handle<Expression>) -> Handle<Expression> {
+        self.canon.get(&handle).copied().unwrap_or(handle)
+    }
+
+    /// Record `handle` under its signature; returns the first expression
+    /// emitted with the same signature (or `handle` itself).
+    fn canonicalize(&mut self, handle: Handle<Expression>) -> Handle<Expression> {
+        let Some(signature) = self.signature(handle) else {
+            return handle;
+        };
+        let first = *self.by_signature.entry(signature).or_insert(handle);
+        if first != handle {
+            self.canon.insert(handle, first);
+        }
+        first
+    }
+
+    fn atom(&self, handle: Handle<Expression>) -> Atom {
+        match self.function.expressions[handle] {
+            Expression::Literal(Literal::U32(value)) => Atom::Int(i64::from(value), false),
+            Expression::Literal(Literal::I32(value)) => Atom::Int(i64::from(value), true),
+            Expression::Constant(constant) => Atom::Constant(constant),
+            Expression::FunctionArgument(index) => Atom::Argument(index),
+            _ => match (
+                loaded_local(handle, self.function),
+                self.load_versions.get(&handle),
+            ) {
+                (Some(local), Some(&version)) => Atom::Load(local, version),
+                _ => Atom::Expression(self.canonical(handle)),
+            },
+        }
+    }
+
+    fn signature(&self, handle: Handle<Expression>) -> Option<Signature> {
+        Some(match self.function.expressions[handle] {
+            Expression::Load { .. } => match self.atom(handle) {
+                atom @ Atom::Load(..) => Signature::Atom(atom),
+                _ => return None,
+            },
+            Expression::AccessIndex { base, index } => Signature::Index(self.atom(base), index),
+            Expression::Binary { op, left, right } => {
+                Signature::Binary(op, self.atom(left), self.atom(right))
+            }
+            Expression::Unary { op, expr } => Signature::Unary(op, self.atom(expr)),
+            Expression::As {
+                expr,
+                kind,
+                convert,
+            } => Signature::Cast(self.atom(expr), kind, convert),
+            _ => return None,
+        })
     }
 
     fn fresh_version(&self) -> u64 {
@@ -690,18 +797,44 @@ impl Analysis<'_> {
         let Expression::Access { base, index } = self.function.expressions[handle] else {
             return;
         };
-        let Some(range) = self.expression_range(index, values) else {
-            return;
-        };
         let inner = self.info[base].ty.inner_with(&self.module.types);
-        let Ok(super::IndexableLength::Known(length)) =
-            inner.indexable_length_resolved(self.module)
-        else {
-            return;
+        let proved = match inner.indexable_length_resolved(self.module) {
+            Ok(super::IndexableLength::Known(length)) => self
+                .expression_range(index, values)
+                .is_some_and(|range| range.fits(length)),
+            Ok(super::IndexableLength::Dynamic) => self.below_runtime_length(base, index, values),
+            Err(_) => false,
         };
-        if range.fits(length) {
+        if proved {
             self.info.safe_accesses.insert(handle);
         }
+    }
+
+    /// `0 <= index < arrayLength(base)`: the index is non-negative and a branch
+    /// established `arrayLength(p) > index` for a `p` naming the same array.
+    fn below_runtime_length(
+        &self,
+        base: Handle<Expression>,
+        index: Handle<Expression>,
+        values: &Values,
+    ) -> bool {
+        let Some(path) = array_path(base, self.function) else {
+            return false;
+        };
+        if self
+            .range_or_full(index, values)
+            .is_none_or(|range| range.min_i64() < 0)
+        {
+            return false;
+        }
+        let small = self.key(index, values);
+        values.relations.iter().any(|relation| {
+            relation.strict
+                && relation.small == small
+                && matches!(relation.big, Target::Value(length)
+                    if matches!(self.function.expressions[length], Expression::ArrayLength(array)
+                        if array_path(array, self.function).as_ref() == Some(&path)))
+        })
     }
 
     /// Facts that hold on the edge where `condition` evaluates to `truth`.
@@ -756,6 +889,7 @@ impl Analysis<'_> {
             // change inside it, so its refined range holds for the whole edge.
             Target::Value(handle) => {
                 values.insert(handle, refined);
+                values.insert(self.canonical(handle), refined);
             }
         }
         Some((ranges, values))
@@ -835,7 +969,7 @@ impl Analysis<'_> {
     /// the local changes), anything else by its value handle.
     fn key(&self, handle: Handle<Expression>, values: &Values) -> Target {
         self.fresh_local(handle, values)
-            .map_or(Target::Value(handle), Target::Local)
+            .map_or(Target::Value(self.canonical(handle)), Target::Local)
     }
 
     /// The local a `Load` reads, if nothing has changed the local since the load
@@ -932,12 +1066,6 @@ impl Analysis<'_> {
             ranges.remove(&local);
         }
     }
-
-    fn reset_all_locals(&self, ranges: &mut Ranges, values: &mut Values) {
-        for (local, _) in self.function.local_variables.iter() {
-            self.reset_local(local, ranges, values);
-        }
-    }
 }
 
 const fn literal_range(literal: Literal) -> Option<IntRange> {
@@ -972,6 +1100,24 @@ fn global_range(handle: Handle<Expression>, module: &Module) -> Option<IntRange>
     }
 }
 
+/// A pointer that names a global array by a fixed path: the global variable and
+/// the constant member indices leading to it. Two such pointers with equal paths
+/// name the same array, so share one `arrayLength`.
+fn array_path(
+    handle: Handle<Expression>,
+    function: &Function,
+) -> Option<(Handle<crate::GlobalVariable>, Vec<u32>)> {
+    match function.expressions[handle] {
+        Expression::GlobalVariable(global) => Some((global, Vec::new())),
+        Expression::AccessIndex { base, index } => {
+            let (global, mut path) = array_path(base, function)?;
+            path.push(index);
+            Some((global, path))
+        }
+        _ => None,
+    }
+}
+
 fn loaded_local(handle: Handle<Expression>, function: &Function) -> Option<Handle<LocalVariable>> {
     let Expression::Load { pointer } = function.expressions[handle] else {
         return None;
@@ -980,6 +1126,19 @@ fn loaded_local(handle: Handle<Expression>, function: &Function) -> Option<Handl
         return None;
     };
     Some(local)
+}
+
+/// The caller's locals a call may write: a callee reaches a caller's local only
+/// through a pointer argument rooted at that local (WGSL has no other way to
+/// name another function's locals).
+fn call_written_locals(
+    arguments: &[Handle<Expression>],
+    function: &Function,
+) -> Vec<Handle<LocalVariable>> {
+    arguments
+        .iter()
+        .filter_map(|&argument| root_local(argument, function))
+        .collect()
 }
 
 fn root_local(handle: Handle<Expression>, function: &Function) -> Option<Handle<LocalVariable>> {
@@ -1107,10 +1266,8 @@ fn collect_mutated(
                 collect_mutated(body, function, result);
                 collect_mutated(continuing, function, result);
             }
-            Statement::Call { .. } => {
-                for (local, _) in function.local_variables.iter() {
-                    result.insert(local);
-                }
+            Statement::Call { arguments, .. } => {
+                result.extend(call_written_locals(arguments, function));
             }
             _ => {}
         }
@@ -1282,7 +1439,9 @@ fn statement_mutation_count(
                 body, continuing, ..
             } => local_mutation_count(body, local, function)
                 .saturating_add(local_mutation_count(continuing, local, function)),
-            Statement::Call { .. } => 1,
+            Statement::Call { arguments, .. } => {
+                usize::from(call_written_locals(arguments, function).contains(&local))
+            }
             _ => 0,
         })
         .fold(0usize, usize::saturating_add)

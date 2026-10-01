@@ -1972,3 +1972,223 @@ fn override_sized_workgroup_is_proved_only_after_overrides_resolve() {
     // l.x < 64: fits b (64 elements), not a (1 element).
     assert_eq!(proofs, [false, true]);
 }
+
+// =========================================================================
+//  RUNTIME-SIZED ARRAYS (spec 006): `i < arrayLength(&a)` proves `a[i]`
+// =========================================================================
+
+fn runtime_array_umins(body: &str) -> usize {
+    let text = compile(
+        &format!(
+            r#"
+            struct S {{ n: u32, data: array<u32> }}
+            @group(0) @binding(0) var<storage, read_write> a: array<u32>;
+            @group(0) @binding(1) var<storage, read_write> b: array<u32>;
+            @group(0) @binding(2) var<storage, read_write> s: S;
+            @compute @workgroup_size(64)
+            fn main(@builtin(global_invocation_id) g: vec3<u32>) {{
+                {body}
+            }}
+            "#
+        ),
+        BoundsCheckPolicy::Restrict,
+    );
+    count(&text, "UMin")
+}
+
+#[test]
+fn runtime_array_guarded_by_its_length_elided() {
+    let body = "let i = g.x; if (i < arrayLength(&a)) { a[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 0);
+}
+
+#[test]
+fn runtime_array_early_return_guard_elided() {
+    let body = "let i = g.x; if (i >= arrayLength(&a)) { return; } a[i] = 1u;";
+    assert_eq!(runtime_array_umins(body), 0);
+}
+
+#[test]
+fn runtime_array_loop_to_length_elided() {
+    let body = "for (var i = 0u; i < arrayLength(&a); i++) { a[i] = i; }";
+    assert_eq!(runtime_array_umins(body), 0);
+}
+
+#[test]
+fn runtime_array_struct_member_elided() {
+    let body = "let i = g.x; if (i < arrayLength(&s.data)) { s.data[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 0);
+}
+
+#[test]
+fn runtime_array_guard_on_other_buffer_retained() {
+    let body = "let i = g.x; if (i < arrayLength(&a)) { b[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+#[test]
+fn runtime_array_non_strict_guard_retained() {
+    let body = "let i = g.x; if (i <= arrayLength(&a)) { a[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+#[test]
+fn runtime_array_index_changed_after_guard_retained() {
+    let body = "var i = g.x; if (i < arrayLength(&a)) { i = i + 1u; a[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+#[test]
+fn runtime_array_reject_edge_retained() {
+    let body = "let i = g.x; if (i < arrayLength(&a)) { } else { a[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+#[test]
+fn runtime_array_non_dominating_guard_retained() {
+    let body = "let i = g.x; if (g.y == 0u) { if (i < arrayLength(&a)) { } } a[i] = 1u;";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+#[test]
+fn runtime_array_signed_index_without_lower_bound_retained() {
+    let body = "let i = i32(g.x) - 5; if (u32(i) < arrayLength(&a)) { a[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+#[test]
+fn runtime_array_length_bound_by_let_elided() {
+    let body = "let n = arrayLength(&a); let i = g.x; if (i < n) { a[i] = 1u; }";
+    assert_eq!(runtime_array_umins(body), 0);
+}
+
+#[test]
+fn runtime_array_loop_index_bumped_after_guard_retained() {
+    let body = "for (var i = 0u; i < arrayLength(&a); i++) { i = i + 1u; a[i] = i; }";
+    assert_eq!(runtime_array_umins(body), 1);
+}
+
+// =========================================================================
+//  CALLS: a call only writes the caller's locals it receives pointers to
+// =========================================================================
+
+fn local_array_umins(prelude: &str, body: &str) -> usize {
+    let text = compile(
+        &format!(
+            r#"
+            @group(0) @binding(0) var<storage, read_write> o: array<f32>;
+            {prelude}
+            @compute @workgroup_size(1)
+            fn main() {{
+                var area: array<f32, 4>;
+                {body}
+                o[0] = area[0];
+            }}
+            "#
+        ),
+        BoundsCheckPolicy::Restrict,
+    );
+    count(&text, "UMin")
+}
+
+#[test]
+fn call_without_pointer_arguments_keeps_loop_fact() {
+    let prelude = "fn shade(x: f32) -> f32 { return x * 2.0; }";
+    let body = "for (var i = 0u; i < 4u; i += 1u) { let s = shade(f32(i)); area[i] = s; }";
+    assert_eq!(local_array_umins(prelude, body), 1);
+}
+
+#[test]
+fn call_with_pointer_to_index_retained() {
+    let prelude = "fn bump(p: ptr<function, u32>) { *p = *p + 5u; }";
+    let body = "for (var i = 0u; i < 4u; i += 1u) { bump(&i); area[i] = 1.0; }";
+    assert_eq!(local_array_umins(prelude, body), 2);
+}
+
+#[test]
+fn call_with_pointer_to_struct_holding_index_retained() {
+    let prelude = "struct C { i: u32 } fn bump(p: ptr<function, C>) { (*p).i = 9u; }";
+    let body = "var c = C(0u); if (c.i < 4u) { bump(&c); area[c.i] = 1.0; }";
+    assert_eq!(local_array_umins(prelude, body), 2);
+}
+
+// =========================================================================
+//  REPEATED EXPRESSIONS: a guard on `e` covers a re-computed copy of `e`
+// =========================================================================
+
+fn scan_umins(body: &str) -> usize {
+    let text = compile(
+        &format!(
+            r#"
+            @group(0) @binding(0) var<storage, read_write> o: array<u32>;
+            var<workgroup> sh: array<u32, 256>;
+            @compute @workgroup_size(256)
+            fn main(@builtin(local_invocation_id) local_id: vec3<u32>) {{
+                {body}
+            }}
+            "#
+        ),
+        BoundsCheckPolicy::Restrict,
+    );
+    count(&text, "UMin")
+}
+
+#[test]
+fn repeated_sum_guard_covers_upsweep_access() {
+    let body = "for (var i = 0u; i < 8u; i += 1u) {
+        if local_id.x + (1u << i) < 256u { sh[local_id.x] = sh[local_id.x + (1u << i)]; }
+        workgroupBarrier();
+    }";
+    assert_eq!(scan_umins(body), 0);
+}
+
+#[test]
+fn repeated_relation_guard_covers_downsweep_access() {
+    let body = "for (var i = 0u; i < 8u; i += 1u) {
+        if local_id.x >= 1u << i { sh[local_id.x] = sh[local_id.x - (1u << i)]; }
+        workgroupBarrier();
+    }";
+    assert_eq!(scan_umins(body), 0);
+}
+
+#[test]
+fn repeated_builtin_guard_covers_minus_one() {
+    let body = "if local_id.x > 0u { o[0] = sh[local_id.x - 1u]; }";
+    assert_eq!(scan_umins(body), 1);
+}
+
+#[test]
+fn repeated_expression_after_store_retained() {
+    let body = "var k = o[0];
+        if local_id.x + k < 256u { k = k + 300u; sh[local_id.x + k] = 1u; }";
+    assert_eq!(scan_umins(body), 2);
+}
+
+#[test]
+fn similar_but_different_expression_retained() {
+    let body = "for (var i = 0u; i < 8u; i += 1u) {
+        if local_id.x + (1u << i) < 256u { sh[local_id.x] = sh[local_id.x + (2u << i)]; }
+    }";
+    assert_eq!(scan_umins(body), 1);
+}
+
+#[test]
+fn repeated_expression_across_diverging_join_retained() {
+    let body = "var k = o[0];
+        if local_id.x + k < 256u { o[1] = 0u; }
+        if o[2] == 0u { k = 7u; }
+        sh[local_id.x + k] = 1u;";
+    assert_eq!(scan_umins(body), 4);
+}
+
+#[test]
+fn repeated_expression_after_loop_carried_update_retained() {
+    let body = "var k = 0u;
+        loop {
+            if local_id.x + k < 256u { o[1] = 0u; }
+            k = k + 200u;
+            if k > 1000u { break; }
+            sh[local_id.x + k] = 1u;
+        }";
+    assert_eq!(scan_umins(body), 2);
+}
