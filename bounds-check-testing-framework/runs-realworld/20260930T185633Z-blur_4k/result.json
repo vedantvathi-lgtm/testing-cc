@@ -1,0 +1,1987 @@
+{
+  "bce_changes_binary": true,
+  "correctness": [
+    {
+      "bce_dup_equals_no_bce": true,
+      "bce_equals_no_bce": true,
+      "compared_fraction": 1.0,
+      "nonzero_fraction_no_bce": 0.9535045623779297,
+      "output_bytes": 67108864,
+      "output_sha256": [
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92",
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92",
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92",
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92"
+      ],
+      "phase": "before",
+      "reference_racy_elements": 0,
+      "reference_states": 0,
+      "slot_in_reference_set": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "slot_mismatch_outside_racy": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "unchecked_equals_no_bce": true
+    },
+    {
+      "bce_dup_equals_no_bce": true,
+      "bce_equals_no_bce": true,
+      "compared_fraction": 1.0,
+      "nonzero_fraction_no_bce": 0.9535045623779297,
+      "output_bytes": 67108864,
+      "output_sha256": [
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92",
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92",
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92",
+        "4edb7a7b1de0c5667364397b0e18bc86b01faa278b05cf6b6f7ff948b1537e92"
+      ],
+      "phase": "after",
+      "reference_racy_elements": 0,
+      "reference_states": 0,
+      "slot_in_reference_set": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "slot_mismatch_outside_racy": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "unchecked_equals_no_bce": true
+    }
+  ],
+  "gpu_compute_apps_after": [],
+  "harness_version": "realworld-2",
+  "kernel": "blur_4k",
+  "measure_window_unix_ms": [
+    1790794600445,
+    1790794607713
+  ],
+  "median_ns_per_rep": {
+    "bce": 15054304.0,
+    "bce_dup": 15057680.0,
+    "no_bce": 15027808.0,
+    "unchecked": 15078816.0
+  },
+  "order_effect_ratio": {
+    "bce_first_median": 0.9987712066093766,
+    "n_first": 90,
+    "n_second": 30,
+    "no_bce_first_median": 0.9995248771887536
+  },
+  "outputs_ok": true,
+  "provenance": {
+    "block_dim": 114,
+    "filter_dim": 15,
+    "height": 4096,
+    "host_logic": "webgpu-samples sample/imageBlur/main.ts frame(): 2 iterations; params per filter_dim/block_dim",
+    "input": "webgpu-samples public/assets/img/Di-3d.png",
+    "iterations": 2,
+    "shader": "webgpu-samples sample/imageBlur/blur.wgsl (unmodified)",
+    "tile": 8,
+    "webgpu_samples_rev": "4944c705dcbf34c6d9d7ea88cf0a61586e0ce93b",
+    "width": 4096
+  },
+  "quiet_during_run": true,
+  "ratio_all_checks_no_bce_over_unchecked": {
+    "ci95_hi": 0.9986180901681176,
+    "ci95_lo": 0.9977806987064209,
+    "median": 0.9982467279701179
+  },
+  "ratio_control_bce_dup_over_bce": {
+    "ci95_hi": 1.0006884757316143,
+    "ci95_lo": 1.00011034251474,
+    "median": 1.0003599276047062
+  },
+  "ratio_no_bce_over_bce": {
+    "ci95_hi": 0.9997411069164772,
+    "ci95_lo": 0.998988365138681,
+    "median": 0.9994304402436037
+  },
+  "ratio_residual_bce_over_unchecked": {
+    "ci95_hi": 0.9993114158772668,
+    "ci95_lo": 0.9981375066744641,
+    "median": 0.9986157128842243
+  },
+  "reference_oracle": null,
+  "reps_per_sample": 1,
+  "rounds": 120,
+  "rounds_raw": [
+    {
+      "ns": [
+        15070144.0,
+        15083808.0,
+        15085760.0,
+        15093408.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 0
+    },
+    {
+      "ns": [
+        14966624.0,
+        14960352.0,
+        14967840.0,
+        14953056.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 1
+    },
+    {
+      "ns": [
+        15013280.0,
+        15089632.0,
+        14959776.0,
+        14982816.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 2
+    },
+    {
+      "ns": [
+        14863552.0,
+        14898944.0,
+        14991840.0,
+        15112192.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 3
+    },
+    {
+      "ns": [
+        15082336.0,
+        15076640.0,
+        15086048.0,
+        15102496.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 4
+    },
+    {
+      "ns": [
+        14991904.0,
+        15093216.0,
+        14973120.0,
+        14981984.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 5
+    },
+    {
+      "ns": [
+        15090304.0,
+        15086368.0,
+        15089504.0,
+        15105440.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 6
+    },
+    {
+      "ns": [
+        14967776.0,
+        15047776.0,
+        15084512.0,
+        15117344.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 7
+    },
+    {
+      "ns": [
+        15079328.0,
+        14867712.0,
+        15015680.0,
+        15111520.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 8
+    },
+    {
+      "ns": [
+        15082464.0,
+        15059424.0,
+        14836352.0,
+        15015872.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 9
+    },
+    {
+      "ns": [
+        15021472.0,
+        15029824.0,
+        15052768.0,
+        14858560.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 10
+    },
+    {
+      "ns": [
+        14935136.0,
+        14954976.0,
+        15084928.0,
+        14980448.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 11
+    },
+    {
+      "ns": [
+        15083104.0,
+        15074208.0,
+        15093152.0,
+        15102336.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 12
+    },
+    {
+      "ns": [
+        14956672.0,
+        15054784.0,
+        14964288.0,
+        14981088.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 13
+    },
+    {
+      "ns": [
+        14957088.0,
+        15062816.0,
+        14965216.0,
+        14984864.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 14
+    },
+    {
+      "ns": [
+        15082752.0,
+        15088928.0,
+        15097216.0,
+        15100544.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 15
+    },
+    {
+      "ns": [
+        15078464.0,
+        15094400.0,
+        15084800.0,
+        15101184.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 16
+    },
+    {
+      "ns": [
+        14960768.0,
+        15045408.0,
+        14963520.0,
+        14972896.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 17
+    },
+    {
+      "ns": [
+        15084096.0,
+        15086528.0,
+        15043200.0,
+        14989696.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 18
+    },
+    {
+      "ns": [
+        15088416.0,
+        14976736.0,
+        15059392.0,
+        15108544.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 19
+    },
+    {
+      "ns": [
+        15072256.0,
+        15069472.0,
+        14963136.0,
+        14987328.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 20
+    },
+    {
+      "ns": [
+        15059840.0,
+        14968896.0,
+        14966848.0,
+        14970656.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 21
+    },
+    {
+      "ns": [
+        14960160.0,
+        14957280.0,
+        15081280.0,
+        15085696.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 22
+    },
+    {
+      "ns": [
+        14945568.0,
+        14968576.0,
+        15079072.0,
+        14987264.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 23
+    },
+    {
+      "ns": [
+        15073184.0,
+        15088448.0,
+        15101504.0,
+        15108992.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 24
+    },
+    {
+      "ns": [
+        14953120.0,
+        15093056.0,
+        15091712.0,
+        15103456.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 25
+    },
+    {
+      "ns": [
+        14957984.0,
+        15085728.0,
+        14963200.0,
+        14989472.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 26
+    },
+    {
+      "ns": [
+        15078464.0,
+        15082144.0,
+        15086368.0,
+        15104832.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 27
+    },
+    {
+      "ns": [
+        15082368.0,
+        15084064.0,
+        15084704.0,
+        15113952.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 28
+    },
+    {
+      "ns": [
+        15083872.0,
+        15090944.0,
+        15031616.0,
+        15009824.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 29
+    },
+    {
+      "ns": [
+        15094656.0,
+        15095424.0,
+        15083392.0,
+        15112512.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 30
+    },
+    {
+      "ns": [
+        15071968.0,
+        15084128.0,
+        15095232.0,
+        15106208.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 31
+    },
+    {
+      "ns": [
+        15081632.0,
+        15011008.0,
+        14960160.0,
+        14977024.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 32
+    },
+    {
+      "ns": [
+        15074560.0,
+        15083360.0,
+        15000192.0,
+        15024032.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 33
+    },
+    {
+      "ns": [
+        15007744.0,
+        15082304.0,
+        14952608.0,
+        14972704.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 34
+    },
+    {
+      "ns": [
+        14980832.0,
+        15017856.0,
+        15083328.0,
+        15100832.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 35
+    },
+    {
+      "ns": [
+        14960576.0,
+        14969440.0,
+        15017056.0,
+        15108000.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 36
+    },
+    {
+      "ns": [
+        15027648.0,
+        15093504.0,
+        14991840.0,
+        14988768.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 37
+    },
+    {
+      "ns": [
+        14947008.0,
+        14987264.0,
+        15081280.0,
+        14989184.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 38
+    },
+    {
+      "ns": [
+        15083296.0,
+        15086336.0,
+        15091200.0,
+        15116128.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 39
+    },
+    {
+      "ns": [
+        15075200.0,
+        15097280.0,
+        15005472.0,
+        14980992.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 40
+    },
+    {
+      "ns": [
+        15076640.0,
+        15005856.0,
+        14994208.0,
+        15075872.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 41
+    },
+    {
+      "ns": [
+        14997568.0,
+        15008256.0,
+        15091488.0,
+        15100128.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 42
+    },
+    {
+      "ns": [
+        14954656.0,
+        15061248.0,
+        15087520.0,
+        15101632.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 43
+    },
+    {
+      "ns": [
+        15077888.0,
+        15082656.0,
+        15090368.0,
+        15113152.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 44
+    },
+    {
+      "ns": [
+        15072288.0,
+        15079424.0,
+        15082112.0,
+        15109952.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 45
+    },
+    {
+      "ns": [
+        14960032.0,
+        14970688.0,
+        15053792.0,
+        14972896.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 46
+    },
+    {
+      "ns": [
+        14962368.0,
+        14964320.0,
+        15046304.0,
+        14972544.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 47
+    },
+    {
+      "ns": [
+        15043520.0,
+        14970720.0,
+        15093504.0,
+        15104928.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 48
+    },
+    {
+      "ns": [
+        15048896.0,
+        15096896.0,
+        15073248.0,
+        14978336.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 49
+    },
+    {
+      "ns": [
+        14952896.0,
+        14964224.0,
+        15082656.0,
+        15093088.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 50
+    },
+    {
+      "ns": [
+        15080704.0,
+        15084672.0,
+        15094880.0,
+        15042400.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 51
+    },
+    {
+      "ns": [
+        15014976.0,
+        14973088.0,
+        15081888.0,
+        15100064.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 52
+    },
+    {
+      "ns": [
+        15050464.0,
+        15020576.0,
+        14937472.0,
+        14862944.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 53
+    },
+    {
+      "ns": [
+        14960928.0,
+        15075584.0,
+        15090624.0,
+        15104160.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 54
+    },
+    {
+      "ns": [
+        14954400.0,
+        14964096.0,
+        14955552.0,
+        15023072.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 55
+    },
+    {
+      "ns": [
+        14962368.0,
+        14971488.0,
+        14976224.0,
+        15110240.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 56
+    },
+    {
+      "ns": [
+        15093824.0,
+        15093760.0,
+        15079136.0,
+        15095008.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 57
+    },
+    {
+      "ns": [
+        15066976.0,
+        14961120.0,
+        15085984.0,
+        15100320.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 58
+    },
+    {
+      "ns": [
+        15026144.0,
+        14968800.0,
+        15090304.0,
+        15061344.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 59
+    },
+    {
+      "ns": [
+        15073600.0,
+        15032192.0,
+        14963872.0,
+        14992768.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 60
+    },
+    {
+      "ns": [
+        14967264.0,
+        15083680.0,
+        15028480.0,
+        14977568.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 61
+    },
+    {
+      "ns": [
+        14848192.0,
+        14957728.0,
+        14959488.0,
+        14932704.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 62
+    },
+    {
+      "ns": [
+        15003392.0,
+        14945728.0,
+        14960704.0,
+        15089056.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 63
+    },
+    {
+      "ns": [
+        14972288.0,
+        15046368.0,
+        14992864.0,
+        15106400.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 64
+    },
+    {
+      "ns": [
+        14959232.0,
+        15091200.0,
+        15005376.0,
+        14983040.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 65
+    },
+    {
+      "ns": [
+        15072352.0,
+        15094240.0,
+        15075136.0,
+        15100512.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 66
+    },
+    {
+      "ns": [
+        15074944.0,
+        15011808.0,
+        15085632.0,
+        15115584.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 67
+    },
+    {
+      "ns": [
+        14951296.0,
+        14964576.0,
+        15013792.0,
+        15096608.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 68
+    },
+    {
+      "ns": [
+        15084512.0,
+        14960832.0,
+        14958944.0,
+        15027488.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 69
+    },
+    {
+      "ns": [
+        15080672.0,
+        15087936.0,
+        15092128.0,
+        15110336.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 70
+    },
+    {
+      "ns": [
+        14972128.0,
+        15029568.0,
+        15089120.0,
+        15111872.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 71
+    },
+    {
+      "ns": [
+        15083904.0,
+        15084544.0,
+        15087232.0,
+        15101664.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 72
+    },
+    {
+      "ns": [
+        14951360.0,
+        15085568.0,
+        15088960.0,
+        15025504.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 73
+    },
+    {
+      "ns": [
+        14956096.0,
+        15004800.0,
+        14994080.0,
+        15023936.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 74
+    },
+    {
+      "ns": [
+        14955008.0,
+        15037696.0,
+        15087584.0,
+        15105472.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 75
+    },
+    {
+      "ns": [
+        15061088.0,
+        14847488.0,
+        15021504.0,
+        15104576.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 76
+    },
+    {
+      "ns": [
+        14957280.0,
+        15082464.0,
+        15059136.0,
+        14905440.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 77
+    },
+    {
+      "ns": [
+        15047552.0,
+        15087840.0,
+        14963360.0,
+        14983104.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 78
+    },
+    {
+      "ns": [
+        14956576.0,
+        15060512.0,
+        15094944.0,
+        15081760.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 79
+    },
+    {
+      "ns": [
+        15026688.0,
+        14844384.0,
+        14841728.0,
+        15065984.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 80
+    },
+    {
+      "ns": [
+        15011424.0,
+        15059520.0,
+        14956608.0,
+        15116352.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 81
+    },
+    {
+      "ns": [
+        14954880.0,
+        15045152.0,
+        14962240.0,
+        14976320.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 82
+    },
+    {
+      "ns": [
+        15088896.0,
+        15093856.0,
+        15093408.0,
+        15112864.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 83
+    },
+    {
+      "ns": [
+        15082560.0,
+        15081504.0,
+        15094464.0,
+        15103904.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 84
+    },
+    {
+      "ns": [
+        14961984.0,
+        15080832.0,
+        15090496.0,
+        14979552.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 85
+    },
+    {
+      "ns": [
+        14832672.0,
+        15036608.0,
+        15010080.0,
+        15063872.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 86
+    },
+    {
+      "ns": [
+        15015648.0,
+        14852032.0,
+        15044800.0,
+        15107200.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 87
+    },
+    {
+      "ns": [
+        15009184.0,
+        14961792.0,
+        14967168.0,
+        15073952.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 88
+    },
+    {
+      "ns": [
+        15060736.0,
+        15081568.0,
+        15053920.0,
+        14982752.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 89
+    },
+    {
+      "ns": [
+        15047744.0,
+        14962560.0,
+        15083680.0,
+        15103872.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 90
+    },
+    {
+      "ns": [
+        15038688.0,
+        14964576.0,
+        15092992.0,
+        15065216.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 91
+    },
+    {
+      "ns": [
+        15088960.0,
+        15039552.0,
+        14967520.0,
+        15107616.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 92
+    },
+    {
+      "ns": [
+        14958432.0,
+        15090464.0,
+        15031232.0,
+        14983424.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 93
+    },
+    {
+      "ns": [
+        14952608.0,
+        14971552.0,
+        15055456.0,
+        15049664.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 94
+    },
+    {
+      "ns": [
+        15049952.0,
+        14976704.0,
+        15077344.0,
+        15069536.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 95
+    },
+    {
+      "ns": [
+        15075680.0,
+        15079584.0,
+        15057184.0,
+        14979904.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 96
+    },
+    {
+      "ns": [
+        15075168.0,
+        14969600.0,
+        15044096.0,
+        15004512.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 97
+    },
+    {
+      "ns": [
+        14969216.0,
+        15079104.0,
+        15092640.0,
+        15039072.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 98
+    },
+    {
+      "ns": [
+        14928448.0,
+        14902784.0,
+        15088064.0,
+        15106912.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 99
+    },
+    {
+      "ns": [
+        15079296.0,
+        15095392.0,
+        15102400.0,
+        15117280.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 100
+    },
+    {
+      "ns": [
+        15081728.0,
+        15088192.0,
+        15003968.0,
+        15027488.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 101
+    },
+    {
+      "ns": [
+        14934688.0,
+        15088480.0,
+        15093920.0,
+        14928448.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 102
+    },
+    {
+      "ns": [
+        14978304.0,
+        14965664.0,
+        15005504.0,
+        15093856.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 103
+    },
+    {
+      "ns": [
+        15085056.0,
+        14996864.0,
+        15031456.0,
+        15111136.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 104
+    },
+    {
+      "ns": [
+        15083264.0,
+        15085696.0,
+        14994016.0,
+        15049888.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 105
+    },
+    {
+      "ns": [
+        14881728.0,
+        14849280.0,
+        15090048.0,
+        14981216.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 106
+    },
+    {
+      "ns": [
+        15012512.0,
+        15033376.0,
+        15085504.0,
+        14910688.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 107
+    },
+    {
+      "ns": [
+        15078208.0,
+        15085280.0,
+        15092352.0,
+        15109568.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 108
+    },
+    {
+      "ns": [
+        15000704.0,
+        15093216.0,
+        14973344.0,
+        14980864.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 109
+    },
+    {
+      "ns": [
+        15082624.0,
+        15085408.0,
+        15096000.0,
+        15099680.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 110
+    },
+    {
+      "ns": [
+        14959168.0,
+        15053888.0,
+        15085216.0,
+        15097440.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 111
+    },
+    {
+      "ns": [
+        15065984.0,
+        14966560.0,
+        15058176.0,
+        15097184.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 112
+    },
+    {
+      "ns": [
+        15027968.0,
+        15044160.0,
+        14843200.0,
+        14859744.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 113
+    },
+    {
+      "ns": [
+        15050976.0,
+        15092480.0,
+        15033728.0,
+        14858752.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 114
+    },
+    {
+      "ns": [
+        14963328.0,
+        15075072.0,
+        15083328.0,
+        15094112.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 115
+    },
+    {
+      "ns": [
+        15042720.0,
+        14959296.0,
+        15071968.0,
+        15094912.0
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 116
+    },
+    {
+      "ns": [
+        15075744.0,
+        15054720.0,
+        14835552.0,
+        15093632.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 117
+    },
+    {
+      "ns": [
+        14963264.0,
+        15039168.0,
+        15046496.0,
+        14985472.0
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 118
+    },
+    {
+      "ns": [
+        15060544.0,
+        14838208.0,
+        15015264.0,
+        15108704.0
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 119
+    }
+  ],
+  "schema": "bce-result-rw-1",
+  "slots": [
+    "no_bce",
+    "bce",
+    "bce_dup",
+    "unchecked"
+  ],
+  "statics": [
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "proven_accesses": 0,
+      "shader": "blur",
+      "slot": "no_bce",
+      "spv_sha256": "c2fb2e27584360a35311c432192ce4981c96e9ec04de125037925d57d082099a",
+      "spv_words": 1768,
+      "umin_clamps": 4
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "proven_accesses": 3,
+      "shader": "blur",
+      "slot": "bce",
+      "spv_sha256": "dff2c30e36decb5c166a49f5d880103913067d48b2ee0da771efca262bc6f325",
+      "spv_words": 1743,
+      "umin_clamps": 1
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "proven_accesses": 3,
+      "shader": "blur",
+      "slot": "bce_dup",
+      "spv_sha256": "dff2c30e36decb5c166a49f5d880103913067d48b2ee0da771efca262bc6f325",
+      "spv_words": 1743,
+      "umin_clamps": 1
+    },
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Unchecked",
+      "proven_accesses": 0,
+      "shader": "blur",
+      "slot": "unchecked",
+      "spv_sha256": "09a463f69eb2307e984a0df7cf76f8471cdeddf0c4dd96990553d95a7a20b35c",
+      "spv_words": 1732,
+      "umin_clamps": 0
+    }
+  ],
+  "umin_clamps_per_slot": [
+    4,
+    1,
+    1,
+    0
+  ],
+  "valid": false,
+  "warmup_rounds": 30,
+  "warmup_rounds_done": 86
+}

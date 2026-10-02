@@ -1,0 +1,19 @@
+#!/bin/sh
+# bce-gpu: the only GPU controls the benchmark needs, as fixed and validated actions.
+# Installed root-owned at /usr/local/bin/bce-gpu; a sudoers rule allows exactly this file,
+# so the benchmark can run `sudo -n /usr/local/bin/bce-gpu lock 1800` without a password,
+# while no other nvidia-smi arguments (or anything else) become password-free.
+set -eu
+SMI=/usr/bin/nvidia-smi
+case "${1:-}" in
+  lock)
+    mhz="${2:-}"
+    case "$mhz" in '' | *[!0-9]*) echo "bce-gpu: MHz must be a number" >&2; exit 2 ;; esac
+    if [ "$mhz" -lt 300 ] || [ "$mhz" -gt 3105 ]; then echo "bce-gpu: MHz out of range 300-3105" >&2; exit 2; fi
+    exec "$SMI" -i 0 -lgc "$mhz,$mhz" ;;
+  reset)  exec "$SMI" -i 0 -rgc ;;
+  pm-on)  exec "$SMI" -i 0 -pm 1 ;;
+  pm-off) exec "$SMI" -i 0 -pm 0 ;;
+  status) exec "$SMI" -i 0 -q -d CLOCK,PERFORMANCE ;;
+  *) echo "usage: bce-gpu lock <MHz> | reset | pm-on | pm-off | status" >&2; exit 2 ;;
+esac

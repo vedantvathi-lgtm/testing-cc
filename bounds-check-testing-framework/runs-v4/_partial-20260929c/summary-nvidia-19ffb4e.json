@@ -1,0 +1,370 @@
+{
+  "empty": {
+    "runs": 1,
+    "valid_runs": 0,
+    "bce_changes_binary": false,
+    "effect_geomean": 0.9987102762994042,
+    "effect_min": 0.9987102762994042,
+    "effect_max": 0.9987102762994042,
+    "effect_per_run": [
+      0.9987102762994042
+    ],
+    "control_max_dev": 0.0011951172158766177,
+    "control_within_margin": true,
+    "control_strict_ci_contains_1": 0,
+    "outputs_correct": true,
+    "residual_geomean": 0.9999884515075452,
+    "all_checks_geomean": 1.0012974542404813,
+    "bce_ns_median_of_runs": 4272.373590982286,
+    "order_effect_ratio": [
+      [
+        0.9979940549950672,
+        0.9999580083623352
+      ]
+    ],
+    "warmup_rounds": [
+      210
+    ],
+    "telemetry_clock_min_max_in_window": [
+      [
+        2640,
+        2640
+      ]
+    ],
+    "telemetry_pstates_in_window": [
+      [
+        "P0"
+      ]
+    ],
+    "telemetry_temp_max": [
+      65
+    ],
+    "statics": [
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 1,
+        "index_policy": "Restrict",
+        "op_u_less_than": 0,
+        "proven_accesses": 0,
+        "slot": "no_bce",
+        "spv_sha256": "0d54ab605b1ab11a9ca91eddbb3ff6182d1389a3ba3bd59d7db12061820a89cb",
+        "spv_words": 190,
+        "umin_clamps": 0
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 1,
+        "index_policy": "Restrict",
+        "op_u_less_than": 0,
+        "proven_accesses": 0,
+        "slot": "bce",
+        "spv_sha256": "0d54ab605b1ab11a9ca91eddbb3ff6182d1389a3ba3bd59d7db12061820a89cb",
+        "spv_words": 190,
+        "umin_clamps": 0
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 1,
+        "index_policy": "Restrict",
+        "op_u_less_than": 0,
+        "proven_accesses": 0,
+        "slot": "bce_dup",
+        "spv_sha256": "0d54ab605b1ab11a9ca91eddbb3ff6182d1389a3ba3bd59d7db12061820a89cb",
+        "spv_words": 190,
+        "umin_clamps": 0
+      },
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 1,
+        "index_policy": "Unchecked",
+        "op_u_less_than": 0,
+        "proven_accesses": 0,
+        "slot": "unchecked",
+        "spv_sha256": "0d54ab605b1ab11a9ca91eddbb3ff6182d1389a3ba3bd59d7db12061820a89cb",
+        "spv_words": 190,
+        "umin_clamps": 0
+      }
+    ],
+    "verdict": "NO_PROOF (control)"
+  },
+  "matmul_tiled": {
+    "runs": 1,
+    "valid_runs": 0,
+    "bce_changes_binary": true,
+    "effect_geomean": 1.107935728105653,
+    "effect_min": 1.107935728105653,
+    "effect_max": 1.107935728105653,
+    "effect_per_run": [
+      1.107935728105653
+    ],
+    "control_max_dev": 6.92013695862137e-05,
+    "control_within_margin": true,
+    "control_strict_ci_contains_1": 0,
+    "outputs_correct": true,
+    "residual_geomean": 0.9999464161315259,
+    "all_checks_geomean": 1.107865289009149,
+    "bce_ns_median_of_runs": 447831.2,
+    "order_effect_ratio": [
+      [
+        1.10790371795534,
+        1.112144051216924
+      ]
+    ],
+    "warmup_rounds": [
+      143
+    ],
+    "telemetry_clock_min_max_in_window": [
+      [
+        2070,
+        2115
+      ]
+    ],
+    "telemetry_pstates_in_window": [
+      [
+        "P0"
+      ]
+    ],
+    "telemetry_temp_max": [
+      71
+    ],
+    "statics": [
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 11,
+        "index_policy": "Restrict",
+        "op_u_less_than": 2,
+        "proven_accesses": 0,
+        "slot": "no_bce",
+        "spv_sha256": "594bcd474cd1696cc4d3de8e74dc03ce1f0955adbd5140b4b3dc1281eef3cf7e",
+        "spv_words": 843,
+        "umin_clamps": 8
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 11,
+        "index_policy": "Restrict",
+        "op_u_less_than": 2,
+        "proven_accesses": 8,
+        "slot": "bce",
+        "spv_sha256": "dff92fbd336ffb0ac8bd421b603a2fb806f7df806c971e89b82ebb890d5d6c24",
+        "spv_words": 783,
+        "umin_clamps": 0
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 11,
+        "index_policy": "Restrict",
+        "op_u_less_than": 2,
+        "proven_accesses": 8,
+        "slot": "bce_dup",
+        "spv_sha256": "dff92fbd336ffb0ac8bd421b603a2fb806f7df806c971e89b82ebb890d5d6c24",
+        "spv_words": 783,
+        "umin_clamps": 0
+      },
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 11,
+        "index_policy": "Unchecked",
+        "op_u_less_than": 2,
+        "proven_accesses": 0,
+        "slot": "unchecked",
+        "spv_sha256": "dff92fbd336ffb0ac8bd421b603a2fb806f7df806c971e89b82ebb890d5d6c24",
+        "spv_words": 783,
+        "umin_clamps": 0
+      }
+    ],
+    "verdict": "RESOLVED"
+  },
+  "reduce_tree": {
+    "runs": 1,
+    "valid_runs": 1,
+    "bce_changes_binary": true,
+    "effect_geomean": 1.0127014536081986,
+    "effect_min": 1.0127014536081986,
+    "effect_max": 1.0127014536081986,
+    "effect_per_run": [
+      1.0127014536081986
+    ],
+    "control_max_dev": 0.0001580357349078021,
+    "control_within_margin": true,
+    "control_strict_ci_contains_1": 1,
+    "outputs_correct": true,
+    "residual_geomean": 0.9999937635648688,
+    "all_checks_geomean": 1.0127817313894796,
+    "bce_ns_median_of_runs": 18908.579852579853,
+    "order_effect_ratio": [
+      [
+        1.0122956187890169,
+        1.0135211009870484
+      ]
+    ],
+    "warmup_rounds": [
+      143
+    ],
+    "telemetry_clock_min_max_in_window": [
+      [
+        2625,
+        2625
+      ]
+    ],
+    "telemetry_pstates_in_window": [
+      [
+        "P0"
+      ]
+    ],
+    "telemetry_temp_max": [
+      70
+    ],
+    "statics": [
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 6,
+        "index_policy": "Restrict",
+        "op_u_less_than": 1,
+        "proven_accesses": 0,
+        "slot": "no_bce",
+        "spv_sha256": "3f1d6c2c6fbe4b10aa56c7106ee9692617ba11ba727f7799f425353effad181e",
+        "spv_words": 555,
+        "umin_clamps": 4
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 6,
+        "index_policy": "Restrict",
+        "op_u_less_than": 1,
+        "proven_accesses": 4,
+        "slot": "bce",
+        "spv_sha256": "f97b7fe657bbd86c0de5dcfa3e9220a8f23a8cf7b563b1cec162f0ee0baebe09",
+        "spv_words": 523,
+        "umin_clamps": 0
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 6,
+        "index_policy": "Restrict",
+        "op_u_less_than": 1,
+        "proven_accesses": 4,
+        "slot": "bce_dup",
+        "spv_sha256": "f97b7fe657bbd86c0de5dcfa3e9220a8f23a8cf7b563b1cec162f0ee0baebe09",
+        "spv_words": 523,
+        "umin_clamps": 0
+      },
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 6,
+        "index_policy": "Unchecked",
+        "op_u_less_than": 1,
+        "proven_accesses": 0,
+        "slot": "unchecked",
+        "spv_sha256": "f97b7fe657bbd86c0de5dcfa3e9220a8f23a8cf7b563b1cec162f0ee0baebe09",
+        "spv_words": 523,
+        "umin_clamps": 0
+      }
+    ],
+    "verdict": "RESOLVED"
+  },
+  "vello_binning": {
+    "runs": 1,
+    "valid_runs": 0,
+    "bce_changes_binary": true,
+    "effect_geomean": 1.1483652327542413,
+    "effect_min": 1.1483652327542413,
+    "effect_max": 1.1483652327542413,
+    "effect_per_run": [
+      1.1483652327542413
+    ],
+    "control_max_dev": 0.0008574328361263817,
+    "control_within_margin": true,
+    "control_strict_ci_contains_1": 0,
+    "outputs_correct": true,
+    "residual_geomean": 0.9984458110324627,
+    "all_checks_geomean": 1.1460561132709617,
+    "bce_ns_median_of_runs": 70387.02064896756,
+    "order_effect_ratio": [
+      [
+        1.149065427637193,
+        1.1446877120071655
+      ]
+    ],
+    "warmup_rounds": [
+      62
+    ],
+    "telemetry_clock_min_max_in_window": [
+      [
+        2175,
+        2235
+      ]
+    ],
+    "telemetry_pstates_in_window": [
+      [
+        "P0"
+      ]
+    ],
+    "telemetry_temp_max": [
+      72
+    ],
+    "statics": [
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 9,
+        "index_policy": "Restrict",
+        "op_u_less_than": 2,
+        "proven_accesses": 0,
+        "slot": "no_bce",
+        "spv_sha256": "31907bd34778cc54408cd705a01b3a8259efb7c9a94c40aa66a17922bb7ed8d7",
+        "spv_words": 829,
+        "umin_clamps": 6
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 9,
+        "index_policy": "Restrict",
+        "op_u_less_than": 2,
+        "proven_accesses": 6,
+        "slot": "bce",
+        "spv_sha256": "ed786919aed2adfcc270caddfdb3a17827ca3acdb95ccfe2189c2d2d4f8781ac",
+        "spv_words": 787,
+        "umin_clamps": 0
+      },
+      {
+        "bce": true,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 9,
+        "index_policy": "Restrict",
+        "op_u_less_than": 2,
+        "proven_accesses": 6,
+        "slot": "bce_dup",
+        "spv_sha256": "ed786919aed2adfcc270caddfdb3a17827ca3acdb95ccfe2189c2d2d4f8781ac",
+        "spv_words": 787,
+        "umin_clamps": 0
+      },
+      {
+        "bce": false,
+        "buffer_policy": "Unchecked",
+        "dynamic_accesses": 9,
+        "index_policy": "Unchecked",
+        "op_u_less_than": 2,
+        "proven_accesses": 0,
+        "slot": "unchecked",
+        "spv_sha256": "ed786919aed2adfcc270caddfdb3a17827ca3acdb95ccfe2189c2d2d4f8781ac",
+        "spv_words": 787,
+        "umin_clamps": 0
+      }
+    ],
+    "verdict": "RESOLVED"
+  }
+}

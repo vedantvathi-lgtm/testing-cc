@@ -1,0 +1,21 @@
+diff --git a/naga/tests/naga/bounds_check_stress.rs b/naga/tests/naga/bounds_check_stress.rs
+index 4103280..4038067 100644
+--- a/naga/tests/naga/bounds_check_stress.rs
++++ b/naga/tests/naga/bounds_check_stress.rs
+@@ -80,10 +80,12 @@ fn compile_msl(text: &str) -> String {
+     let info = Validator::new(ValidationFlags::all(), Capabilities::all())
+         .validate(&module)
+         .expect("validation");
+-    let mut options = naga::back::msl::Options::default();
+-    options.bounds_check_policies = BoundsCheckPolicies {
+-        index: BoundsCheckPolicy::Restrict,
+-        buffer: BoundsCheckPolicy::Restrict,
++    let options = naga::back::msl::Options {
++        bounds_check_policies: BoundsCheckPolicies {
++            index: BoundsCheckPolicy::Restrict,
++            buffer: BoundsCheckPolicy::Restrict,
++            ..Default::default()
++        },
+         ..Default::default()
+     };
+     naga::back::msl::write_string(

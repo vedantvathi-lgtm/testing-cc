@@ -1,0 +1,2354 @@
+{
+  "blur": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      4,
+      1,
+      1,
+      0
+    ],
+    "effect_geomean": 1.0033770734996486,
+    "effect_min": 1.0030395372149683,
+    "effect_max": 1.0036733581362198,
+    "effect_per_run": [
+      1.0030395372149683,
+      1.0036733581362198,
+      1.0034374078180983,
+      1.0032970069521614,
+      1.0034381647674675
+    ],
+    "control_max_dev": 0.0001544363278558336,
+    "residual_geomean": 1.0658149559452803,
+    "all_checks_geomean": 1.0694081575922132,
+    "bce_ns_per_rep_median_of_runs": 5560676.9475746155,
+    "order_effect_ratio": [
+      [
+        1.0032987905932336,
+        1.0025620455613895
+      ],
+      [
+        1.0036733581362198,
+        1.003869283433183
+      ],
+      [
+        1.0034010094809673,
+        1.0035173852911048
+      ],
+      [
+        1.0032735890933617,
+        1.003325308616109
+      ],
+      [
+        1.0033865914131175,
+        1.003569217499017
+      ]
+    ],
+    "provenance": {
+      "block_dim": 114,
+      "filter_dim": 15,
+      "height": 512,
+      "host_logic": "webgpu-samples sample/imageBlur/main.ts frame(): 2 iterations; params per filter_dim/block_dim",
+      "input": "webgpu-samples public/assets/img/Di-3d.png",
+      "iterations": 2,
+      "shader": "webgpu-samples sample/imageBlur/blur.wgsl (unmodified)",
+      "tile": 1,
+      "webgpu_samples_rev": "4944c705dcbf34c6d9d7ea88cf0a61586e0ce93b",
+      "width": 512
+    },
+    "verdict": "NOT_RESOLVABLE: effect <= max(2x control deviation, 0.5%)"
+  },
+  "blur_4k": {
+    "runs": 4,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      4,
+      1,
+      1,
+      0
+    ],
+    "effect_geomean": 0.9895688376336124,
+    "effect_min": 0.9579750184358666,
+    "effect_max": 1.0008426328198117,
+    "effect_per_run": [
+      0.9579750184358666,
+      0.9993872849984522,
+      1.0008426328198117,
+      1.0007606990670008
+    ],
+    "control_max_dev": 0.0014160954957813665,
+    "residual_geomean": 1.0680566199384307,
+    "all_checks_geomean": 1.0583534058344775,
+    "bce_ns_per_rep_median_of_runs": 408035172.3298702,
+    "order_effect_ratio": [
+      [
+        0.9578282706593343,
+        0.9715569627525633
+      ],
+      [
+        0.9937321962907424,
+        1.0145448347488992
+      ],
+      [
+        1.0009931730115156,
+        1.0004349685561542
+      ],
+      [
+        1.0008349853121712,
+        1.0006285661558465
+      ]
+    ],
+    "provenance": {
+      "block_dim": 114,
+      "filter_dim": 15,
+      "height": 4096,
+      "host_logic": "webgpu-samples sample/imageBlur/main.ts frame(): 2 iterations; params per filter_dim/block_dim",
+      "input": "webgpu-samples public/assets/img/Di-3d.png",
+      "iterations": 2,
+      "shader": "webgpu-samples sample/imageBlur/blur.wgsl (unmodified)",
+      "tile": 8,
+      "webgpu_samples_rev": "4944c705dcbf34c6d9d7ea88cf0a61586e0ce93b",
+      "width": 4096
+    },
+    "verdict": "NOT_RESOLVABLE: runs disagree in sign"
+  },
+  "blur_sample": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      4,
+      1,
+      1,
+      0
+    ],
+    "effect_geomean": 1.003378430661488,
+    "effect_min": 1.003282813817798,
+    "effect_max": 1.0034259957086262,
+    "effect_per_run": [
+      1.0034259957086262,
+      1.003282813817798,
+      1.0033897377166583,
+      1.003385411237098,
+      1.0034082010404473
+    ],
+    "control_max_dev": 0.00026678547555336607,
+    "residual_geomean": 1.0666726964492932,
+    "all_checks_geomean": 1.070159710033533,
+    "bce_ns_per_rep_median_of_runs": 5855077.982053757,
+    "order_effect_ratio": [
+      [
+        1.00343229243653,
+        1.0031874640288945
+      ],
+      [
+        1.0033864678015667,
+        1.0029474247214374
+      ],
+      [
+        1.0033499123993785,
+        1.0034436278965897
+      ],
+      [
+        1.0033814146988072,
+        1.0034116787301017
+      ],
+      [
+        1.0034167947751773,
+        1.0033582080394434
+      ]
+    ],
+    "provenance": {
+      "block_dim": 113,
+      "filter_dim": 16,
+      "height": 512,
+      "host_logic": "webgpu-samples sample/imageBlur/main.ts frame(): 2 iterations; params per filter_dim/block_dim",
+      "input": "webgpu-samples public/assets/img/Di-3d.png",
+      "iterations": 2,
+      "shader": "webgpu-samples sample/imageBlur/blur.wgsl (unmodified)",
+      "tile": 1,
+      "webgpu_samples_rev": "4944c705dcbf34c6d9d7ea88cf0a61586e0ce93b",
+      "width": 512
+    },
+    "verdict": "NOT_RESOLVABLE: effect <= max(2x control deviation, 0.5%)"
+  },
+  "blur_sample_4k": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      4,
+      1,
+      1,
+      0
+    ],
+    "effect_geomean": 1.0002476180071684,
+    "effect_min": 0.9996766396128551,
+    "effect_max": 1.0007771117797515,
+    "effect_per_run": [
+      1.0007771117797515,
+      1.0005297525064711,
+      1.0000451442701142,
+      1.0002098059870086,
+      0.9996766396128551
+    ],
+    "control_max_dev": 0.0010798060977494917,
+    "residual_geomean": 1.0605534697922656,
+    "all_checks_geomean": 1.059915980054839,
+    "bce_ns_per_rep_median_of_runs": 353766163.23813057,
+    "order_effect_ratio": [
+      [
+        1.0016792092080378,
+        0.9587573176539312
+      ],
+      [
+        1.00074817464643,
+        1.0003713502616356
+      ],
+      [
+        0.9999811604700177,
+        1.0001962922148406
+      ],
+      [
+        1.0000556553701792,
+        1.0003436645887036
+      ],
+      [
+        0.9997850714225361,
+        0.9992961495149941
+      ]
+    ],
+    "provenance": {
+      "block_dim": 113,
+      "filter_dim": 16,
+      "height": 4096,
+      "host_logic": "webgpu-samples sample/imageBlur/main.ts frame(): 2 iterations; params per filter_dim/block_dim",
+      "input": "webgpu-samples public/assets/img/Di-3d.png",
+      "iterations": 2,
+      "shader": "webgpu-samples sample/imageBlur/blur.wgsl (unmodified)",
+      "tile": 8,
+      "webgpu_samples_rev": "4944c705dcbf34c6d9d7ea88cf0a61586e0ce93b",
+      "width": 4096
+    },
+    "verdict": "NOT_RESOLVABLE: runs disagree in sign"
+  },
+  "vello:00-splash_with_tiger": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0828272917476927,
+    "effect_min": 1.0819730412320379,
+    "effect_max": 1.083711535890125,
+    "effect_per_run": [
+      1.0824238922464975,
+      1.0819730412320379,
+      1.08253003490849,
+      1.083711535890125,
+      1.0834989766528489
+    ],
+    "control_max_dev": 0.0019446058410488298,
+    "residual_geomean": 1.0005375820223554,
+    "all_checks_geomean": 1.0831566254708112,
+    "bce_ns_per_rep_median_of_runs": 1961484.3271121979,
+    "order_effect_ratio": [
+      [
+        1.0824334224383412,
+        1.082298709970339
+      ],
+      [
+        1.0814679963542493,
+        1.0826424647321125
+      ],
+      [
+        1.0823429688271529,
+        1.0828214341767648
+      ],
+      [
+        1.083437767736493,
+        1.0850099186434115
+      ],
+      [
+        1.082190030237561,
+        1.0850168073088309
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "c6d4daab88b535595de5ba17fe257e1cc7d9ebddd025be77f21af10ded5a1072",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/00-splash_with_tiger.json",
+      "capture_sha256": "a94141f6fecde6f01394638d6d274bd09f1a6db1df59b3a8fc21c04a72b37cfa",
+      "height": 200,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "splash_with_tiger",
+      "scene_index": 0,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 200
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:01-funky_paths": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9522581153377214,
+    "effect_min": 0.9519142817758337,
+    "effect_max": 0.9528386028562896,
+    "effect_per_run": [
+      0.9519142817758337,
+      0.9522195616071512,
+      0.9528386028562896,
+      0.9524009024257498,
+      0.9519175393735471
+    ],
+    "control_max_dev": 0.0017153672712035828,
+    "residual_geomean": 1.0007304939944563,
+    "all_checks_geomean": 0.9528210131286973,
+    "bce_ns_per_rep_median_of_runs": 3085190.896900177,
+    "order_effect_ratio": [
+      [
+        0.9518246547788967,
+        0.9520927399280945
+      ],
+      [
+        0.951609663938421,
+        0.9533997394410704
+      ],
+      [
+        0.952490579005869,
+        0.9551946310108632
+      ],
+      [
+        0.9520258029424131,
+        0.9533631814067538
+      ],
+      [
+        0.9517162898024338,
+        0.9534084888593829
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "131b12628ed8efea74bb4540d88645bdf88f712a41dac275f44bbd48a639e4b5",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/01-funky_paths.json",
+      "capture_sha256": "db503a6245ef70e1f3a3440df16eca3b57cfd80257bb93228c8399afe48decf1",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "funky_paths",
+      "scene_index": 1,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:02-stroke_styles": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.989215514299425,
+    "effect_min": 0.9890571862748174,
+    "effect_max": 0.9894011279452559,
+    "effect_per_run": [
+      0.9894011279452559,
+      0.9890571862748174,
+      0.9892205957754312,
+      0.9891458125298558,
+      0.9892528822300726
+    ],
+    "control_max_dev": 0.0007490211087055609,
+    "residual_geomean": 1.0003568082584624,
+    "all_checks_geomean": 0.9896286946372049,
+    "bce_ns_per_rep_median_of_runs": 14908228.802696228,
+    "order_effect_ratio": [
+      [
+        0.9892055692771162,
+        0.9897914085719959
+      ],
+      [
+        0.9892586280416626,
+        0.9879809472487222
+      ],
+      [
+        0.9892205957754312,
+        0.9894611351367472
+      ],
+      [
+        0.9890419781924611,
+        0.9894733896261314
+      ],
+      [
+        0.9892721400534032,
+        0.9891158539872307
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "d48c7a9b0b7182183c3e92afb0d3c75e4d18f4d3400eecaf1431acb06f8e79ef",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/02-stroke_styles.json",
+      "capture_sha256": "c465144446d56799925fb3b5430d1ffa81d6ef8df2fb26e1480ad9eec7d074de",
+      "height": 1665,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "stroke_styles",
+      "scene_index": 2,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 2410
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:03-stroke_styles__non_uniform_scale_": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9868711971938683,
+    "effect_min": 0.9865869289644078,
+    "effect_max": 0.9870509121723736,
+    "effect_per_run": [
+      0.9865869289644078,
+      0.9868306612247943,
+      0.9869891207746386,
+      0.9870509121723736,
+      0.9868984283974576
+    ],
+    "control_max_dev": 0.0005907950199293133,
+    "residual_geomean": 1.0004545786587187,
+    "all_checks_geomean": 0.9872952504896745,
+    "bce_ns_per_rep_median_of_runs": 14758046.514696121,
+    "order_effect_ratio": [
+      [
+        0.9866195529257329,
+        0.9862469987615705
+      ],
+      [
+        0.986841644152773,
+        0.9868306612247943
+      ],
+      [
+        0.9871383660198172,
+        0.9867067225534267
+      ],
+      [
+        0.9869971272856133,
+        0.9871975617405799
+      ],
+      [
+        0.9868944583067476,
+        0.9871583279415617
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "632297494f0b1c21f6fc1fa2b183d39b6c18185762555e6f70dd62e5ea60e5fc",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/03-stroke_styles__non_uniform_scale_.json",
+      "capture_sha256": "2c402d7b005f9613a1eee39f0d4bbffd97b3f8c0b0eb8ad4f12af6f89179a807",
+      "height": 1665,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "stroke_styles (non-uniform scale)",
+      "scene_index": 3,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 2410
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:04-stroke_styles__skew_": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9910496757402281,
+    "effect_min": 0.9907790956228741,
+    "effect_max": 0.9913218095398144,
+    "effect_per_run": [
+      0.9908459155316485,
+      0.9907790956228741,
+      0.9911322640909294,
+      0.9913218095398144,
+      0.991169399837535
+    ],
+    "control_max_dev": 0.0005026109524158828,
+    "residual_geomean": 1.0001125893612914,
+    "all_checks_geomean": 0.9912869713737776,
+    "bce_ns_per_rep_median_of_runs": 15063306.923910141,
+    "order_effect_ratio": [
+      [
+        0.9913257564352027,
+        0.9888901451916003
+      ],
+      [
+        0.9906808972014498,
+        0.9908568466122393
+      ],
+      [
+        0.9911928254316756,
+        0.9905607905202679
+      ],
+      [
+        0.9911691490474606,
+        0.9919329960433715
+      ],
+      [
+        0.9910893853316787,
+        0.9913381089271147
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "dab33a806eec928ae40a5f10dec53923e1ae0dac40ba3a2ef9bc8c9c547d6108",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/04-stroke_styles__skew_.json",
+      "capture_sha256": "8530d16738b01adc69ee1c8ab586aa1a4b12f89cdca2cebab96d715dcf6a1abd",
+      "height": 1665,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "stroke_styles (skew)",
+      "scene_index": 4,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 2410
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:05-emoji": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0315544357419735,
+    "effect_min": 1.0310728935292477,
+    "effect_max": 1.0320119638449774,
+    "effect_per_run": [
+      1.0316700386243842,
+      1.0310728935292477,
+      1.0316537474496719,
+      1.031363778004589,
+      1.0320119638449774
+    ],
+    "control_max_dev": 0.004065358156410515,
+    "residual_geomean": 1.0009664078927911,
+    "all_checks_geomean": 1.032354876541866,
+    "bce_ns_per_rep_median_of_runs": 3748111.8876600266,
+    "order_effect_ratio": [
+      [
+        1.0315739830708952,
+        1.0331458286825637
+      ],
+      [
+        1.0310382662936532,
+        1.0313266428628451
+      ],
+      [
+        1.031681074352952,
+        1.030857597135185
+      ],
+      [
+        1.0305988504325767,
+        1.0339879724784156
+      ],
+      [
+        1.0312966142393014,
+        1.0358476307982054
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "ba7168aba109cf44db7fd450eddd1434c9205ccf21a56f5f3bcde09604cac774",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/05-emoji.json",
+      "capture_sha256": "d51476cf27667dc623c5d7f95bc29db3967aaccb19410e92b6faa04cca7aa696",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "emoji",
+      "scene_index": 5,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:06-tricky_strokes": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9890799348943448,
+    "effect_min": 0.9884223995398003,
+    "effect_max": 0.9898955961634226,
+    "effect_per_run": [
+      0.9884223995398003,
+      0.9886217759799387,
+      0.9898955961634226,
+      0.9896969298048219,
+      0.9887638768010527
+    ],
+    "control_max_dev": 0.0023120864917665074,
+    "residual_geomean": 1.0004166638994316,
+    "all_checks_geomean": 0.989405396783113,
+    "bce_ns_per_rep_median_of_runs": 3633085.848801613,
+    "order_effect_ratio": [
+      [
+        0.9883258537476061,
+        0.988586201749645
+      ],
+      [
+        0.988439537345397,
+        0.9892490670833689
+      ],
+      [
+        0.9895164483187472,
+        0.9916444347080676
+      ],
+      [
+        0.9891689854260979,
+        0.9914746238114327
+      ],
+      [
+        0.9883032987637217,
+        0.9903380023429524
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "1f68072c02c1349b03675726829cc46878cc0dfc980f95ab5f668240b6cdfb97",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/06-tricky_strokes.json",
+      "capture_sha256": "c566549a3f536cefb49374510f0cee5dcd7d8f8fa30815ccc1c16b4999b7c527",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "tricky_strokes",
+      "scene_index": 6,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:07-fill_types": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.1365655505307055,
+    "effect_min": 1.1359950683843785,
+    "effect_max": 1.1373413030784474,
+    "effect_per_run": [
+      1.136234500585577,
+      1.1359950683843785,
+      1.1363190665173613,
+      1.1373413030784474,
+      1.1369383580118186
+    ],
+    "control_max_dev": 0.001041569204296211,
+    "residual_geomean": 0.9996503760261494,
+    "all_checks_geomean": 1.13608620107149,
+    "bce_ns_per_rep_median_of_runs": 7647734.188287735,
+    "order_effect_ratio": [
+      [
+        1.1361997624759343,
+        1.1363046521447957
+      ],
+      [
+        1.1359838408308347,
+        1.1361012546913378
+      ],
+      [
+        1.1362643265972148,
+        1.1364836040193493
+      ],
+      [
+        1.136956415977648,
+        1.1384300165107026
+      ],
+      [
+        1.1365603109292324,
+        1.1380055678018608
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "eebd2388c34311290a69714f02e36f2985bb77712e10e790c9281e0573ef0ecf",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/07-fill_types.json",
+      "capture_sha256": "012106559a648733262b2c2ea52767a8b1447b8103ef8603ef2a6c98c390cf6f",
+      "height": 700,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "fill_types",
+      "scene_index": 7,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1400
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:08-cardioid_and_friends": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0318124783608027,
+    "effect_min": 1.0314781450411892,
+    "effect_max": 1.0324642631915093,
+    "effect_per_run": [
+      1.0314922161237905,
+      1.0314781450411892,
+      1.0318171437932389,
+      1.0318109333330607,
+      1.0324642631915093
+    ],
+    "control_max_dev": 0.0011162387935350626,
+    "residual_geomean": 1.000240060758189,
+    "all_checks_geomean": 1.032160040078526,
+    "bce_ns_per_rep_median_of_runs": 9702734.138116837,
+    "order_effect_ratio": [
+      [
+        1.031782007039331,
+        1.0314803582349945
+      ],
+      [
+        1.0313503317418449,
+        1.0319451674476556
+      ],
+      [
+        1.0315204136429763,
+        1.0334029315044422
+      ],
+      [
+        1.0318332577056761,
+        1.0316619185939113
+      ],
+      [
+        1.0323062994479815,
+        1.0331387060853197
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "2a0844119176c70bcf10567804bd3d2e41a8e78d462cb720999d3abb872466e2",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/08-cardioid_and_friends.json",
+      "capture_sha256": "443a7affe5eba7a261042a98954942cc501daf009308cb37c2ce61186e0b78e9",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "cardioid_and_friends",
+      "scene_index": 8,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:09-animated_text": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.114492363438028,
+    "effect_min": 1.1142049166778183,
+    "effect_max": 1.1148589885774274,
+    "effect_per_run": [
+      1.1142049166778183,
+      1.1146794051150446,
+      1.1143302579643342,
+      1.1148589885774274,
+      1.1143883785555104
+    ],
+    "control_max_dev": 0.0008058957152043966,
+    "residual_geomean": 1.0002802828713733,
+    "all_checks_geomean": 1.1145981497657127,
+    "bce_ns_per_rep_median_of_runs": 13240051.760089874,
+    "order_effect_ratio": [
+      [
+        1.1145419832902264,
+        1.1134069296591598
+      ],
+      [
+        1.1145991696907411,
+        1.1152175781501943
+      ],
+      [
+        1.1138498670338914,
+        1.1160952825787038
+      ],
+      [
+        1.114603471797849,
+        1.1157974150402186
+      ],
+      [
+        1.1140394928649768,
+        1.1152127487619492
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "0bfe53c3fd25e0ad434a5fb33b0adb1389bddeb56c6ec83fbc4fb3147eb03699",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/09-animated_text.json",
+      "capture_sha256": "851d5214d25076844a8928ec33ba9a675ecc8070191df8c5a64f0ae6eb5a4543",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "animated_text",
+      "scene_index": 9,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:10-gradient_extend": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.1156260522004975,
+    "effect_min": 1.1148611983087346,
+    "effect_max": 1.1164813441748112,
+    "effect_per_run": [
+      1.1148611983087346,
+      1.1151102655035263,
+      1.1157184676384082,
+      1.1159597483605779,
+      1.1164813441748112
+    ],
+    "control_max_dev": 0.0014869063416711459,
+    "residual_geomean": 1.000499022579232,
+    "all_checks_geomean": 1.1163595939085007,
+    "bce_ns_per_rep_median_of_runs": 6375416.511016846,
+    "order_effect_ratio": [
+      [
+        1.1148135567696367,
+        1.115331971858688
+      ],
+      [
+        1.1148382773538492,
+        1.1166891123219063
+      ],
+      [
+        1.1152783038033771,
+        1.1886721368074027
+      ],
+      [
+        1.1156506935938686,
+        1.1185098695359765
+      ],
+      [
+        1.1161169945290146,
+        1.1182018350272611
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "f4c0c2ac417cb4d7295089483266c5c152b482bc292f4e4980ca2c48bc4ef2ce",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/10-gradient_extend.json",
+      "capture_sha256": "095a819621d8ea0c8577c53f258663250bd6d3102553c7d01a5c3aacc89cc2b9",
+      "height": 1200,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "gradient_extend",
+      "scene_index": 10,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1200
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:11-two_point_radial": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.2301793814969413,
+    "effect_min": 1.2292709718413697,
+    "effect_max": 1.2311478139221494,
+    "effect_per_run": [
+      1.22988067546704,
+      1.2292709718413697,
+      1.2301404199320969,
+      1.2311478139221494,
+      1.2304578112698645
+    ],
+    "control_max_dev": 0.0014656472665648401,
+    "residual_geomean": 0.9996677738172263,
+    "all_checks_geomean": 1.2297001452724445,
+    "bce_ns_per_rep_median_of_runs": 8099400.843927383,
+    "order_effect_ratio": [
+      [
+        1.2295350351251435,
+        1.2306747523389303
+      ],
+      [
+        1.2292182156562546,
+        1.2296061529464608
+      ],
+      [
+        1.2300521021375297,
+        1.231704155065445
+      ],
+      [
+        1.2307409606724096,
+        1.2323318530698297
+      ],
+      [
+        1.230163199077202,
+        1.2324582321702522
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "5c1da5226b584cb37337e25f3e2c58226e381fb2c8eb74d888c047dbe9017ba7",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/11-two_point_radial.json",
+      "capture_sha256": "107b23ea06dae08ebe83d0b15f50da45c85447983229142cbcb38450beee5f45",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "two_point_radial",
+      "scene_index": 11,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:12-brush_transform": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0158935596954295,
+    "effect_min": 1.0155884909125283,
+    "effect_max": 1.0162821893907839,
+    "effect_per_run": [
+      1.0157641412817788,
+      1.0155884909125283,
+      1.015682815935747,
+      1.0161503436411183,
+      1.0162821893907839
+    ],
+    "control_max_dev": 0.002839884931077341,
+    "residual_geomean": 1.000239605262064,
+    "all_checks_geomean": 1.0158575583104754,
+    "bce_ns_per_rep_median_of_runs": 3516275.9558200836,
+    "order_effect_ratio": [
+      [
+        1.0158359573968019,
+        1.015074980989767
+      ],
+      [
+        1.0153964796148394,
+        1.0167585849593772
+      ],
+      [
+        1.01526727783975,
+        1.018143137001144
+      ],
+      [
+        1.0157699627262062,
+        1.0190148421180294
+      ],
+      [
+        1.0158793735870335,
+        1.018199594637768
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "14ea842c7564f690b0d3c6fbbb282e0273658a10052f6dc76234befa82ea6b64",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/12-brush_transform.json",
+      "capture_sha256": "0b6689b11ed67f8c26e7bbb560a59b1e32360ab19bc2f768d68a210922d63b34",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "brush_transform",
+      "scene_index": 12,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:13-blend_grid": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.013911271866609,
+    "effect_min": 1.0131723985771082,
+    "effect_max": 1.0142877551070506,
+    "effect_per_run": [
+      1.013828494665089,
+      1.0131723985771082,
+      1.0141793363889862,
+      1.0142877551070506,
+      1.0140887681713053
+    ],
+    "control_max_dev": 0.0005840977043041207,
+    "residual_geomean": 1.0000550886577941,
+    "all_checks_geomean": 1.0142765502628168,
+    "bce_ns_per_rep_median_of_runs": 33837395.00722504,
+    "order_effect_ratio": [
+      [
+        1.014061651257558,
+        1.012795532399146
+      ],
+      [
+        1.0132560169080764,
+        1.0126761928276946
+      ],
+      [
+        1.0141652453519492,
+        1.0142342046830608
+      ],
+      [
+        1.0141799583566757,
+        1.014504924339132
+      ],
+      [
+        1.0142406907757353,
+        1.0137622667500548
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "d81b032ff6d06b78dad36bc230e5e88503b361895655e7abe2b28216d5c60e17",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/13-blend_grid.json",
+      "capture_sha256": "757f8d14146bd5c18da1ecf8edebc389d83e016bfdd45e9bfe01a5a583e1b210",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "blend_grid",
+      "scene_index": 13,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:14-deep_blend": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0754617158810182,
+    "effect_min": 1.0743433820864576,
+    "effect_max": 1.0761877731773979,
+    "effect_per_run": [
+      1.075314891528611,
+      1.0743433820864576,
+      1.0756302259460115,
+      1.0758332208769534,
+      1.0761877731773979
+    ],
+    "control_max_dev": 0.0019286725068528021,
+    "residual_geomean": 0.9996636822850539,
+    "all_checks_geomean": 1.0752211004335614,
+    "bce_ns_per_rep_median_of_runs": 5264635.288135529,
+    "order_effect_ratio": [
+      [
+        1.0750292011395843,
+        1.0771407222254963
+      ],
+      [
+        1.0740620022301028,
+        1.075794887967601
+      ],
+      [
+        1.075392423150809,
+        1.0767275292175196
+      ],
+      [
+        1.0755589544980666,
+        1.0778485934712612
+      ],
+      [
+        1.075699406983874,
+        1.0782028159709767
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "22a8f17c7de72b00e13ceb8bcd0b4c38380526f81c127d21cff5d4731455d5a4",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/14-deep_blend.json",
+      "capture_sha256": "d2ca441b62239ed312d433927ab9d74c6f4391ad2c291b1e7121a5765223457a",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "deep_blend",
+      "scene_index": 14,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:15-many_clips": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0910193024443102,
+    "effect_min": 1.0905902026962893,
+    "effect_max": 1.0919479548445452,
+    "effect_per_run": [
+      1.0905902026962893,
+      1.090598612856425,
+      1.0906178034121348,
+      1.0919479548445452,
+      1.0913426207380552
+    ],
+    "control_max_dev": 0.000927270455805207,
+    "residual_geomean": 1.0001117215809572,
+    "all_checks_geomean": 1.0910639122373704,
+    "bce_ns_per_rep_median_of_runs": 10333359.122720718,
+    "order_effect_ratio": [
+      [
+        1.0905572583203318,
+        1.0907061296387774
+      ],
+      [
+        1.0907221175672475,
+        1.0904619319708504
+      ],
+      [
+        1.0904813390940435,
+        1.0914606503760416
+      ],
+      [
+        1.091760437995784,
+        1.0930950674343296
+      ],
+      [
+        1.091170364787223,
+        1.0924115502531886
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "94f9f689994993df7024116d77403b0841c1fed0454a08fcac70f47a5610cc95",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/15-many_clips.json",
+      "capture_sha256": "d384ea70385b2677736e1b6ef833c1b70cd5bf0d40eee23e524227c0bde58f0b",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "many_clips",
+      "scene_index": 15,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:16-conflation_artifacts": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9902621283616945,
+    "effect_min": 0.989614799801549,
+    "effect_max": 0.9912625962957142,
+    "effect_per_run": [
+      0.9899587006299899,
+      0.989614799801549,
+      0.9912625962957142,
+      0.9902096143552191,
+      0.9902656953402854
+    ],
+    "control_max_dev": 0.0026289547159710214,
+    "residual_geomean": 0.9997672831460687,
+    "all_checks_geomean": 0.9899789159932942,
+    "bce_ns_per_rep_median_of_runs": 3513736.8933820724,
+    "order_effect_ratio": [
+      [
+        0.9897269558795769,
+        0.9915362893576174
+      ],
+      [
+        0.9896924788672024,
+        0.9891482512933827
+      ],
+      [
+        0.9907334710589418,
+        0.9940386372259599
+      ],
+      [
+        0.9896598445101302,
+        0.992925948110865
+      ],
+      [
+        0.9897712689117704,
+        0.9921487038073855
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "6d7219381dc0c27915535b3f56421b122d3313b52c9af0a4586bf33e7eeaec46",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/16-conflation_artifacts.json",
+      "capture_sha256": "954aaba198e2eb7f251bc53fb303fbad8dbb5ce57c2bd677c09ab5e05f558511",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "conflation_artifacts",
+      "scene_index": 16,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:17-labyrinth": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0150285148242923,
+    "effect_min": 1.0139904356530947,
+    "effect_max": 1.0163942518006304,
+    "effect_per_run": [
+      1.0147366091999426,
+      1.0145588091629896,
+      1.0139904356530947,
+      1.0154641616366782,
+      1.0163942518006304
+    ],
+    "control_max_dev": 0.002484501360487501,
+    "residual_geomean": 1.0006013681601198,
+    "all_checks_geomean": 1.0157877949215046,
+    "bce_ns_per_rep_median_of_runs": 3809999.906982422,
+    "order_effect_ratio": [
+      [
+        1.0146822208094377,
+        1.015043970235447
+      ],
+      [
+        1.014529988166271,
+        1.015869630223393
+      ],
+      [
+        1.013572807922927,
+        1.0163791602183299
+      ],
+      [
+        1.0151577370054614,
+        1.017417349177904
+      ],
+      [
+        1.0160358701170775,
+        1.0183477430611272
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "a5ececd2798557740c640a5411474e8828155bdb8e426664f9884a60449e7c1e",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/17-labyrinth.json",
+      "capture_sha256": "d11ca7c0eeb93e272a0ce75d51adbad32648cf8b32f3fd6f970ac03b547e802e",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "labyrinth",
+      "scene_index": 17,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:18-robust_paths": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.946978015449695,
+    "effect_min": 0.9466957455487071,
+    "effect_max": 0.9476526307627482,
+    "effect_per_run": [
+      0.9467800039892902,
+      0.9466957455487071,
+      0.9467605160001229,
+      0.9470015091818023,
+      0.9476526307627482
+    ],
+    "control_max_dev": 0.0019777995049843344,
+    "residual_geomean": 1.0010693867859584,
+    "all_checks_geomean": 0.9478736990651505,
+    "bce_ns_per_rep_median_of_runs": 3026093.676120758,
+    "order_effect_ratio": [
+      [
+        0.9470783997413768,
+        0.9462448294394924
+      ],
+      [
+        0.9466276871729777,
+        0.9470046088792001
+      ],
+      [
+        0.946243717199922,
+        0.9479345303416666
+      ],
+      [
+        0.9464912283996219,
+        0.9483092918355222
+      ],
+      [
+        0.9471315446829145,
+        0.9500797157091484
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "f546e9d4fadc074677494d0790966f20588a979b6f9bc1500c59e887fc1dd3d3",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/18-robust_paths.json",
+      "capture_sha256": "7db2f61cd72763eb136f93dee790c308839953f83f74ff57b2f21ef779277012",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "robust_paths",
+      "scene_index": 18,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:19-base_color_test": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9908902648588204,
+    "effect_min": 0.9901596028887184,
+    "effect_max": 0.9917233050596351,
+    "effect_per_run": [
+      0.9917233050596351,
+      0.9901596028887184,
+      0.9901995600593774,
+      0.9914045659165379,
+      0.9909652869654753
+    ],
+    "control_max_dev": 0.003125959500882791,
+    "residual_geomean": 0.999600798000741,
+    "all_checks_geomean": 0.9905078140972445,
+    "bce_ns_per_rep_median_of_runs": 3520520.7473831177,
+    "order_effect_ratio": [
+      [
+        0.9907850187795608,
+        0.9949346050291691
+      ],
+      [
+        0.9901278898439625,
+        0.9906387748287989
+      ],
+      [
+        0.9898265509376105,
+        0.9920475928388194
+      ],
+      [
+        0.9908934976732267,
+        0.9936037367173046
+      ],
+      [
+        0.9902331199766135,
+        0.9933059389777787
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "73fc7bd34b6332bb381940586a41c874f4b8e8ad9e89d7136f34248bb6f024f1",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/19-base_color_test.json",
+      "capture_sha256": "89afa1eb60c4879a273930b971597789b62b0a22d761b24ec639c41b206ce546",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "base_color_test",
+      "scene_index": 19,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:20-clip_test": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0324487724911109,
+    "effect_min": 1.031978319589649,
+    "effect_max": 1.0328091396140893,
+    "effect_per_run": [
+      1.0323225742836741,
+      1.031978319589649,
+      1.0326495595321115,
+      1.0328091396140893,
+      1.0324844673824298
+    ],
+    "control_max_dev": 0.0019872442290185255,
+    "residual_geomean": 0.9997968140906325,
+    "all_checks_geomean": 1.0322139244266604,
+    "bce_ns_per_rep_median_of_runs": 4846484.256677628,
+    "order_effect_ratio": [
+      [
+        1.0320257469499805,
+        1.0339732900500467
+      ],
+      [
+        1.031667568233277,
+        1.0333831298400926
+      ],
+      [
+        1.0326556257975814,
+        1.0322708703645922
+      ],
+      [
+        1.0325103144936896,
+        1.03490480326749
+      ],
+      [
+        1.0321319362133674,
+        1.0347186654589238
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "088d5467406157076282da26687cf3807b68d798afc8774e2525f54a81efc6be",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/20-clip_test.json",
+      "capture_sha256": "24b94ecb9749c3eb5bc4990883a760449c53a11589101cad36491f08cdca2601",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "clip_test",
+      "scene_index": 20,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:21-longpathdash__butt_caps_": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.9698628886054168,
+    "effect_min": 0.9386793754316082,
+    "effect_max": 0.9930117723280425,
+    "effect_per_run": [
+      0.9386793754316082,
+      0.9929250008754383,
+      0.9930117723280425,
+      0.9628468226419006,
+      0.9629558755316914
+    ],
+    "control_max_dev": 0.0006059714499633273,
+    "residual_geomean": 1.002437260687536,
+    "all_checks_geomean": 0.9701410419148223,
+    "bce_ns_per_rep_median_of_runs": 97739997.61376953,
+    "order_effect_ratio": [
+      [
+        0.9386793754316082,
+        0.9421965544159272
+      ],
+      [
+        1.0449614673436285,
+        0.968759651347747
+      ],
+      [
+        1.031878372224178,
+        0.9665271919977791
+      ],
+      [
+        0.962916784374976,
+        0.9627162621410581
+      ],
+      [
+        0.9629934884568889,
+        0.9629106078693674
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "e1386fdb6e5d999c239876f4b2197210873865b3083a44039c01aad182a518ff",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/21-longpathdash__butt_caps_.json",
+      "capture_sha256": "1364dae02e5474309ccc4294dc3568dca2597383964ace92e193ea04edca1751",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "longpathdash (butt caps)",
+      "scene_index": 21,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:22-longpathdash__round_caps_": {
+    "runs": 5,
+    "outputs_ok_all": false,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 0.96405899310994,
+    "effect_min": 0.9612875066411493,
+    "effect_max": 0.9722746608426824,
+    "effect_per_run": [
+      0.9637116430772386,
+      0.9722746608426824,
+      0.9612875066411493,
+      0.9615349873904404,
+      0.9615316591494265
+    ],
+    "control_max_dev": 0.002745450755734291,
+    "residual_geomean": 0.9999129531272005,
+    "all_checks_geomean": 0.9651853906913028,
+    "bce_ns_per_rep_median_of_runs": 102387341.25030899,
+    "order_effect_ratio": [
+      [
+        0.9637116430772386,
+        0.9604011072784637
+      ],
+      [
+        0.9729204082731473,
+        0.9654180278488103
+      ],
+      [
+        0.9613278873741493,
+        0.9612384041408718
+      ],
+      [
+        0.9615349873904404,
+        0.9615675124180554
+      ],
+      [
+        0.9614832103293095,
+        0.9616422896569204
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "48da60c4d4fe040822237d052c67daac735c2db7c72a900eaa8cf40d9d44e892",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/22-longpathdash__round_caps_.json",
+      "capture_sha256": "36c8ff79caa8b0c77b4b556cba5af2e56804cea6714fba1f9cd8c2927de38eaf",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "longpathdash (round caps)",
+      "scene_index": 22,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "INVALID: output oracle failed in some run"
+  },
+  "vello:23-mmark": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0423681753186826,
+    "effect_min": 1.0417313609955956,
+    "effect_max": 1.0434423789424818,
+    "effect_per_run": [
+      1.0417942184042155,
+      1.0421966497655735,
+      1.0417313609955956,
+      1.0434423789424818,
+      1.042677234214032
+    ],
+    "control_max_dev": 0.0015693860081056332,
+    "residual_geomean": 1.0001084355487906,
+    "all_checks_geomean": 1.0425556518464358,
+    "bce_ns_per_rep_median_of_runs": 4839856.652672768,
+    "order_effect_ratio": [
+      [
+        1.0416980427524558,
+        1.0425979502585374
+      ],
+      [
+        1.0421168935243927,
+        1.0422406093108836
+      ],
+      [
+        1.0419915544095493,
+        1.0415457078547679
+      ],
+      [
+        1.0428890046830248,
+        1.0446891065271795
+      ],
+      [
+        1.0423933157245537,
+        1.0445333195400983
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "bf99ae4ecefefe3d9f471dfa64977e6c55f8cdc534a3fa935946586d64ef4757",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/23-mmark.json",
+      "capture_sha256": "3cae3c7bbcf201c352760547310f274e929c22f06547104c8904436c7ca73f82",
+      "height": 1000,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "mmark",
+      "scene_index": 23,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:24-many_draw_objects": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.130848681484259,
+    "effect_min": 1.1180447782310128,
+    "effect_max": 1.1386333793226815,
+    "effect_per_run": [
+      1.1206762490162396,
+      1.1180447782310128,
+      1.1384893618374337,
+      1.1385975017675065,
+      1.1386333793226815
+    ],
+    "control_max_dev": 0.001028641574764011,
+    "residual_geomean": 1.000440747460275,
+    "all_checks_geomean": 1.1370313089418203,
+    "bce_ns_per_rep_median_of_runs": 150407704.66127014,
+    "order_effect_ratio": [
+      [
+        1.118373773613945,
+        1.121486648863146
+      ],
+      [
+        1.2014284898224135,
+        1.0838078848802997
+      ],
+      [
+        1.138537756485205,
+        1.138444840669861
+      ],
+      [
+        1.1386818667548304,
+        1.1383229953384415
+      ],
+      [
+        1.1386380425392248,
+        1.1386206759085764
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "84e5b97b63530d8bb8d5251f7c54d559f17eb7535dda5b885b631904447bcbf8",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/24-many_draw_objects.json",
+      "capture_sha256": "4558850ddc395e80ba7e54b52c4260712904a8aa534be64404d423c99ef63fce",
+      "height": 1500,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "many_draw_objects",
+      "scene_index": 24,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 2000
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:25-blurred_rounded_rect": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.189508292649832,
+    "effect_min": 1.1889947316194194,
+    "effect_max": 1.189808424526701,
+    "effect_per_run": [
+      1.1893892289476422,
+      1.1889947316194194,
+      1.1897392867634875,
+      1.189808424526701,
+      1.1896099728751452
+    ],
+    "control_max_dev": 0.0011476577232658602,
+    "residual_geomean": 1.0008408353716043,
+    "all_checks_geomean": 1.1904055831421618,
+    "bce_ns_per_rep_median_of_runs": 8160364.384105682,
+    "order_effect_ratio": [
+      [
+        1.1894396331977841,
+        1.1890416509751018
+      ],
+      [
+        1.1890185574452967,
+        1.1889664323021867
+      ],
+      [
+        1.1895377092953061,
+        1.1906861122627839
+      ],
+      [
+        1.1895767163342361,
+        1.1910316307300572
+      ],
+      [
+        1.1892527034307305,
+        1.1911057832994416
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "ed6240be732b4b65be00e23efa9453762ce5247a57cbd117e0a03594c2f776d3",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/25-blurred_rounded_rect.json",
+      "capture_sha256": "bcfcaba808d1c35af63874df9bbe4d6d5dc2257bcc824288f28aa45b011406ca",
+      "height": 1200,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "blurred_rounded_rect",
+      "scene_index": 25,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1200
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:26-image_sampling": {
+    "runs": 4,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.2314940751660377,
+    "effect_min": 1.230639084298347,
+    "effect_max": 1.2325459183600382,
+    "effect_per_run": [
+      1.230894602676107,
+      1.230639084298347,
+      1.2318976532782702,
+      1.2325459183600382
+    ],
+    "control_max_dev": 0.0019424738971434152,
+    "residual_geomean": 1.0003949224200037,
+    "all_checks_geomean": 1.2322004658069978,
+    "bce_ns_per_rep_median_of_runs": 4983723.836660385,
+    "order_effect_ratio": [
+      [
+        1.2303731454423517,
+        1.232223489864738
+      ],
+      [
+        1.230672359232737,
+        1.230587998265082
+      ],
+      [
+        1.2314006577910148,
+        1.2350394969812348
+      ],
+      [
+        1.2321001524316588,
+        1.2351785465314171
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "7a8ad18b2891bdaa783835804c49521e0dd2d00c766f2aa6e7799f262ce34080",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/26-image_sampling.json",
+      "capture_sha256": "5a756d3b5998c649e6ca9340dd8739b89d6ab427ed9b72bda8fd37840d05fd8f",
+      "height": 1100,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_sampling",
+      "scene_index": 26,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1100
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:27-image_sampling_bicubic": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.1238542480552118,
+    "effect_min": 1.123396569756296,
+    "effect_max": 1.1245189165759872,
+    "effect_per_run": [
+      1.1237366758852918,
+      1.123396569756296,
+      1.1236036967395444,
+      1.1245189165759872,
+      1.1240157166896259
+    ],
+    "control_max_dev": 0.002047945521280181,
+    "residual_geomean": 1.0012139256818111,
+    "all_checks_geomean": 1.1251079000099988,
+    "bce_ns_per_rep_median_of_runs": 4895312.380485535,
+    "order_effect_ratio": [
+      [
+        1.1234370749890896,
+        1.1261561325796547
+      ],
+      [
+        1.123068328703991,
+        1.1252085971559107
+      ],
+      [
+        1.1235296021477374,
+        1.1242868633742726
+      ],
+      [
+        1.1239860562958865,
+        1.1265181666651345
+      ],
+      [
+        1.1234775637687422,
+        1.1260531350956322
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "65509057ab7031ba5fc1b012d77aa0eb3c8c8bc9a011f57153ef5c90a302e2c1",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/27-image_sampling_bicubic.json",
+      "capture_sha256": "ff80b688b80deeb598dc14a62b977cbd081b6519b00a6408437607b988b0c989",
+      "height": 900,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_sampling_bicubic",
+      "scene_index": 27,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1400
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:28-image_atlas_residency_demo": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0923312168642243,
+    "effect_min": 1.0919122158915897,
+    "effect_max": 1.0929954969474371,
+    "effect_per_run": [
+      1.0919909633751732,
+      1.0922018170703605,
+      1.0919122158915897,
+      1.0925559571065246,
+      1.0929954969474371
+    ],
+    "control_max_dev": 0.0023830571984558846,
+    "residual_geomean": 1.0006298660957507,
+    "all_checks_geomean": 1.0930620330212768,
+    "bce_ns_per_rep_median_of_runs": 4272174.374865532,
+    "order_effect_ratio": [
+      [
+        1.091941808373129,
+        1.0942590763666882
+      ],
+      [
+        1.0921316407489439,
+        1.0923819831025914
+      ],
+      [
+        1.0917967017586414,
+        1.0919369452070633
+      ],
+      [
+        1.092250066956495,
+        1.0943633022945727
+      ],
+      [
+        1.092753467106066,
+        1.0948327303449061
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "5d99c6e0d46f0ceebd3a240930b8f87bc423f1248e3583990b6fb17f9bac341a",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/28-image_atlas_residency_demo.json",
+      "capture_sha256": "d7d1335ca58275f7b2906b56094849cbd1027f1a6455afcef9bb46d286b08603",
+      "height": 900,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_atlas_residency_demo",
+      "scene_index": 28,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1400
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:29-image_atlas_large_residency_demo": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.1239492787161112,
+    "effect_min": 1.1216140869478006,
+    "effect_max": 1.1276165641527511,
+    "effect_per_run": [
+      1.1216140869478006,
+      1.1276165641527511,
+      1.1235927912321713,
+      1.1232844106994944,
+      1.1236472335858148
+    ],
+    "control_max_dev": 0.0033188681735212278,
+    "residual_geomean": 1.0005072711025693,
+    "all_checks_geomean": 1.1220366749101092,
+    "bce_ns_per_rep_median_of_runs": 13034218.431781769,
+    "order_effect_ratio": [
+      [
+        1.1228393202777531,
+        1.118022504714809
+      ],
+      [
+        1.1313979382721806,
+        1.1239303515689034
+      ],
+      [
+        1.1235927912321713,
+        1.1235092371866462
+      ],
+      [
+        1.1231193836023343,
+        1.1246705601713265
+      ],
+      [
+        1.1237023401541384,
+        1.1233186735041063
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "1a4463c69631f576b1cf36f3a9c690d45640df7bf275fea2f3554b893f915603",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/29-image_atlas_large_residency_demo.json",
+      "capture_sha256": "7f3ab97cebb601f1b4f9b035631ff6a49a1340a2606a9c421eed42c08288fbe9",
+      "height": 1100,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_atlas_large_residency_demo",
+      "scene_index": 29,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1700
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:30-image_extend_modes__bilinear_": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.3427416011989801,
+    "effect_min": 1.342299299341016,
+    "effect_max": 1.3430581274643612,
+    "effect_per_run": [
+      1.3424062934954293,
+      1.342299299341016,
+      1.3429633583307319,
+      1.3429811190718106,
+      1.3430581274643612
+    ],
+    "control_max_dev": 0.000644038989968676,
+    "residual_geomean": 1.0003841271165055,
+    "all_checks_geomean": 1.3431826919102297,
+    "bce_ns_per_rep_median_of_runs": 10452083.078155518,
+    "order_effect_ratio": [
+      [
+        1.3425280635738697,
+        1.3421927199037063
+      ],
+      [
+        1.342328600415124,
+        1.3421697232128373
+      ],
+      [
+        1.3428356441717693,
+        1.3435576093838018
+      ],
+      [
+        1.3428969255939078,
+        1.3432840296499138
+      ],
+      [
+        1.3428916741889028,
+        1.34329187893561
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "b2c8590dbcfee4a11823897c755580c9ab21f40802216f2605fee17f4f457239",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/30-image_extend_modes__bilinear_.json",
+      "capture_sha256": "6a9567805a9db9d73f4674e483a5a5cb6df01961f9e6562169026947bf6f2de1",
+      "height": 1500,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_extend_modes (bilinear)",
+      "scene_index": 30,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1500
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:31-image_extend_modes__nearest_neighbor_": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.1873196517113267,
+    "effect_min": 1.1868504200735601,
+    "effect_max": 1.1877284434254562,
+    "effect_per_run": [
+      1.1868504200735601,
+      1.187108462211279,
+      1.1877284434254562,
+      1.1872757651940273,
+      1.1876353923245404
+    ],
+    "control_max_dev": 0.0007362431379696055,
+    "residual_geomean": 1.0003504908149328,
+    "all_checks_geomean": 1.1877516977180922,
+    "bce_ns_per_rep_median_of_runs": 10384270.579811096,
+    "order_effect_ratio": [
+      [
+        1.1867167547855662,
+        1.1871374822667622
+      ],
+      [
+        1.1869442112649058,
+        1.1873167401974383
+      ],
+      [
+        1.187645935655687,
+        1.1881592840428234
+      ],
+      [
+        1.1872106730355014,
+        1.1880977827700347
+      ],
+      [
+        1.1875268151207237,
+        1.1881545623447525
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "78c3426404c76c0960024f28a5914d0adf5dab6ec9f01d0255ffb6c589518a8e",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/31-image_extend_modes__nearest_neighbor_.json",
+      "capture_sha256": "cf7bbff4d5b15150b3e642bf068191ac092dc75f739bd7d31b2642885a328b9e",
+      "height": 1500,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_extend_modes (nearest neighbor)",
+      "scene_index": 31,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 1500
+    },
+    "verdict": "RESOLVED"
+  },
+  "vello:32-luminance_mask": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.0406543995577164,
+    "effect_min": 1.038920575956194,
+    "effect_max": 1.0439062105702335,
+    "effect_per_run": [
+      1.038920575956194,
+      1.0439062105702335,
+      1.0401293740745965,
+      1.0400250033731275,
+      1.0402977338328459
+    ],
+    "control_max_dev": 0.011039800225621343,
+    "residual_geomean": 1.0061011310905972,
+    "all_checks_geomean": 1.0465026366460988,
+    "bce_ns_per_rep_median_of_runs": 820901.9685948112,
+    "order_effect_ratio": [
+      [
+        1.0401019725737655,
+        1.0363529693292601
+      ],
+      [
+        1.0432545931593031,
+        1.0446278391185744
+      ],
+      [
+        1.0400898024613523,
+        1.0408571275876937
+      ],
+      [
+        1.039930837414332,
+        1.040158166746698
+      ],
+      [
+        1.0400953124728378,
+        1.0407925884074896
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "34d8a3a7bba5edb1621a5a316d540a3015afff462b1ac70ca29d39d5b002f2c6",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/32-luminance_mask.json",
+      "capture_sha256": "a76487720d8488f4a5267d91b4be47f7d93553d8763de35ec323a0462dfe6af8",
+      "height": 55,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "luminance_mask",
+      "scene_index": 32,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 55
+    },
+    "verdict": "NOT_RESOLVABLE: control deviation >= 0.5% in some run"
+  },
+  "vello:33-image_luminance_mask": {
+    "runs": 5,
+    "outputs_ok_all": true,
+    "bce_changes_binary": true,
+    "umin_clamps_per_slot": [
+      197,
+      95,
+      95,
+      11
+    ],
+    "effect_geomean": 1.1469202060801849,
+    "effect_min": 1.1458117493453883,
+    "effect_max": 1.1481445906285987,
+    "effect_per_run": [
+      1.1460851825158893,
+      1.1465613692173429,
+      1.1458117493453883,
+      1.1481445906285987,
+      1.1480001961867452
+    ],
+    "control_max_dev": 0.002380922546686426,
+    "residual_geomean": 1.0011707874047526,
+    "all_checks_geomean": 1.1477157568945127,
+    "bce_ns_per_rep_median_of_runs": 7188124.824508667,
+    "order_effect_ratio": [
+      [
+        1.1462140093644044,
+        1.1458253732817816
+      ],
+      [
+        1.1464526492448521,
+        1.146751141905836
+      ],
+      [
+        1.1458117493453883,
+        1.1456439028935619
+      ],
+      [
+        1.147864814891852,
+        1.1493344270606176
+      ],
+      [
+        1.1474993385275734,
+        1.149855171017456
+      ]
+    ],
+    "provenance": {
+      "aa": "area",
+      "blob_sha256": "be67039fdadf6edfc43fe32cf979c104f665b6982a208317949f20a99ad46b3a",
+      "capture": "/home/bb/Projects/Dave-Sonar-WGPU--master/bounds-check-testing-framework/realworld-v1/captures/vello-a9f11bb-r40/33-image_luminance_mask.json",
+      "capture_sha256": "e1afdce4b5b81a9ecbab937a71381c3d4f8bd667c84a087712f50e082ae371da",
+      "height": 500,
+      "note": "native vello compiles these shaders with ShaderRuntimeChecks::unchecked(); the checked slots model vello as web content in a wgpu-based browser",
+      "renderer": "vello (crate `vello` = research/vello_research), compute pipeline",
+      "scene": "image_luminance_mask",
+      "scene_index": 33,
+      "vello_rev": "a9f11bbe752c391a2e420657d65cbd1fc97f4fae",
+      "width": 700
+    },
+    "verdict": "RESOLVED"
+  },
+  "_vello_suite": {
+    "scenes": 34,
+    "effect_geomean_over_scenes": 1.0671330854004901,
+    "all_checks_geomean_over_scenes": 1.0677542027029128,
+    "residual_geomean_over_scenes": 1.0005673608799306,
+    "resolved_gain": [
+      "vello:05-emoji",
+      "vello:07-fill_types",
+      "vello:09-animated_text",
+      "vello:10-gradient_extend",
+      "vello:11-two_point_radial",
+      "vello:12-brush_transform",
+      "vello:13-blend_grid",
+      "vello:14-deep_blend",
+      "vello:15-many_clips",
+      "vello:17-labyrinth",
+      "vello:20-clip_test",
+      "vello:23-mmark",
+      "vello:24-many_draw_objects",
+      "vello:25-blurred_rounded_rect",
+      "vello:26-image_sampling",
+      "vello:27-image_sampling_bicubic",
+      "vello:28-image_atlas_residency_demo",
+      "vello:29-image_atlas_large_residency_demo",
+      "vello:30-image_extend_modes__bilinear_",
+      "vello:31-image_extend_modes__nearest_neighbor_",
+      "vello:33-image_luminance_mask"
+    ],
+    "resolved_loss": [
+      "vello:01-funky_paths",
+      "vello:06-tricky_strokes",
+      "vello:16-conflation_artifacts",
+      "vello:18-robust_paths",
+      "vello:19-base_color_test"
+    ],
+    "not_resolvable": [
+      "vello:32-luminance_mask"
+    ],
+    "invalid": [
+      "vello:00-splash_with_tiger",
+      "vello:02-stroke_styles",
+      "vello:03-stroke_styles__non_uniform_scale_",
+      "vello:04-stroke_styles__skew_",
+      "vello:08-cardioid_and_friends",
+      "vello:21-longpathdash__butt_caps_",
+      "vello:22-longpathdash__round_caps_"
+    ]
+  }
+}

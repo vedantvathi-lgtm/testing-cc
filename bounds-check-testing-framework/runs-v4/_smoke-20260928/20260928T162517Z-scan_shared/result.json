@@ -1,0 +1,258 @@
+{
+  "all_checks_no_bce_minus_unchecked": {
+    "ci95_hi": 55392.0,
+    "ci95_lo": 45438.40000000002,
+    "median": 55151.20000000001,
+    "median_pct_of_bce": 15.773746193218614
+  },
+  "bce_changes_binary": true,
+  "control_bce_dup_minus_bce": {
+    "ci95_hi": 166.40000000002328,
+    "ci95_lo": -24.0,
+    "median": -4.0,
+    "median_pct_of_bce": -0.0011440364810353075
+  },
+  "correctness": [
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "no_bce"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "bce"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "bce_dup"
+    },
+    {
+      "after_mismatches": 0,
+      "before_mismatches": 0,
+      "slot": "unchecked"
+    }
+  ],
+  "dispatch": [
+    2048,
+    1,
+    1
+  ],
+  "dispatches_per_sample": 20,
+  "effect_no_bce_minus_bce": {
+    "ci95_hi": 55220.80000000005,
+    "ci95_lo": 45425.59999999998,
+    "median": 55160.79999999999,
+    "median_pct_of_bce": 15.776491880773094
+  },
+  "harness_version": "paired-vulkan-4",
+  "kernel": "scan_shared",
+  "median_ns_per_dispatch": {
+    "bce": 349639.19999999995,
+    "bce_dup": 327818.4,
+    "no_bce": 404827.2,
+    "unchecked": 319753.6
+  },
+  "models": "v3 kernel at full occupancy: tile[lid] + 256-iteration scan of workgroup memory",
+  "order_effect": {
+    "bce_first_median": 50450.399999999965,
+    "n_first": 6,
+    "n_second": 2,
+    "no_bce_first_median": 55168.80000000002
+  },
+  "residual_bce_minus_unchecked": {
+    "ci95_hi": 334.4000000000233,
+    "ci95_lo": 0.0,
+    "median": 22.400000000023283,
+    "median_pct_of_bce": 0.006406604293804381
+  },
+  "rounds": 8,
+  "rounds_raw": [
+    {
+      "ns": [
+        404867.2,
+        349673.6,
+        349649.6,
+        349635.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 0
+    },
+    {
+      "ns": [
+        404852.8,
+        349675.2,
+        349771.2,
+        349664.0
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 1
+    },
+    {
+      "ns": [
+        404838.4,
+        349617.6,
+        349595.2,
+        349724.8
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 2
+    },
+    {
+      "ns": [
+        405020.8,
+        349660.8,
+        349827.2,
+        349628.8
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 3
+    },
+    {
+      "ns": [
+        404816.0,
+        349672.0,
+        306041.6,
+        289875.2
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 4
+    },
+    {
+      "ns": [
+        335601.6,
+        289878.4,
+        289856.0,
+        289878.4
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 5
+    },
+    {
+      "ns": [
+        331414.4,
+        287984.0,
+        289864.0,
+        287649.6
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 6
+    },
+    {
+      "ns": [
+        333424.0,
+        287998.4,
+        288012.8,
+        287985.6
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 7
+    }
+  ],
+  "schema": "bce-result-4",
+  "slots": [
+    "no_bce",
+    "bce",
+    "bce_dup",
+    "unchecked"
+  ],
+  "statics": [
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 0,
+      "slot": "no_bce",
+      "spv_sha256": "5d276ba00aa2a5500c219bb9d70ba49dd622b06f514e9b9fad090e18386f6f96",
+      "spv_words": 490,
+      "umin_clamps": 2
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 2,
+      "slot": "bce",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "op_u_less_than": 1,
+      "proven_accesses": 2,
+      "slot": "bce_dup",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    },
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Unchecked",
+      "op_u_less_than": 1,
+      "proven_accesses": 0,
+      "slot": "unchecked",
+      "spv_sha256": "c9e74c269e939f66cfec23239ce98ef6fcbbc484b5facdf492a3e1a68910ce45",
+      "spv_words": 472,
+      "umin_clamps": 0
+    }
+  ],
+  "valid": true,
+  "warmup_last_window_change_pct": null,
+  "warmup_rounds": 4,
+  "workgroup_size": [
+    256,
+    1,
+    1
+  ]
+}

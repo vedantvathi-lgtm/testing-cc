@@ -1,0 +1,15 @@
+[package]
+name = "bce-paired-vulkan-v3"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+bytemuck = "1.22"
+naga = { path = "../../wgpu/naga", features = ["wgsl-in", "spv-out"] }
+pollster = "0.4"
+rspirv = "0.13"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+wgpu = { path = "../../wgpu/wgpu", default-features = false, features = ["spirv", "std", "vulkan"] }

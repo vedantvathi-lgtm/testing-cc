@@ -1,0 +1,248 @@
+{
+  "bce_changes_binary": true,
+  "correctness": [
+    {
+      "bce_dup_equals_no_bce": true,
+      "bce_equals_no_bce": true,
+      "compared_fraction": 0.5026588439941406,
+      "nonzero_fraction_no_bce": 0.9554872512817383,
+      "output_bytes": 1048576,
+      "output_sha256": [
+        "6fd360c0a9cddb1160ff7d97de516b92f2936ea46a05b65ecfc50a411c879982",
+        "f5774b632c5693905445ed8aaae28bd624228713adf6b83caa8d16cdd7448e6c",
+        "13702a26080b65ecb1759d5476a8ab993d2f66fba1277b2f2327af0b5073d41e",
+        "c4a7625b6c92484fa25b39c004140c122020fff0ec4ec231101bcb2505af98a3"
+      ],
+      "phase": "before",
+      "unchecked_equals_no_bce": true
+    },
+    {
+      "bce_dup_equals_no_bce": true,
+      "bce_equals_no_bce": true,
+      "compared_fraction": 0.5026588439941406,
+      "nonzero_fraction_no_bce": 0.9554872512817383,
+      "output_bytes": 1048576,
+      "output_sha256": [
+        "2bf90a23fd2eb6fd9cdd888d7d8472e00a0d470b81027f53a6e96d7843f2f46d",
+        "9347e20b72b30ee7f9369f2261c1a61031e390be090374b277df0621f1d4c5a3",
+        "0ede545f3db81aab79dc5e8441ffa4d89717e473b78c51bc6006230f7048405c",
+        "d52c363438065ae549d5f39ccd91dc30d294649e5977b8715b4b02ac333ec7d4"
+      ],
+      "phase": "after",
+      "unchecked_equals_no_bce": true
+    }
+  ],
+  "gpu_compute_apps_after": [],
+  "harness_version": "realworld-1",
+  "kernel": "blur_sample",
+  "measure_window_unix_ms": [
+    1790707521436,
+    1790707521762
+  ],
+  "median_ns_per_rep": {
+    "bce": 340059.1515151515,
+    "bce_dup": 327184.48484848486,
+    "no_bce": 336588.6060606061,
+    "unchecked": 325474.4242424242
+  },
+  "order_effect_ratio": {
+    "bce_first_median": 0.940360837067566,
+    "n_first": 4,
+    "n_second": 2,
+    "no_bce_first_median": 1.0044166655470206
+  },
+  "outputs_ok": true,
+  "provenance": {
+    "block_dim": 113,
+    "filter_dim": 16,
+    "height": 512,
+    "host_logic": "webgpu-samples sample/imageBlur/main.ts frame(): 2 iterations; params per filter_dim/block_dim",
+    "input": "webgpu-samples public/assets/img/Di-3d.png",
+    "iterations": 2,
+    "shader": "webgpu-samples sample/imageBlur/blur.wgsl (unmodified)",
+    "tile": 1,
+    "webgpu_samples_rev": "4944c705dcbf34c6d9d7ea88cf0a61586e0ce93b",
+    "width": 512
+  },
+  "quiet_during_run": true,
+  "ratio_all_checks_no_bce_over_unchecked": {
+    "ci95_hi": 1.0877945375475808,
+    "ci95_lo": 0.8686675240579749,
+    "median": 1.0018293408932202
+  },
+  "ratio_control_bce_dup_over_bce": {
+    "ci95_hi": 1.022376957952152,
+    "ci95_lo": 0.8652191265298104,
+    "median": 0.9614586219407251
+  },
+  "ratio_no_bce_over_bce": {
+    "ci95_hi": 1.0340242976113494,
+    "ci95_lo": 0.8750000614248779,
+    "median": 1.0044166655470206
+  },
+  "ratio_residual_bce_over_unchecked": {
+    "ci95_hi": 1.1906961858681333,
+    "ci95_lo": 0.8554599716239553,
+    "median": 1.0265791185051056
+  },
+  "reps_per_sample": 33,
+  "rounds": 6,
+  "rounds_raw": [
+    {
+      "ns": [
+        331633.45454545453,
+        329644.6060606061,
+        326805.3333333333,
+        327145.69696969696
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 0
+    },
+    {
+      "ns": [
+        347379.3939393939,
+        408007.75757575757,
+        324932.8484848485,
+        318820.8484848485
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 1
+    },
+    {
+      "ns": [
+        351455.0303030303,
+        350473.69696969696,
+        327563.63636363635,
+        391394.9090909091
+      ],
+      "order": [
+        "bce_dup",
+        "unchecked",
+        "no_bce",
+        "bce"
+      ],
+      "round": 2
+    },
+    {
+      "ns": [
+        320545.9393939394,
+        356718.54545454547,
+        333192.7272727273,
+        323803.1515151515
+      ],
+      "order": [
+        "unchecked",
+        "no_bce",
+        "bce",
+        "bce_dup"
+      ],
+      "round": 3
+    },
+    {
+      "ns": [
+        341543.75757575757,
+        328808.7272727273,
+        324957.0909090909,
+        314493.0909090909
+      ],
+      "order": [
+        "no_bce",
+        "bce",
+        "bce_dup",
+        "unchecked"
+      ],
+      "round": 4
+    },
+    {
+      "ns": [
+        330782.0606060606,
+        321360.48484848486,
+        338510.54545454547,
+        394079.0303030303
+      ],
+      "order": [
+        "bce",
+        "bce_dup",
+        "unchecked",
+        "no_bce"
+      ],
+      "round": 5
+    }
+  ],
+  "schema": "bce-result-rw-1",
+  "slots": [
+    "no_bce",
+    "bce",
+    "bce_dup",
+    "unchecked"
+  ],
+  "statics": [
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "proven_accesses": 0,
+      "shader": "blur",
+      "slot": "no_bce",
+      "spv_sha256": "c2fb2e27584360a35311c432192ce4981c96e9ec04de125037925d57d082099a",
+      "spv_words": 1768,
+      "umin_clamps": 4
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "proven_accesses": 3,
+      "shader": "blur",
+      "slot": "bce",
+      "spv_sha256": "dff2c30e36decb5c166a49f5d880103913067d48b2ee0da771efca262bc6f325",
+      "spv_words": 1743,
+      "umin_clamps": 1
+    },
+    {
+      "bce": true,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Restrict",
+      "proven_accesses": 3,
+      "shader": "blur",
+      "slot": "bce_dup",
+      "spv_sha256": "dff2c30e36decb5c166a49f5d880103913067d48b2ee0da771efca262bc6f325",
+      "spv_words": 1743,
+      "umin_clamps": 1
+    },
+    {
+      "bce": false,
+      "buffer_policy": "Unchecked",
+      "dynamic_accesses": 4,
+      "index_policy": "Unchecked",
+      "proven_accesses": 0,
+      "shader": "blur",
+      "slot": "unchecked",
+      "spv_sha256": "09a463f69eb2307e984a0df7cf76f8471cdeddf0c4dd96990553d95a7a20b35c",
+      "spv_words": 1732,
+      "umin_clamps": 0
+    }
+  ],
+  "umin_clamps_per_slot": [
+    4,
+    1,
+    1,
+    0
+  ],
+  "valid": true,
+  "warmup_rounds": 2,
+  "warmup_rounds_done": 143
+}
