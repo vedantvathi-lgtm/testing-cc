@@ -1,0 +1,2151 @@
+ 
+ ⚙ D6693 New pass: inductive range check elimination Page Menu Home Phabricator This is an archive of the discontinued LLVM Phabricator instance. Paths Table of Contents t - llvm/trunk/ - trunk/ - include/llvm/ - llvm/ - InitializePasses.h - LinkAllPasses.h - Transforms/ - Scalar.h - lib/Transforms/Scalar/ - Transforms/ - Scalar/ - CMakeLists.txt - InductiveRangeCheckElimination.cpp - Scalar.cpp - test/Transforms/IRCE/ - Transforms/ - IRCE/ - multiple-access-no-preloop.ll - single-access-no-preloop.ll - single-access-with-preloop.ll - unhandled.ll - with-parent-loops.ll Hide Panel f Keyboard Reference ? Differential D6693 New pass: inductive range check elimination Closed Public Authored by sanjoy on Dec 16 2014, 2:15 PM. Download Raw Diff Details Reviewers reames atrick hfinkel Commits rGa1837a342d18: Add a new pass "inductive range check elimination" rG7059e2959d61: Add a new pass "inductive range check elimination" rL226238: Add a new pass "inductive range check elimination" rL226201: Add a new pass "inductive range check elimination" Summary The inductive range check elimination pass eliminates range checks from within loops by splitting the iteration space into three segments in a way that the range check is fully redundant in one of the segments. As an example, it will convert 
+
+ len = < known positive >
+for (i = 0; i < n; i++) {
+ if (0 <= i && i < len) {
+ do_something();
+ } else {
+ throw_out_of_bounds();
+ }
+} 
+
+ to 
+
+ len = < known positive >
+limit = smin(n, len)
+// no first segment
+for (i = 0; i < limit; i++) {
+ if (0 <= i && i < len) { // this check is fully redundant
+ do_something();
+ } else {
+ throw_out_of_bounds();
+ }
+}
+for (i = limit; i < n; i++) {
+ if (0 <= i && i < len) {
+ do_something();
+ } else {
+ throw_out_of_bounds();
+ }
+} 
+
+ This is very close to the now removed LoopIndexSplit pass in spirit. 
+
+ I believe the pass is correct (i.e. running it should not change the meaning of the program) but there still remains a considerable amount of work left to make it actually effective. I'd like to do as much of that work as possible in-tree. Diff Detail Repository rL LLVM Event Timeline sanjoy updated this revision to Diff 17362 . Dec 16 2014, 2:15 PM sanjoy retitled this revision from to New pass: inductive range check elimination . sanjoy updated this object. sanjoy edited the test plan for this revision. (Show Details) sanjoy added reviewers: reames , atrick , hfinkel . sanjoy added parent revisions: D6692: Add a new matcher m_ICmpWithPred , D6691: Extract out LPPassManager::cloneLoop . sanjoy added a subscriber: Unknown Object (MLST) . hfinkel edited edge metadata. Dec 23 2014, 5:41 PM Comment Actions Generally speaking, I'm fine with you working on this in-tree once we've reviewed this code. 
+
+ We'll need to decide, at some later point, what kind of heuristics and/or target costs we'd like to use, and whether we want this kind of transformation early or late in the optimization pipeline. 
+
+ Please run this through clang-format (or at least fix the 80-cols issues) too. lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp 
+ 12 ↗ (On Diff #17362) Please add an example (such as the one from the patch summary) here. 
+ 487 ↗ (On Diff #17362) Please break out this function into several smaller ones -- there are a lot of 'scoping blocks' here, and it is difficult to read. reames edited edge metadata. Dec 29 2014, 5:22 PM Comment Actions As with Hal, I'm happy to see this evolve in tree, provided that checking it in doesn't break any existing use cases and that you're going to continue to evolve this in the near term. Given I happen to know the later is true, LGTM. Feel free to address comments in separate submissions. (If you choose that option, document that's what you're planning on doing in the submission comment.) lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp 
+ 85 ↗ (On Diff #17362) It feels like range is a first class concept here. Maybe extract this out? Probably only file local at the moment, but separate from IRC. 
+ 158 ↗ (On Diff #17362) This structure of checks seems very fragile. In particular, I would expect things like flatten cfg to create patterns this misses. Also, that "sink load along path with uses" optimization we were talking to enable vectorization would also break this. 
+
+ Putting a TODO here for the moment is fine, but I suspect we'll want something more robust quickly. 
+ 164 ↗ (On Diff #17362) These lambdas looks very similar to code inside InstCombine. Could they be extracted to some common place? 
+ 200 ↗ (On Diff #17362) This doesn't look right. There's nothing necessarily involving the induction variable here is there? 
+
+ Actually, there's a broader problem in this entire function. There's nothing that requires IndexV to actually be the induction variable of the loop. 
+
+ p.s. The upper range check with non-negative index should apply to the first case first. You should factor this code. 
+ 222 ↗ (On Diff #17362) The function says 'get', but the comment says 'make'? 
+ 237 ↗ (On Diff #17362) This seems restrictive (i.e. only loops in simplified form). At minimum, add a TODO. 
+ 250 ↗ (On Diff #17362) This would be clearer as if (!x || !y || !z) 
+ 253 ↗ (On Diff #17362) This looks like a constructor begging to be born. 
+ 262 ↗ (On Diff #17362) This feels like it should be on IRBuilder. 
+
+ At minimum, you should use IRBuilder so that these eagerly collapse. 
+ 445 ↗ (On Diff #17362) This seems very very limiting. In particular, it would seem to exclude allmost all interesting cases. Is this intentional? 
+
+ Just to make sure I have my terminology right: this is checking for a conditional branch which either goes to the header or exits the loop right? 
+ 451 ↗ (On Diff #17362) I didn't bother to read past here in this function. This code needs broken up before it's reviewable. 
+ 774 ↗ (On Diff #17362) You should use IRBuilder here so that these are eagerly simplified in trivial cases. 
+ 786 ↗ (On Diff #17362) Is there any guarantee that R2 has a value? 
+ 788 ↗ (On Diff #17362) Given you're computing a recursive tree of mins, it might be worth talking about whether we can either a) balance the tree, or b) easy to optimize representation. I worry about the depth of these select trees. 
+ 796 ↗ (On Diff #17362) The fact these are non-owning pointers isn't particularly clear. It might be better to structure this vector as containing IRCs not IRC*s. 
+ 799 ↗ (On Diff #17362) Add a comment along the lines of: //identify any range checks we can handle. 
+
+ This might be a convenient helper function too. 
+ 816 ↗ (On Diff #17362) Your legality checks should be before you do any work. 
+ 826 ↗ (On Diff #17362) I think this is dead code? 
+ 830 ↗ (On Diff #17362) It feels odd to me that your doing this for all range checks at once. Is there an argument for why this is sufficient/desirable? If so, comment. 
+ 840 ↗ (On Diff #17362) When would this trigger? 
+ test/Transforms/InductiveRangeCheckElimination/single.ll 
+ 3 ↗ (On Diff #17362) You need far more tests to claim any kind of reasonable coverage here. 
+
+ In particular, trivial loop tests which check all of the corner-cases in your matching logic, both positive and negative. sanjoy added a comment. Jan 7 2015, 2:59 PM Comment Actions I've replied to some of the comments inline. I will upload a new version of the patch by the end of this week. lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp 
+ 200 ↗ (On Diff #17362) SplitRangeCheckCondition does not interpret Index as anything related to the loop's induction variable, that happens later. I'll add a comment making that invariant explicit. 
+ 222 ↗ (On Diff #17362) Fixed, thanks! 
+ 237 ↗ (On Diff #17362) This pass has AU.addRequiredID(LoopSimplifyID) 
+ 250 ↗ (On Diff #17362) Changed this to 
+
+ bool IsAffineIndex =
+ IndexAddRec && (IndexAddRec->getLoop() == L) && IndexAddRec->isAffine();
+
+if (!IsAffineIndex)
+ return nullptr; 
+ 253 ↗ (On Diff #17362) I like the current pattern better -- with a constructor it is easy to pass Length instead of Offset for example, since they're all llvm::Value s. This pattern makes it clearer what is initialized with what. 
+ 262 ↗ (On Diff #17362) Fixed, thanks! 
+ 445 ↗ (On Diff #17362) I think loop rotation tries to canonicalize loops into this form (i.e. the loop's latch is a conditional exit). Without this, it is difficult to split the loop's iteration space with low overhead -- there will need to be an extra check in the previously unconditional jump back to the loop's header from the latch which may or may not combine with checks in previous loop exits. 
+ 451 ↗ (On Diff #17362) Agreed, this will be fixed in the next patch I upload for review. 
+ 774 ↗ (On Diff #17362) Agreed, will do. 
+ 786 ↗ (On Diff #17362) R2 is not an Optional<> 
+ 788 ↗ (On Diff #17362) Agreed, but that is not the lowest hanging fruit at the moment. :) 
+ 799 ↗ (On Diff #17362) Will do. 
+ 816 ↗ (On Diff #17362) Right, this is an obvious candidate for an early check. 
+ 826 ↗ (On Diff #17362) No, RangeChecksToEliminate is used later, also under #ifndef NDEBUG 
+ 830 ↗ (On Diff #17362) I think if I do it for one array index at a time, I will end up with N pre / post loops. Do you have something else in mind? 
+ 840 ↗ (On Diff #17362) When we could not solve *any* of the range checks. e.g 
+
+ for (i = 0 to N) {
+ a[i * i] = ..
+} sanjoy updated this revision to Diff 17971 . Jan 9 2015, 11:34 PM sanjoy edited edge metadata. Comment Actions Major changes in this version: 
+
+ I broke up ConstrainLoopRange into a bunch of functions, grouped together as the LoopConstrainer class. 
+ this new version now no longer tries to preserve any analyses. That will be a separate improvement later on. 
+ the range check detection logic is more general. 
+
+ The test coverage is still pretty low, but I plan on improving this once this is in tree. reames added a comment. Jan 13 2015, 4:12 PM Comment Actions As Hal and I said previously, LGTM so that you can continue to work on this incrementally in tree. Each change should be reviewed incrementally, and when you ready to insert this in the standard pass order, we'll need to do another holistic review. lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp 
+ 16 ↗ (On Diff #17971) I think your example would be clearer with the full generality of three loops. No strong preference though. 
+ 697 ↗ (On Diff #17971) Is there a utility function somewhere you could use for this? Or can you extract one? 
+ 749 ↗ (On Diff #17971) FYI, as a name rewriteIterationRange doesn't tell me that much. 
+ 852 ↗ (On Diff #17971) The fact you have these functions at all seems suspicious. I suspect you could get quite far by using the utilities in BasicBlockUtils. 
+
+ e.g. 
+NewPreheader = SplitEdge(OriginalPreheader, OriginalHeader) 
+ 895 ↗ (On Diff #17971) It really feels like you're mixing the flow here. I don't have a concrete suggestion, but you might try inserting a legal loop in its entirety, then rewriting it to be restricted to the proper range. Alternatively, rewrite the free standing loop in it's entirety, then insert. Mixing things is confusing. 
+ 920 ↗ (On Diff #17971) Helper function? 
+ 934 ↗ (On Diff #17971) Is this valid if the loop is not created? 
+
+ p.s. Your LoopClone *really* looks like LoopInfo. 
+ 1055 ↗ (On Diff #17971) I'm really not a fan of MethodObject pattern. It's better than what you had, but please don't keep this long term. :) 
+ 1069 ↗ (On Diff #17971) As we talked about offline, I really think that unconditionally rewriting the branches based on inferred knowledge is the right approach. You can emit a runtime check for diagnostics/debugging if desired, but the core behaviour of the pass should not change between debug and non-debug builds. You also don't want to tightly couple this pass with the effectiveness of other parts of the optimizer. 
+
+ This is the one *must fix* I have. Even here, a follow up change is fine. 
+ test/Transforms/InductiveRangeCheckElimination/multiple-access-no-preloop.ll 
+ 3 ↗ (On Diff #17971) Mild personal preference: I'd name the directory IRCE to avoid something so long. 
+ 12 ↗ (On Diff #17971) Intermixing checks with the source IR is somewhat confusing with this radical a transform. 
+ test/Transforms/InductiveRangeCheckElimination/single-access-no-preloop.ll 
+ 3 ↗ (On Diff #17971) It looks like all of these tests could be in a single file? 
+
+ p.s. You *need* more tests. While I'm okay with this landing without them so that you can work incrementally, every follow up change will need a motivating test. You current coverage is minimal at best. Ideas: loops which don't match, conditions you can't handle, a starter loop which isn't in loop-simplify form... reames added a comment. Jan 13 2015, 4:14 PM Comment Actions Actually, I may have accidentally misrepresented Hal's earlier comment. 
+When I reread, it wasn't a clear LGTM. Please do not submit until Hal 
+has okayed the current state as well. 
+
+ Philip hfinkel added a comment. Jan 13 2015, 5:25 PM Comment Actions 
+ In D6693#108332 , @reames wrote: 
+ Actually, I may have accidentally misrepresented Hal's earlier comment. 
+When I reread, it wasn't a clear LGTM. Please do not submit until Hal 
+has okayed the current state as well. 
+
+ I'm okay with this going in at this point. As has been discussed, it needs more test cases, better comments, etc., but those can be added as they're produced. 
+
+ Philip 
+
+ lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp 
+ 652 ↗ (On Diff #17971) As a general comment, you really need some ASCII-art diagrams here illustrating what all these blocks are and how they tie together. The loop vectorizer has some of these, and while imperfect, they do help to explain what is going on. sanjoy added a comment. Jan 13 2015, 8:46 PM Comment Actions Comments replied to inline. I'll address some of the easier ones before checking in. lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp 
+ 697 ↗ (On Diff #17971) Is there a utility function somewhere you could use for this? 
+
+ I could not find any. 
+
+ Or can you extract one? 
+
+ I think that is good idea as long as I can find another user. I plan to loop at both LoopUnroll and LoopRotate for this in the future. 
+ 749 ↗ (On Diff #17971) I'll change it to something more descriptive before checking in. 
+ 852 ↗ (On Diff #17971) NewPreheader = SplitEdge(OriginalPreheader, OriginalHeader) 
+
+ That's a great idea, I'll do that before checking in. 
+ 920 ↗ (On Diff #17971) Will do before checkin. 
+ 934 ↗ (On Diff #17971) Is this valid if the loop is not created? 
+
+ Yes -- PreLoop.Blocks is empty in that case. 
+
+ p.s. Your LoopClone *really* looks like LoopInfo. 
+
+ The crucial difference is that there is a bunch of stuff LoopInfo computes that is statically cached in a LoopClone . This lets me use LoopClone while I'm transforming the IR. For instance, I don't think it is okay to call LoopInfo::getLoopLatch if the loop is not well-formed. I'll document this difference in a comment. 
+ 1069 ↗ (On Diff #17971) I agree -- the code as of now is basically to help debugging. 
+ test/Transforms/InductiveRangeCheckElimination/multiple-access-no-preloop.ll 
+ 3 ↗ (On Diff #17971) Good idea, will do that before checkin. 
+ test/Transforms/InductiveRangeCheckElimination/single-access-no-preloop.ll 
+ 3 ↗ (On Diff #17971) It looks like all of these tests could be in a single file? 
+
+ These files are really categories of tests that I will fill in. 
+
+ p.s. You *need* more tests. 
+
+ Completely agree. In fact, I plan to add at least a few more tests before checking in. Closed by commit rL226201: Add a new pass "inductive range check elimination" (authored by sanjoy ). · Explain Why Jan 15 2015, 12:47 PM This revision was automatically updated to reflect the committed changes. Revision Contents Files History Commits Stack Path Size llvm/ trunk/ include/ llvm/ InitializePasses.h 1 line LinkAllPasses.h 1 line Transforms/ Scalar.h 7 lines lib/ Transforms/ Scalar/ CMakeLists.txt 1 line InductiveRangeCheckElimination.cpp 1189 lines Scalar.cpp 1 line test/ Transforms/ IRCE/ multiple-access-no-preloop.ll 59 lines single-access-no-preloop.ll 110 lines single-access-with-preloop.ll 59 lines unhandled.ll 37 lines with-parent-loops.ll 344 lines Diff ID Base Description Created Lint Unit Base Base Diff 1 17362 Dec 16 2014, 2:01 PM ★ ★ Diff 2 17971 Jan 9 2015, 11:31 PM ★ ★ Diff 3 18247 226200 Commit rL226201 Jan 15 2015, 12:45 PM ★ ★ Status Author Revision Closed sanjoy D6693 New pass: inductive range check elimination   Abandoned sanjoy D6692 Add a new matcher m_ICmpWithPred   Abandoned sanjoy D6691 Extract out LPPassManager::cloneLoop   Diff 18247 llvm/trunk/include/llvm/InitializePasses.h Show First 20 Lines • Show All 136 Lines • ▼ Show 20 Lines void initializeGVNPass ( PassRegistry & ); 
+ void initializeGVNPass ( PassRegistry & ); 
+ void initializeGlobalDCEPass ( PassRegistry & ); 
+ void initializeGlobalDCEPass ( PassRegistry & ); 
+ void initializeGlobalOptPass ( PassRegistry & ); 
+ void initializeGlobalOptPass ( PassRegistry & ); 
+ void initializeGlobalsModRefPass ( PassRegistry & ); 
+ void initializeGlobalsModRefPass ( PassRegistry & ); 
+ void initializeIPCPPass ( PassRegistry & ); 
+ void initializeIPCPPass ( PassRegistry & ); 
+ void initializeIPSCCPPass ( PassRegistry & ); 
+ void initializeIPSCCPPass ( PassRegistry & ); 
+ void initializeIVUsersPass ( PassRegistry & ); 
+ void initializeIVUsersPass ( PassRegistry & ); 
+ void initializeIfConverterPass ( PassRegistry & ); 
+ void initializeIfConverterPass ( PassRegistry & ); 
+ void initializeInductiveRangeCheckEliminationPass ( PassRegistry & ); 
+ void initializeIndVarSimplifyPass ( PassRegistry & ); 
+ void initializeIndVarSimplifyPass ( PassRegistry & ); 
+ void initializeInlineCostAnalysisPass ( PassRegistry & ); 
+ void initializeInlineCostAnalysisPass ( PassRegistry & ); 
+ void initializeInstCombinerPass ( PassRegistry & ); 
+ void initializeInstCombinerPass ( PassRegistry & ); 
+ void initializeInstCountPass ( PassRegistry & ); 
+ void initializeInstCountPass ( PassRegistry & ); 
+ void initializeInstNamerPass ( PassRegistry & ); 
+ void initializeInstNamerPass ( PassRegistry & ); 
+ void initializeInternalizePassPass ( PassRegistry & ); 
+ void initializeInternalizePassPass ( PassRegistry & ); 
+ void initializeIntervalPartitionPass ( PassRegistry & ); 
+ void initializeIntervalPartitionPass ( PassRegistry & ); 
+ void initializeJumpInstrTableInfoPass ( PassRegistry & ); 
+ void initializeJumpInstrTableInfoPass ( PassRegistry & ); 
+ ▲ Show 20 Lines • Show All 140 Lines • Show Last 20 Lines llvm/trunk/include/llvm/LinkAllPasses.h Show First 20 Lines • Show All 80 Lines • ▼ Show 20 Lines ForcePassLinking () { 
+ ( void ) llvm :: createInstrProfilingPass (); 
+ ( void ) llvm :: createInstrProfilingPass (); 
+ ( void ) llvm :: createFunctionInliningPass (); 
+ ( void ) llvm :: createFunctionInliningPass (); 
+ ( void ) llvm :: createAlwaysInlinerPass (); 
+ ( void ) llvm :: createAlwaysInlinerPass (); 
+ ( void ) llvm :: createGlobalDCEPass (); 
+ ( void ) llvm :: createGlobalDCEPass (); 
+ ( void ) llvm :: createGlobalOptimizerPass (); 
+ ( void ) llvm :: createGlobalOptimizerPass (); 
+ ( void ) llvm :: createGlobalsModRefPass (); 
+ ( void ) llvm :: createGlobalsModRefPass (); 
+ ( void ) llvm :: createIPConstantPropagationPass (); 
+ ( void ) llvm :: createIPConstantPropagationPass (); 
+ ( void ) llvm :: createIPSCCPPass (); 
+ ( void ) llvm :: createIPSCCPPass (); 
+ ( void ) llvm :: createInductiveRangeCheckEliminationPass (); 
+ ( void ) llvm :: createIndVarSimplifyPass (); 
+ ( void ) llvm :: createIndVarSimplifyPass (); 
+ ( void ) llvm :: createInstructionCombiningPass (); 
+ ( void ) llvm :: createInstructionCombiningPass (); 
+ ( void ) llvm :: createInternalizePass (); 
+ ( void ) llvm :: createInternalizePass (); 
+ ( void ) llvm :: createJumpInstrTableInfoPass (); 
+ ( void ) llvm :: createJumpInstrTableInfoPass (); 
+ ( void ) llvm :: createJumpInstrTablesPass (); 
+ ( void ) llvm :: createJumpInstrTablesPass (); 
+ ( void ) llvm :: createLCSSAPass (); 
+ ( void ) llvm :: createLCSSAPass (); 
+ ( void ) llvm :: createLICMPass (); 
+ ( void ) llvm :: createLICMPass (); 
+ ( void ) llvm :: createLazyValueInfoPass (); 
+ ( void ) llvm :: createLazyValueInfoPass (); 
+ ▲ Show 20 Lines • Show All 85 Lines • Show Last 20 Lines llvm/trunk/include/llvm/Transforms/Scalar.h Show First 20 Lines • Show All 92 Lines • ▼ Show 20 Lines FunctionPass * createScalarReplAggregatesPass ( signed Threshold = -1 , 
+ FunctionPass * createScalarReplAggregatesPass ( signed Threshold = -1 , 
+ bool UseDomTree = true , 
+ bool UseDomTree = true , 
+ signed StructMemberThreshold = -1 , 
+ signed StructMemberThreshold = -1 , 
+ signed ArrayElementThreshold = -1 , 
+ signed ArrayElementThreshold = -1 , 
+ signed ScalarLoadThreshold = -1 ); 
+ signed ScalarLoadThreshold = -1 ); 
+
+ //===----------------------------------------------------------------------===// 
+ //===----------------------------------------------------------------------===// 
+ // 
+ // 
+ // InductiveRangeCheckElimination - Transform loops to elide range checks on 
+ // linear functions of the induction variable. 
+ // 
+ Pass * createInductiveRangeCheckEliminationPass (); 
+
+ //===----------------------------------------------------------------------===// 
+ // 
+ // InductionVariableSimplify - Transform induction variables in a program to all 
+ // InductionVariableSimplify - Transform induction variables in a program to all 
+ // use a single canonical induction variable per loop. 
+ // use a single canonical induction variable per loop. 
+ // 
+ // 
+ Pass * createIndVarSimplifyPass (); 
+ Pass * createIndVarSimplifyPass (); 
+
+ //===----------------------------------------------------------------------===// 
+ //===----------------------------------------------------------------------===// 
+ // 
+ // 
+ // InstructionCombining - Combine instructions to form fewer, simple 
+ // InstructionCombining - Combine instructions to form fewer, simple 
+ ▲ Show 20 Lines • Show All 302 Lines • Show Last 20 Lines llvm/trunk/lib/Transforms/Scalar/CMakeLists.txt add_llvm_library(LLVMScalarOpts
+ add_llvm_library(LLVMScalarOpts
+ ADCE.cpp
+ ADCE.cpp
+ AlignmentFromAssumptions.cpp
+ AlignmentFromAssumptions.cpp
+ ConstantHoisting.cpp
+ ConstantHoisting.cpp
+ ConstantProp.cpp
+ ConstantProp.cpp
+ CorrelatedValuePropagation.cpp
+ CorrelatedValuePropagation.cpp
+ DCE.cpp
+ DCE.cpp
+ DeadStoreElimination.cpp
+ DeadStoreElimination.cpp
+ EarlyCSE.cpp
+ EarlyCSE.cpp
+ FlattenCFGPass.cpp
+ FlattenCFGPass.cpp
+ GVN.cpp
+ GVN.cpp
+ InductiveRangeCheckElimination.cpp
+ IndVarSimplify.cpp
+ IndVarSimplify.cpp
+ JumpThreading.cpp
+ JumpThreading.cpp
+ LICM.cpp
+ LICM.cpp
+ LoadCombine.cpp
+ LoadCombine.cpp
+ LoopDeletion.cpp
+ LoopDeletion.cpp
+ LoopIdiomRecognize.cpp
+ LoopIdiomRecognize.cpp
+ LoopInstSimplify.cpp
+ LoopInstSimplify.cpp
+ LoopRerollPass.cpp
+ LoopRerollPass.cpp
+ Show All 24 Lines llvm/trunk/lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp //===-- InductiveRangeCheckElimination.cpp - ------------------------------===// 
+ // 
+ // The LLVM Compiler Infrastructure 
+ // 
+ // This file is distributed under the University of Illinois Open Source 
+ // License. See LICENSE.TXT for details. 
+ // 
+ //===----------------------------------------------------------------------===// 
+ // The InductiveRangeCheckElimination pass splits a loop's iteration space into 
+ // three disjoint ranges. It does that in a way such that the loop running in 
+ // the middle loop provably does not need range checks. As an example, it will 
+ // convert 
+ // 
+ // len = < known positive > 
+ // for (i = 0; i < n; i++) { 
+ // if (0 <= i && i < len) { 
+ // do_something(); 
+ // } else { 
+ // throw_out_of_bounds(); 
+ // } 
+ // } 
+ // 
+ // to 
+ // 
+ // len = < known positive > 
+ // limit = smin(n, len) 
+ // // no first segment 
+ // for (i = 0; i < limit; i++) { 
+ // if (0 <= i && i < len) { // this check is fully redundant 
+ // do_something(); 
+ // } else { 
+ // throw_out_of_bounds(); 
+ // } 
+ // } 
+ // for (i = limit; i < n; i++) { 
+ // if (0 <= i && i < len) { 
+ // do_something(); 
+ // } else { 
+ // throw_out_of_bounds(); 
+ // } 
+ // } 
+ //===----------------------------------------------------------------------===// 
+
+ #include "llvm/ADT/Optional.h" 
+
+ #include "llvm/Analysis/InstructionSimplify.h" 
+ #include "llvm/Analysis/LoopInfo.h" 
+ #include "llvm/Analysis/LoopPass.h" 
+ #include "llvm/Analysis/ScalarEvolution.h" 
+ #include "llvm/Analysis/ScalarEvolutionExpander.h" 
+ #include "llvm/Analysis/ScalarEvolutionExpressions.h" 
+ #include "llvm/Analysis/ValueTracking.h" 
+
+ #include "llvm/IR/Dominators.h" 
+ #include "llvm/IR/Function.h" 
+ #include "llvm/IR/Instructions.h" 
+ #include "llvm/IR/IRBuilder.h" 
+ #include "llvm/IR/Module.h" 
+ #include "llvm/IR/PatternMatch.h" 
+ #include "llvm/IR/ValueHandle.h" 
+ #include "llvm/IR/Verifier.h" 
+
+ #include "llvm/Support/Debug.h" 
+
+ #include "llvm/Transforms/Scalar.h" 
+ #include "llvm/Transforms/Utils/BasicBlockUtils.h" 
+ #include "llvm/Transforms/Utils/Cloning.h" 
+ #include "llvm/Transforms/Utils/LoopUtils.h" 
+ #include "llvm/Transforms/Utils/SimplifyIndVar.h" 
+ #include "llvm/Transforms/Utils/UnrollLoop.h" 
+
+ #include "llvm/Pass.h" 
+
+ #include <array> 
+
+ using namespace llvm ; 
+
+ cl :: opt < unsigned > LoopSizeCutoff ( "irce-loop-size-cutoff" , cl :: Hidden , 
+ cl :: init ( 64 )); 
+
+ cl :: opt < bool > PrintChangedLoops ( "irce-print-changed-loops" , cl :: Hidden , 
+ cl :: init ( false )); 
+
+ #define DEBUG_TYPE "irce" 
+
+ namespace { 
+
+ /// An inductive range check is conditional branch in a loop with 
+ /// 
+ /// 1. a very cold successor (i.e. the branch jumps to that successor very 
+ /// rarely) 
+ /// 
+ /// and 
+ /// 
+ /// 2. a condition that is provably true for some range of values taken by the 
+ /// containing loop's induction variable. 
+ /// 
+ /// Currently all inductive range checks are branches conditional on an 
+ /// expression of the form 
+ /// 
+ /// 0 <= (Offset + Scale * I) < Length 
+ /// 
+ /// where `I' is the canonical induction variable of a loop to which Offset and 
+ /// Scale are loop invariant, and Length is >= 0. Currently the 'false' branch 
+ /// is considered cold, looking at profiling data to verify that is a TODO. 
+
+ class InductiveRangeCheck { 
+ const SCEV * Offset = nullptr ; 
+ const SCEV * Scale = nullptr ; 
+ Value * Length = nullptr ; 
+ BranchInst * Branch = nullptr ; 
+
+ InductiveRangeCheck () {} 
+
+ public : 
+ const SCEV * getOffset () const { return Offset ; } 
+ const SCEV * getScale () const { return Scale ; } 
+ Value * getLength () const { return Length ; } 
+
+ void print ( raw_ostream & OS ) const { 
+ OS << "InductiveRangeCheck: \n " ; 
+ OS << " Offset: " ; 
+ Offset -> print ( OS ); 
+ OS << " Scale: " ; 
+ Scale -> print ( OS ); 
+ OS << " Length: " ; 
+ Length -> print ( OS ); 
+ OS << " Branch: " ; 
+ getBranch () -> print ( OS ); 
+ } 
+
+ #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP) 
+ void dump () { 
+ print ( dbgs ()); 
+ } 
+ #endif 
+
+ BranchInst * getBranch () const { return Branch ; } 
+
+ /// Represents an integer range [Range.first, Range.second). If Range.second 
+ /// < Range.first, then the value denotes the empty range. 
+ typedef std :: pair < Value * , Value *> Range ; 
+ typedef SpecificBumpPtrAllocator < InductiveRangeCheck > AllocatorTy ; 
+
+ /// This is the value the condition of the branch needs to evaluate to for the 
+ /// branch to take the hot successor (see (1) above). 
+ bool getPassingDirection () { return true ; } 
+
+ /// Computes a range for the induction variable in which the range check is 
+ /// redundant and can be constant-folded away. 
+ Optional < Range > computeSafeIterationSpace ( ScalarEvolution & SE , 
+ IRBuilder <> & B ) const ; 
+
+ /// Create an inductive range check out of BI if possible, else return 
+ /// nullptr. 
+ static InductiveRangeCheck * create ( AllocatorTy & Alloc , BranchInst * BI , 
+ Loop * L , ScalarEvolution & SE ); 
+ }; 
+
+ class InductiveRangeCheckElimination : public LoopPass { 
+ InductiveRangeCheck :: AllocatorTy Allocator ; 
+
+ public : 
+ static char ID ; 
+ InductiveRangeCheckElimination () : LoopPass ( ID ) { 
+ initializeInductiveRangeCheckEliminationPass ( 
+ * PassRegistry :: getPassRegistry ()); 
+ } 
+
+ void getAnalysisUsage ( AnalysisUsage & AU ) const override { 
+ AU . addRequired < LoopInfo > (); 
+ AU . addRequiredID ( LoopSimplifyID ); 
+ AU . addRequiredID ( LCSSAID ); 
+ AU . addRequired < ScalarEvolution > (); 
+ } 
+
+ bool runOnLoop ( Loop * L , LPPassManager & LPM ) override ; 
+ }; 
+
+ char InductiveRangeCheckElimination :: ID = 0 ; 
+ } 
+
+ INITIALIZE_PASS ( InductiveRangeCheckElimination , "irce" , 
+ "Inductive range check elimination" , false , false ) 
+
+ static bool IsLowerBoundCheck ( Value * Check , Value *& IndexV ) { 
+ using namespace llvm :: PatternMatch ; 
+
+ ICmpInst :: Predicate Pred = ICmpInst :: BAD_ICMP_PREDICATE ; 
+ Value * LHS = nullptr , * RHS = nullptr ; 
+
+ if ( ! match ( Check , m_ICmp ( Pred , m_Value ( LHS ), m_Value ( RHS )))) 
+ return false ; 
+
+ switch ( Pred ) { 
+ default : 
+ return false ; 
+
+ case ICmpInst :: ICMP_SLE : 
+ std :: swap ( LHS , RHS ); 
+ // fallthrough 
+ case ICmpInst :: ICMP_SGE : 
+ if ( ! match ( RHS , m_ConstantInt < 0 > ())) 
+ return false ; 
+ IndexV = LHS ; 
+ return true ; 
+
+ case ICmpInst :: ICMP_SLT : 
+ std :: swap ( LHS , RHS ); 
+ // fallthrough 
+ case ICmpInst :: ICMP_SGT : 
+ if ( ! match ( RHS , m_ConstantInt < -1 > ())) 
+ return false ; 
+ IndexV = LHS ; 
+ return true ; 
+ } 
+ } 
+
+ static bool IsUpperBoundCheck ( Value * Check , Value * Index , Value *& UpperLimit ) { 
+ using namespace llvm :: PatternMatch ; 
+
+ ICmpInst :: Predicate Pred = ICmpInst :: BAD_ICMP_PREDICATE ; 
+ Value * LHS = nullptr , * RHS = nullptr ; 
+
+ if ( ! match ( Check , m_ICmp ( Pred , m_Value ( LHS ), m_Value ( RHS )))) 
+ return false ; 
+
+ switch ( Pred ) { 
+ default : 
+ return false ; 
+
+ case ICmpInst :: ICMP_SGT : 
+ std :: swap ( LHS , RHS ); 
+ // fallthrough 
+ case ICmpInst :: ICMP_SLT : 
+ if ( LHS != Index ) 
+ return false ; 
+ UpperLimit = RHS ; 
+ return true ; 
+
+ case ICmpInst :: ICMP_UGT : 
+ std :: swap ( LHS , RHS ); 
+ // fallthrough 
+ case ICmpInst :: ICMP_ULT : 
+ if ( LHS != Index ) 
+ return false ; 
+ UpperLimit = RHS ; 
+ return true ; 
+ } 
+ } 
+
+ /// Split a condition into something semantically equivalent to (0 <= I < 
+ /// Limit), both comparisons signed and Len loop invariant on L and positive. 
+ /// On success, return true and set Index to I and UpperLimit to Limit. Return 
+ /// false on failure (we may still write to UpperLimit and Index on failure). 
+ /// It does not try to interpret I as a loop index. 
+ /// 
+ static bool SplitRangeCheckCondition ( Loop * L , ScalarEvolution & SE , 
+ Value * Condition , const SCEV *& Index , 
+ Value *& UpperLimit ) { 
+
+ // TODO: currently this catches some silly cases like comparing "%idx slt 1". 
+ // Our transformations are still correct, but less likely to be profitable in 
+ // those cases. We have to come up with some heuristics that pick out the 
+ // range checks that are more profitable to clone a loop for. This function 
+ // in general can be made more robust. 
+
+ using namespace llvm :: PatternMatch ; 
+
+ Value * A = nullptr ; 
+ Value * B = nullptr ; 
+ ICmpInst :: Predicate Pred = ICmpInst :: BAD_ICMP_PREDICATE ; 
+
+ // In these early checks we assume that the matched UpperLimit is positive. 
+ // We'll verify that fact later, before returning true. 
+
+ if ( match ( Condition , m_And ( m_Value ( A ), m_Value ( B )))) { 
+ Value * IndexV = nullptr ; 
+ Value * ExpectedUpperBoundCheck = nullptr ; 
+
+ if ( IsLowerBoundCheck ( A , IndexV )) 
+ ExpectedUpperBoundCheck = B ; 
+ else if ( IsLowerBoundCheck ( B , IndexV )) 
+ ExpectedUpperBoundCheck = A ; 
+ else 
+ return false ; 
+
+ if ( ! IsUpperBoundCheck ( ExpectedUpperBoundCheck , IndexV , UpperLimit )) 
+ return false ; 
+
+ Index = SE . getSCEV ( IndexV ); 
+
+ if ( isa < SCEVCouldNotCompute > ( Index )) 
+ return false ; 
+
+ } else if ( match ( Condition , m_ICmp ( Pred , m_Value ( A ), m_Value ( B )))) { 
+ switch ( Pred ) { 
+ default : 
+ return false ; 
+
+ case ICmpInst :: ICMP_SGT : 
+ std :: swap ( A , B ); 
+ // fall through 
+ case ICmpInst :: ICMP_SLT : 
+ UpperLimit = B ; 
+ Index = SE . getSCEV ( A ); 
+ if ( isa < SCEVCouldNotCompute > ( Index ) || ! SE . isKnownNonNegative ( Index )) 
+ return false ; 
+ break ; 
+
+ case ICmpInst :: ICMP_UGT : 
+ std :: swap ( A , B ); 
+ // fall through 
+ case ICmpInst :: ICMP_ULT : 
+ UpperLimit = B ; 
+ Index = SE . getSCEV ( A ); 
+ if ( isa < SCEVCouldNotCompute > ( Index )) 
+ return false ; 
+ break ; 
+ } 
+ } else { 
+ return false ; 
+ } 
+
+ const SCEV * UpperLimitSCEV = SE . getSCEV ( UpperLimit ); 
+ if ( isa < SCEVCouldNotCompute > ( UpperLimitSCEV ) || 
+ ! SE . isKnownNonNegative ( UpperLimitSCEV )) 
+ return false ; 
+
+ if ( SE . getLoopDisposition ( UpperLimitSCEV , L ) != 
+ ScalarEvolution :: LoopInvariant ) { 
+ DEBUG ( dbgs () << " in function: " << L -> getHeader () -> getParent () -> getName () 
+ << " " ; 
+ dbgs () << " UpperLimit is not loop invariant: " 
+ << UpperLimit -> getName () << " \n " ;); 
+ return false ; 
+ } 
+
+ return true ; 
+ } 
+
+ InductiveRangeCheck * 
+ InductiveRangeCheck :: create ( InductiveRangeCheck :: AllocatorTy & A , BranchInst * BI , 
+ Loop * L , ScalarEvolution & SE ) { 
+
+ if ( BI -> isUnconditional () || BI -> getParent () == L -> getLoopLatch ()) 
+ return nullptr ; 
+
+ Value * Length = nullptr ; 
+ const SCEV * IndexSCEV = nullptr ; 
+
+ if ( ! SplitRangeCheckCondition ( L , SE , BI -> getCondition (), IndexSCEV , Length )) 
+ return nullptr ; 
+
+ assert ( IndexSCEV && Length && "contract with SplitRangeCheckCondition!" ); 
+
+ const SCEVAddRecExpr * IndexAddRec = dyn_cast < SCEVAddRecExpr > ( IndexSCEV ); 
+ bool IsAffineIndex = 
+ IndexAddRec && ( IndexAddRec -> getLoop () == L ) && IndexAddRec -> isAffine (); 
+
+ if ( ! IsAffineIndex ) 
+ return nullptr ; 
+
+ InductiveRangeCheck * IRC = new ( A . Allocate ()) InductiveRangeCheck ; 
+ IRC -> Length = Length ; 
+ IRC -> Offset = IndexAddRec -> getStart (); 
+ IRC -> Scale = IndexAddRec -> getStepRecurrence ( SE ); 
+ IRC -> Branch = BI ; 
+ return IRC ; 
+ } 
+
+ static Value * MaybeSimplify ( Value * V ) { 
+ if ( Instruction * I = dyn_cast < Instruction > ( V )) 
+ if ( Value * Simplified = SimplifyInstruction ( I )) 
+ return Simplified ; 
+ return V ; 
+ } 
+
+ static Value * ConstructSMinOf ( Value * X , Value * Y , IRBuilder <> & B ) { 
+ return MaybeSimplify ( B . CreateSelect ( B . CreateICmpSLT ( X , Y ), X , Y )); 
+ }; 
+
+ static Value * ConstructSMaxOf ( Value * X , Value * Y , IRBuilder <> & B ) { 
+ return MaybeSimplify ( B . CreateSelect ( B . CreateICmpSGT ( X , Y ), X , Y )); 
+ }; 
+
+ namespace { 
+
+ /// This class is used to constrain loops to run within a given iteration space. 
+ /// The algorithm this class implements is given a Loop and a range [Begin, 
+ /// End). The algorithm then tries to break out a "main loop" out of the loop 
+ /// it is given in a way that the "main loop" runs with the induction variable 
+ /// in a subset of [Begin, End). The algorithm emits appropriate pre and post 
+ /// loops to run any remaining iterations. The pre loop runs any iterations in 
+ /// which the induction variable is < Begin, and the post loop runs any 
+ /// iterations in which the induction variable is >= End. 
+ /// 
+ class LoopConstrainer { 
+
+ // Keeps track of the structure of a loop. This is similar to llvm::Loop, 
+ // except that it is more lightweight and can track the state of a loop 
+ // through changing and potentially invalid IR. This structure also 
+ // formalizes the kinds of loops we can deal with -- ones that have a single 
+ // latch that is also an exiting block *and* have a canonical induction 
+ // variable. 
+ struct LoopStructure { 
+ const char * Tag = "" ; 
+
+ BasicBlock * Header = nullptr ; 
+ BasicBlock * Latch = nullptr ; 
+
+ // `Latch's terminator instruction is `LatchBr', and it's `LatchBrExitIdx'th 
+ // successor is `LatchExit', the exit block of the loop. 
+ BranchInst * LatchBr = nullptr ; 
+ BasicBlock * LatchExit = nullptr ; 
+ unsigned LatchBrExitIdx = -1 ; 
+
+ // The canonical induction variable. It's value is `CIVStart` on the 0th 
+ // itertion and `CIVNext` for all iterations after that. 
+ PHINode * CIV = nullptr ; 
+ Value * CIVStart = nullptr ; 
+ Value * CIVNext = nullptr ; 
+
+ template < typename M > LoopStructure map ( M Map ) const { 
+ LoopStructure Result ; 
+ Result . Tag = Tag ; 
+ Result . Header = cast < BasicBlock > ( Map ( Header )); 
+ Result . Latch = cast < BasicBlock > ( Map ( Latch )); 
+ Result . LatchBr = cast < BranchInst > ( Map ( LatchBr )); 
+ Result . LatchExit = cast < BasicBlock > ( Map ( LatchExit )); 
+ Result . LatchBrExitIdx = LatchBrExitIdx ; 
+ Result . CIV = cast < PHINode > ( Map ( CIV )); 
+ Result . CIVNext = Map ( CIVNext ); 
+ Result . CIVStart = Map ( CIVStart ); 
+ return Result ; 
+ } 
+ }; 
+
+ // The representation of a clone of the original loop we started out with. 
+ struct ClonedLoop { 
+ // The cloned blocks 
+ std :: vector < BasicBlock *> Blocks ; 
+
+ // `Map` maps values in the clonee into values in the cloned version 
+ ValueToValueMapTy Map ; 
+
+ // An instance of `LoopStructure` for the cloned loop 
+ LoopStructure Structure ; 
+ }; 
+
+ // Result of rewriting the range of a loop. See changeIterationSpaceEnd for 
+ // more details on what these fields mean. 
+ struct RewrittenRangeInfo { 
+ BasicBlock * PseudoExit = nullptr ; 
+ BasicBlock * ExitSelector = nullptr ; 
+ std :: vector < PHINode *> PHIValuesAtPseudoExit ; 
+ }; 
+
+ // Calculated subranges we restrict the iteration space of the main loop to. 
+ // See the implementation of `calculateSubRanges' for more details on how 
+ // these fields are computed. `ExitPreLoopAt' is `None' if we don't need a 
+ // pre loop. `ExitMainLoopAt' is `None' if we don't need a post loop. 
+ struct SubRanges { 
+ Optional < Value *> ExitPreLoopAt ; 
+ Optional < Value *> ExitMainLoopAt ; 
+ }; 
+
+ // Some global state. 
+ Function * F = nullptr ; 
+ LLVMContext & Ctx ; 
+ ScalarEvolution & SE ; 
+
+ // Information about the original loop we started out with. 
+ Loop * OriginalLoop = nullptr ; 
+ LoopInfo * OriginalLoopInfo = nullptr ; 
+ const SCEV * LatchTakenCount = nullptr ; 
+ BasicBlock * OriginalPreheader = nullptr ; 
+ Value * OriginalHeaderCount = nullptr ; 
+
+ // The range we need to run the main loop in. 
+ InductiveRangeCheck :: Range Range ; 
+
+ // The structure of the main loop (see comment at the beginning of this class 
+ // for a definition) 
+ LoopStructure MainLoopStructure ; 
+
+ // The preheader of the main loop. This may or may not be different from 
+ // `OriginalPreheader'. 
+ BasicBlock * MainLoopPreheader = nullptr ; 
+
+ // A utility function that does a `replaceUsesOfWith' on the incoming block 
+ // set of a `PHINode' -- replaces instances of `Block' in the `PHINode's 
+ // incoming block list with `ReplaceBy'. 
+ static void replacePHIBlock ( PHINode * PN , BasicBlock * Block , 
+ BasicBlock * ReplaceBy ); 
+
+ // Try to "parse" `OriginalLoop' and populate the various out parameters. 
+ // Returns true on success, false on failure. 
+ // 
+ bool recognizeLoop ( LoopStructure & LoopStructureOut , 
+ const SCEV *& LatchCountOut , BasicBlock *& PreHeaderOut , 
+ const char *& FailureReasonOut ) const ; 
+
+ // Compute a safe set of limits for the main loop to run in -- effectively the 
+ // intersection of `Range' and the iteration space of the original loop. 
+ // Return the header count (1 + the latch taken count) in `HeaderCount'. 
+ // 
+ SubRanges calculateSubRanges ( Value *& HeaderCount ) const ; 
+
+ // Clone `OriginalLoop' and return the result in CLResult. The IR after 
+ // running `cloneLoop' is well formed except for the PHI nodes in CLResult -- 
+ // the PHI nodes say that there is an incoming edge from `OriginalPreheader` 
+ // but there is no such edge. 
+ // 
+ void cloneLoop ( ClonedLoop & CLResult , const char * Tag ) const ; 
+
+ // Rewrite the iteration space of the loop denoted by (LS, Preheader). The 
+ // iteration space of the rewritten loop ends at ExitLoopAt. The start of the 
+ // iteration space is not changed. `ExitLoopAt' is assumed to be slt 
+ // `OriginalHeaderCount'. 
+ // 
+ // If there are iterations left to execute, control is made to jump to 
+ // `ContinuationBlock', otherwise they take the normal loop exit. The 
+ // returned `RewrittenRangeInfo' object is populated as follows: 
+ // 
+ // .PseudoExit is a basic block that unconditionally branches to 
+ // `ContinuationBlock'. 
+ // 
+ // .ExitSelector is a basic block that decides, on exit from the loop, 
+ // whether to branch to the "true" exit or to `PseudoExit'. 
+ // 
+ // .PHIValuesAtPseudoExit are PHINodes in `PseudoExit' that compute the value 
+ // for each PHINode in the loop header on taking the pseudo exit. 
+ // 
+ // After changeIterationSpaceEnd, `Preheader' is no longer a legitimate 
+ // preheader because it is made to branch to the loop header only 
+ // conditionally. 
+ // 
+ RewrittenRangeInfo 
+ changeIterationSpaceEnd ( const LoopStructure & LS , BasicBlock * Preheader , 
+ Value * ExitLoopAt , 
+ BasicBlock * ContinuationBlock ) const ; 
+
+ // The loop denoted by `LS' has `OldPreheader' as its preheader. This 
+ // function creates a new preheader for `LS' and returns it. 
+ // 
+ BasicBlock * createPreheader ( const LoopConstrainer :: LoopStructure & LS , 
+ BasicBlock * OldPreheader , const char * Tag ) const ; 
+
+ // `ContinuationBlockAndPreheader' was the continuation block for some call to 
+ // `changeIterationSpaceEnd' and is the preheader to the loop denoted by `LS'. 
+ // This function rewrites the PHI nodes in `LS.Header' to start with the 
+ // correct value. 
+ void rewriteIncomingValuesForPHIs ( 
+ LoopConstrainer :: LoopStructure & LS , 
+ BasicBlock * ContinuationBlockAndPreheader , 
+ const LoopConstrainer :: RewrittenRangeInfo & RRI ) const ; 
+
+ // Even though we do not preserve any passes at this time, we at least need to 
+ // keep the parent loop structure consistent. The `LPPassManager' seems to 
+ // verify this after running a loop pass. This function adds the list of 
+ // blocks denoted by the iterator range [BlocksBegin, BlocksEnd) to this loops 
+ // parent loop if required. 
+ template < typename IteratorTy > 
+ void addToParentLoopIfNeeded ( IteratorTy BlocksBegin , IteratorTy BlocksEnd ); 
+
+ public : 
+ LoopConstrainer ( Loop * L , LoopInfo * LI , ScalarEvolution & SE , 
+ InductiveRangeCheck :: Range R ) 
+ : F ( L -> getHeader () -> getParent ()), Ctx ( F -> getContext ()), SE ( SE ), 
+ OriginalLoop ( L ), OriginalLoopInfo ( LI ), Range ( R ) {} 
+
+ // Entry point for the algorithm. Returns true on success. 
+ bool run (); 
+ }; 
+ }; 
+
+ void LoopConstrainer::replacePHIBlock ( PHINode * PN , BasicBlock * Block , 
+ BasicBlock * ReplaceBy ) { 
+ for ( unsigned i = 0 , e = PN -> getNumIncomingValues (); i != e ; ++ i ) 
+ if ( PN -> getIncomingBlock ( i ) == Block ) 
+ PN -> setIncomingBlock ( i , ReplaceBy ); 
+ } 
+
+ bool LoopConstrainer::recognizeLoop ( LoopStructure & LoopStructureOut , 
+ const SCEV *& LatchCountOut , 
+ BasicBlock *& PreheaderOut , 
+ const char *& FailureReason ) const { 
+ using namespace llvm :: PatternMatch ; 
+
+ assert ( OriginalLoop -> isLoopSimplifyForm () && 
+ "should follow from addRequired<>" ); 
+
+ BasicBlock * Latch = OriginalLoop -> getLoopLatch (); 
+ if ( ! OriginalLoop -> isLoopExiting ( Latch )) { 
+ FailureReason = "no loop latch" ; 
+ return false ; 
+ } 
+
+ PHINode * CIV = OriginalLoop -> getCanonicalInductionVariable (); 
+ if ( ! CIV ) { 
+ FailureReason = "no CIV" ; 
+ return false ; 
+ } 
+
+ BasicBlock * Header = OriginalLoop -> getHeader (); 
+ BasicBlock * Preheader = OriginalLoop -> getLoopPreheader (); 
+ if ( ! Preheader ) { 
+ FailureReason = "no preheader" ; 
+ return false ; 
+ } 
+
+ Value * CIVNext = CIV -> getIncomingValueForBlock ( Latch ); 
+ Value * CIVStart = CIV -> getIncomingValueForBlock ( Preheader ); 
+
+ const SCEV * LatchCount = SE . getExitCount ( OriginalLoop , Latch ); 
+ if ( isa < SCEVCouldNotCompute > ( LatchCount )) { 
+ FailureReason = "could not compute latch count" ; 
+ return false ; 
+ } 
+
+ // While SCEV does most of the analysis for us, we still have to 
+ // modify the latch; and currently we can only deal with certain 
+ // kinds of latches. This can be made more sophisticated as needed. 
+
+ BranchInst * LatchBr = dyn_cast < BranchInst > ( &* Latch -> rbegin ()); 
+
+ if ( ! LatchBr || LatchBr -> isUnconditional ()) { 
+ FailureReason = "latch terminator not conditional branch" ; 
+ return false ; 
+ } 
+
+ // Currently we only support a latch condition of the form: 
+ // 
+ // %condition = icmp slt %civNext, %limit 
+ // br i1 %condition, label %header, label %exit 
+
+ if ( LatchBr -> getSuccessor ( 0 ) != Header ) { 
+ FailureReason = "unknown latch form (header not first successor)" ; 
+ return false ; 
+ } 
+
+ Value * CIVComparedTo = nullptr ; 
+ ICmpInst :: Predicate Pred = ICmpInst :: BAD_ICMP_PREDICATE ; 
+ if ( ! ( match ( LatchBr -> getCondition (), 
+ m_ICmp ( Pred , m_Specific ( CIVNext ), m_Value ( CIVComparedTo ))) && 
+ Pred == ICmpInst :: ICMP_SLT )) { 
+ FailureReason = "unknown latch form (not slt)" ; 
+ return false ; 
+ } 
+
+ const SCEV * CIVComparedToSCEV = SE . getSCEV ( CIVComparedTo ); 
+ if ( isa < SCEVCouldNotCompute > ( CIVComparedToSCEV )) { 
+ FailureReason = "could not relate CIV to latch expression" ; 
+ return false ; 
+ } 
+
+ const SCEV * ShouldBeOne = SE . getMinusSCEV ( CIVComparedToSCEV , LatchCount ); 
+ const SCEVConstant * SCEVOne = dyn_cast < SCEVConstant > ( ShouldBeOne ); 
+ if ( ! SCEVOne || SCEVOne -> getValue () -> getValue () != 1 ) { 
+ FailureReason = "unexpected header count in latch" ; 
+ return false ; 
+ } 
+
+ unsigned LatchBrExitIdx = 1 ; 
+ BasicBlock * LatchExit = LatchBr -> getSuccessor ( LatchBrExitIdx ); 
+
+ assert ( SE . getLoopDisposition ( LatchCount , OriginalLoop ) == 
+ ScalarEvolution :: LoopInvariant && 
+ "loop variant exit count doesn't make sense!" ); 
+
+ assert ( ! OriginalLoop -> contains ( LatchExit ) && "expected an exit block!" ); 
+
+ LoopStructureOut . Tag = "main" ; 
+ LoopStructureOut . Header = Header ; 
+ LoopStructureOut . Latch = Latch ; 
+ LoopStructureOut . LatchBr = LatchBr ; 
+ LoopStructureOut . LatchExit = LatchExit ; 
+ LoopStructureOut . LatchBrExitIdx = LatchBrExitIdx ; 
+ LoopStructureOut . CIV = CIV ; 
+ LoopStructureOut . CIVNext = CIVNext ; 
+ LoopStructureOut . CIVStart = CIVStart ; 
+
+ LatchCountOut = LatchCount ; 
+ PreheaderOut = Preheader ; 
+ FailureReason = nullptr ; 
+
+ return true ; 
+ } 
+
+ LoopConstrainer :: SubRanges 
+ LoopConstrainer :: calculateSubRanges ( Value *& HeaderCountOut ) const { 
+ IntegerType * Ty = cast < IntegerType > ( LatchTakenCount -> getType ()); 
+
+ SCEVExpander Expander ( SE , "irce" ); 
+ Instruction * InsertPt = OriginalPreheader -> getTerminator (); 
+
+ Value * LatchCountV = 
+ MaybeSimplify ( Expander . expandCodeFor ( LatchTakenCount , Ty , InsertPt )); 
+
+ IRBuilder <> B ( InsertPt ); 
+
+ LoopConstrainer :: SubRanges Result ; 
+
+ // I think we can be more aggressive here and make this nuw / nsw if the 
+ // addition that feeds into the icmp for the latch's terminating branch is nuw 
+ // / nsw. In any case, a wrapping 2's complement addition is safe. 
+ ConstantInt * One = ConstantInt :: get ( Ty , 1 ); 
+ HeaderCountOut = MaybeSimplify ( B . CreateAdd ( LatchCountV , One , "header.count" )); 
+
+ const SCEV * RangeBegin = SE . getSCEV ( Range . first ); 
+ const SCEV * RangeEnd = SE . getSCEV ( Range . second ); 
+ const SCEV * HeaderCountSCEV = SE . getSCEV ( HeaderCountOut ); 
+ const SCEV * Zero = SE . getConstant ( Ty , 0 ); 
+
+ // In some cases we can prove that we don't need a pre or post loop 
+
+ bool ProvablyNoPreloop = 
+ SE . isKnownPredicate ( ICmpInst :: ICMP_SLE , RangeBegin , Zero ); 
+ if ( ! ProvablyNoPreloop ) 
+ Result . ExitPreLoopAt = ConstructSMinOf ( HeaderCountOut , Range . first , B ); 
+
+ bool ProvablyNoPostLoop = 
+ SE . isKnownPredicate ( ICmpInst :: ICMP_SLE , HeaderCountSCEV , RangeEnd ); 
+ if ( ! ProvablyNoPostLoop ) 
+ Result . ExitMainLoopAt = ConstructSMinOf ( HeaderCountOut , Range . second , B ); 
+
+ return Result ; 
+ } 
+
+ void LoopConstrainer :: cloneLoop ( LoopConstrainer :: ClonedLoop & Result , 
+ const char * Tag ) const { 
+ for ( BasicBlock * BB : OriginalLoop -> getBlocks ()) { 
+ BasicBlock * Clone = CloneBasicBlock ( BB , Result . Map , Twine ( "." ) + Tag , F ); 
+ Result . Blocks . push_back ( Clone ); 
+ Result . Map [ BB ] = Clone ; 
+ } 
+
+ auto GetClonedValue = [ & Result ]( Value * V ) { 
+ assert ( V && "null values not in domain!" ); 
+ auto It = Result . Map . find ( V ); 
+ if ( It == Result . Map . end ()) 
+ return V ; 
+ return static_cast < Value *> ( It -> second ); 
+ }; 
+
+ Result . Structure = MainLoopStructure . map ( GetClonedValue ); 
+ Result . Structure . Tag = Tag ; 
+
+ for ( unsigned i = 0 , e = Result . Blocks . size (); i != e ; ++ i ) { 
+ BasicBlock * ClonedBB = Result . Blocks [ i ]; 
+ BasicBlock * OriginalBB = OriginalLoop -> getBlocks ()[ i ]; 
+
+ assert ( Result . Map [ OriginalBB ] == ClonedBB && "invariant!" ); 
+
+ for ( Instruction & I : * ClonedBB ) 
+ RemapInstruction ( & I , Result . Map , 
+ RF_NoModuleLevelChanges | RF_IgnoreMissingEntries ); 
+
+ // Exit blocks will now have one more predecessor and their PHI nodes need 
+ // to be edited to reflect that. No phi nodes need to be introduced because 
+ // the loop is in LCSSA. 
+
+ for ( auto SBBI = succ_begin ( OriginalBB ), SBBE = succ_end ( OriginalBB ); 
+ SBBI != SBBE ; ++ SBBI ) { 
+
+ if ( OriginalLoop -> contains ( * SBBI )) 
+ continue ; // not an exit block 
+
+ for ( Instruction & I : ** SBBI ) { 
+ if ( ! isa < PHINode > ( & I )) 
+ break ; 
+
+ PHINode * PN = cast < PHINode > ( & I ); 
+ Value * OldIncoming = PN -> getIncomingValueForBlock ( OriginalBB ); 
+ PN -> addIncoming ( GetClonedValue ( OldIncoming ), ClonedBB ); 
+ } 
+ } 
+ } 
+ } 
+
+ LoopConstrainer :: RewrittenRangeInfo LoopConstrainer :: changeIterationSpaceEnd ( 
+ const LoopStructure & LS , BasicBlock * Preheader , Value * ExitLoopAt , 
+ BasicBlock * ContinuationBlock ) const { 
+
+ // We start with a loop with a single latch: 
+ // 
+ // +--------------------+ 
+ // | | 
+ // | preheader | 
+ // | | 
+ // +--------+-----------+ 
+ // | ----------------\ 
+ // | / | 
+ // +--------v----v------+ | 
+ // | | | 
+ // | header | | 
+ // | | | 
+ // +--------------------+ | 
+ // | 
+ // ..... | 
+ // | 
+ // +--------------------+ | 
+ // | | | 
+ // | latch >----------/ 
+ // | | 
+ // +-------v------------+ 
+ // | 
+ // | 
+ // | +--------------------+ 
+ // | | | 
+ // +---> original exit | 
+ // | | 
+ // +--------------------+ 
+ // 
+ // We change the control flow to look like 
+ // 
+ // 
+ // +--------------------+ 
+ // | | 
+ // | preheader >-------------------------+ 
+ // | | | 
+ // +--------v-----------+ | 
+ // | /-------------+ | 
+ // | / | | 
+ // +--------v--v--------+ | | 
+ // | | | | 
+ // | header | | +--------+ | 
+ // | | | | | | 
+ // +--------------------+ | | +-----v-----v-----------+ 
+ // | | | | 
+ // | | | .pseudo.exit | 
+ // | | | | 
+ // | | +-----------v-----------+ 
+ // | | | 
+ // ..... | | | 
+ // | | +--------v-------------+ 
+ // +--------------------+ | | | | 
+ // | | | | | ContinuationBlock | 
+ // | latch >------+ | | | 
+ // | | | +----------------------+ 
+ // +---------v----------+ | 
+ // | | 
+ // | | 
+ // | +---------------^-----+ 
+ // | | | 
+ // +-----> .exit.selector | 
+ // | | 
+ // +----------v----------+ 
+ // | 
+ // +--------------------+ | 
+ // | | | 
+ // | original exit <----+ 
+ // | | 
+ // +--------------------+ 
+ // 
+
+ RewrittenRangeInfo RRI ; 
+
+ auto BBInsertLocation = std :: next ( Function :: iterator ( LS . Latch )); 
+ RRI . ExitSelector = BasicBlock :: Create ( Ctx , Twine ( LS . Tag ) + ".exit.selector" , 
+ F , BBInsertLocation ); 
+ RRI . PseudoExit = BasicBlock :: Create ( Ctx , Twine ( LS . Tag ) + ".pseudo.exit" , F , 
+ BBInsertLocation ); 
+
+ BranchInst * PreheaderJump = cast < BranchInst > ( &* Preheader -> rbegin ()); 
+
+ IRBuilder <> B ( PreheaderJump ); 
+
+ // EnterLoopCond - is it okay to start executing this `LS'? 
+ Value * EnterLoopCond = B . CreateICmpSLT ( LS . CIVStart , ExitLoopAt ); 
+ B . CreateCondBr ( EnterLoopCond , LS . Header , RRI . PseudoExit ); 
+ PreheaderJump -> eraseFromParent (); 
+
+ assert ( LS . LatchBrExitIdx == 1 && "generalize this as needed!" ); 
+
+ B . SetInsertPoint ( LS . LatchBr ); 
+
+ // ContinueCond - is it okay to execute the next iteration in `LS'? 
+ Value * ContinueCond = B . CreateICmpSLT ( LS . CIVNext , ExitLoopAt ); 
+
+ LS . LatchBr -> setCondition ( ContinueCond ); 
+ assert ( LS . LatchBr -> getSuccessor ( LS . LatchBrExitIdx ) == LS . LatchExit && 
+ "invariant!" ); 
+ LS . LatchBr -> setSuccessor ( LS . LatchBrExitIdx , RRI . ExitSelector ); 
+
+ B . SetInsertPoint ( RRI . ExitSelector ); 
+
+ // IterationsLeft - are there any more iterations left, given the original 
+ // upper bound on the induction variable? If not, we branch to the "real" 
+ // exit. 
+ Value * IterationsLeft = B . CreateICmpSLT ( LS . CIVNext , OriginalHeaderCount ); 
+ B . CreateCondBr ( IterationsLeft , RRI . PseudoExit , LS . LatchExit ); 
+
+ BranchInst * BranchToContinuation = 
+ BranchInst :: Create ( ContinuationBlock , RRI . PseudoExit ); 
+
+ // We emit PHI nodes into `RRI.PseudoExit' that compute the "latest" value of 
+ // each of the PHI nodes in the loop header. This feeds into the initial 
+ // value of the same PHI nodes if/when we continue execution. 
+ for ( Instruction & I : * LS . Header ) { 
+ if ( ! isa < PHINode > ( & I )) 
+ break ; 
+
+ PHINode * PN = cast < PHINode > ( & I ); 
+
+ PHINode * NewPHI = PHINode :: Create ( PN -> getType (), 2 , PN -> getName () + ".copy" , 
+ BranchToContinuation ); 
+
+ NewPHI -> addIncoming ( PN -> getIncomingValueForBlock ( Preheader ), Preheader ); 
+ NewPHI -> addIncoming ( PN -> getIncomingValueForBlock ( LS . Latch ), 
+ RRI . ExitSelector ); 
+ RRI . PHIValuesAtPseudoExit . push_back ( NewPHI ); 
+ } 
+
+ // The latch exit now has a branch from `RRI.ExitSelector' instead of 
+ // `LS.Latch'. The PHI nodes need to be updated to reflect that. 
+ for ( Instruction & I : * LS . LatchExit ) { 
+ if ( PHINode * PN = dyn_cast < PHINode > ( & I )) 
+ replacePHIBlock ( PN , LS . Latch , RRI . ExitSelector ); 
+ else 
+ break ; 
+ } 
+
+ return RRI ; 
+ } 
+
+ void LoopConstrainer :: rewriteIncomingValuesForPHIs ( 
+ LoopConstrainer :: LoopStructure & LS , BasicBlock * ContinuationBlock , 
+ const LoopConstrainer :: RewrittenRangeInfo & RRI ) const { 
+
+ unsigned PHIIndex = 0 ; 
+ for ( Instruction & I : * LS . Header ) { 
+ if ( ! isa < PHINode > ( & I )) 
+ break ; 
+
+ PHINode * PN = cast < PHINode > ( & I ); 
+
+ for ( unsigned i = 0 , e = PN -> getNumIncomingValues (); i < e ; ++ i ) 
+ if ( PN -> getIncomingBlock ( i ) == ContinuationBlock ) 
+ PN -> setIncomingValue ( i , RRI . PHIValuesAtPseudoExit [ PHIIndex ++ ]); 
+ } 
+
+ LS . CIVStart = LS . CIV -> getIncomingValueForBlock ( ContinuationBlock ); 
+ } 
+
+ BasicBlock * 
+ LoopConstrainer :: createPreheader ( const LoopConstrainer :: LoopStructure & LS , 
+ BasicBlock * OldPreheader , 
+ const char * Tag ) const { 
+
+ BasicBlock * Preheader = BasicBlock :: Create ( Ctx , Tag , F , LS . Header ); 
+ BranchInst :: Create ( LS . Header , Preheader ); 
+
+ for ( Instruction & I : * LS . Header ) { 
+ if ( ! isa < PHINode > ( & I )) 
+ break ; 
+
+ PHINode * PN = cast < PHINode > ( & I ); 
+ for ( unsigned i = 0 , e = PN -> getNumIncomingValues (); i < e ; ++ i ) 
+ replacePHIBlock ( PN , OldPreheader , Preheader ); 
+ } 
+
+ return Preheader ; 
+ } 
+
+ template < typename IteratorTy > 
+ void LoopConstrainer :: addToParentLoopIfNeeded ( IteratorTy Begin , 
+ IteratorTy End ) { 
+ Loop * ParentLoop = OriginalLoop -> getParentLoop (); 
+ if ( ! ParentLoop ) 
+ return ; 
+
+ auto & LoopInfoBase = OriginalLoopInfo -> getBase (); 
+ for (; Begin != End ; Begin ++ ) 
+ ParentLoop -> addBasicBlockToLoop ( * Begin , LoopInfoBase ); 
+ } 
+
+ bool LoopConstrainer :: run () { 
+ BasicBlock * Preheader = nullptr ; 
+ const char * CouldNotProceedBecause = nullptr ; 
+ if ( ! recognizeLoop ( MainLoopStructure , LatchTakenCount , Preheader , 
+ CouldNotProceedBecause )) { 
+ DEBUG ( dbgs () << "irce: could not recognize loop, " << CouldNotProceedBecause 
+ << " \n " ;); 
+ return false ; 
+ } 
+
+ OriginalPreheader = Preheader ; 
+ MainLoopPreheader = Preheader ; 
+
+ SubRanges SR = calculateSubRanges ( OriginalHeaderCount ); 
+
+ // It would have been better to make `PreLoop' and `PostLoop' 
+ // `Optional<ClonedLoop>'s, but `ValueToValueMapTy' does not have a copy 
+ // constructor. 
+ ClonedLoop PreLoop , PostLoop ; 
+ bool NeedsPreLoop = SR . ExitPreLoopAt . hasValue (); 
+ bool NeedsPostLoop = SR . ExitMainLoopAt . hasValue (); 
+
+ // We clone these ahead of time so that we don't have to deal with changing 
+ // and temporarily invalid IR as we transform the loops. 
+ if ( NeedsPreLoop ) 
+ cloneLoop ( PreLoop , "preloop" ); 
+ if ( NeedsPostLoop ) 
+ cloneLoop ( PostLoop , "postloop" ); 
+
+ RewrittenRangeInfo PreLoopRRI ; 
+
+ if ( NeedsPreLoop ) { 
+ Preheader -> getTerminator () -> replaceUsesOfWith ( MainLoopStructure . Header , 
+ PreLoop . Structure . Header ); 
+
+ MainLoopPreheader = 
+ createPreheader ( MainLoopStructure , Preheader , "mainloop" ); 
+ PreLoopRRI = 
+ changeIterationSpaceEnd ( PreLoop . Structure , Preheader , 
+ SR . ExitPreLoopAt . getValue (), MainLoopPreheader ); 
+ rewriteIncomingValuesForPHIs ( MainLoopStructure , MainLoopPreheader , 
+ PreLoopRRI ); 
+ } 
+
+ BasicBlock * PostLoopPreheader = nullptr ; 
+ RewrittenRangeInfo PostLoopRRI ; 
+
+ if ( NeedsPostLoop ) { 
+ PostLoopPreheader = 
+ createPreheader ( PostLoop . Structure , Preheader , "postloop" ); 
+ PostLoopRRI = changeIterationSpaceEnd ( MainLoopStructure , MainLoopPreheader , 
+ SR . ExitMainLoopAt . getValue (), 
+ PostLoopPreheader ); 
+ rewriteIncomingValuesForPHIs ( PostLoop . Structure , PostLoopPreheader , 
+ PostLoopRRI ); 
+ } 
+
+ std :: array < BasicBlock * , 6 > NewBlocks { { PostLoopPreheader , 
+ PreLoopRRI . PseudoExit , PreLoopRRI . ExitSelector , PostLoopRRI . PseudoExit , 
+ PostLoopRRI . ExitSelector , 
+ MainLoopPreheader == Preheader ? nullptr : MainLoopPreheader } }; 
+ // Some of the above may be nullptr, filter them out before passing to 
+ // addToParentLoopIfNeeded. 
+ auto NewBlocksEnd = std :: remove ( NewBlocks . begin (), NewBlocks . end (), nullptr ); 
+
+ addToParentLoopIfNeeded ( NewBlocks . begin (), NewBlocksEnd ); 
+ addToParentLoopIfNeeded ( PreLoop . Blocks . begin (), PreLoop . Blocks . end ()); 
+ addToParentLoopIfNeeded ( PostLoop . Blocks . begin (), PostLoop . Blocks . end ()); 
+
+ return true ; 
+ } 
+
+ /// Computes and returns a range of values for the induction variable in which 
+ /// the range check can be safely elided. If it cannot compute such a range, 
+ /// returns None. 
+ Optional < InductiveRangeCheck :: Range > 
+ InductiveRangeCheck :: computeSafeIterationSpace ( ScalarEvolution & SE , 
+ IRBuilder <> & B ) const { 
+
+ // Currently we support inequalities of the form: 
+ // 
+ // 0 <= Offset + 1 * CIV < L given L >= 0 
+ // 
+ // The inequality is satisfied by -Offset <= CIV < (L - Offset) [^1]. All 
+ // additions and subtractions are twos-complement wrapping and comparisons are 
+ // signed. 
+ // 
+ // Proof: 
+ // 
+ // If there exists CIV such that -Offset <= CIV < (L - Offset) then it 
+ // follows that -Offset <= (-Offset + L) [== Eq. 1]. Since L >= 0, if 
+ // (-Offset + L) sign-overflows then (-Offset + L) < (-Offset). Hence by 
+ // [Eq. 1], (-Offset + L) could not have overflown. 
+ // 
+ // This means CIV = t + (-Offset) for t in [0, L). Hence (CIV + Offset) = 
+ // t. Hence 0 <= (CIV + Offset) < L 
+
+ // [^1]: Note that the solution does _not_ apply if L < 0; consider values 
+ // Offset = 127, CIV = 126 and L = -2 in an i8 world. 
+
+ const SCEVConstant * ScaleC = dyn_cast < SCEVConstant > ( getScale ()); 
+ if ( ! ( ScaleC && ScaleC -> getValue () -> getValue () == 1 )) { 
+ DEBUG ( dbgs () << "irce: could not compute safe iteration space for: \n " ; 
+ print ( dbgs ())); 
+ return None ; 
+ } 
+
+ Value * OffsetV = SCEVExpander ( SE , "safe.itr.space" ). expandCodeFor ( 
+ getOffset (), getOffset () -> getType (), B . GetInsertPoint ()); 
+ OffsetV = MaybeSimplify ( OffsetV ); 
+
+ Value * Begin = MaybeSimplify ( B . CreateNeg ( OffsetV )); 
+ Value * End = MaybeSimplify ( B . CreateSub ( getLength (), OffsetV )); 
+
+ return std :: make_pair ( Begin , End ); 
+ } 
+
+ static InductiveRangeCheck :: Range 
+ IntersectRange ( const Optional < InductiveRangeCheck :: Range > & R1 , 
+ const InductiveRangeCheck :: Range & R2 , IRBuilder <> & B ) { 
+ if ( ! R1 . hasValue ()) 
+ return R2 ; 
+ auto & R1Value = R1 . getValue (); 
+
+ Value * NewMin = ConstructSMaxOf ( R1Value . first , R2 . first , B ); 
+ Value * NewMax = ConstructSMinOf ( R1Value . second , R2 . second , B ); 
+ return std :: make_pair ( NewMin , NewMax ); 
+ } 
+
+ bool InductiveRangeCheckElimination :: runOnLoop ( Loop * L , LPPassManager & LPM ) { 
+ if ( L -> getBlocks (). size () >= LoopSizeCutoff ) { 
+ DEBUG ( dbgs () << "irce: giving up constraining loop, too large \n " ;); 
+ return false ; 
+ } 
+
+ BasicBlock * Preheader = L -> getLoopPreheader (); 
+ if ( ! Preheader ) { 
+ DEBUG ( dbgs () << "irce: loop has no preheader, leaving \n " ); 
+ return false ; 
+ } 
+
+ LLVMContext & Context = Preheader -> getContext (); 
+ InductiveRangeCheck :: AllocatorTy IRCAlloc ; 
+ SmallVector < InductiveRangeCheck * , 16 > RangeChecks ; 
+ ScalarEvolution & SE = getAnalysis < ScalarEvolution > (); 
+
+ for ( auto BBI : L -> getBlocks ()) 
+ if ( BranchInst * TBI = dyn_cast < BranchInst > ( BBI -> getTerminator ())) 
+ if ( InductiveRangeCheck * IRC = 
+ InductiveRangeCheck :: create ( IRCAlloc , TBI , L , SE )) 
+ RangeChecks . push_back ( IRC ); 
+
+ if ( RangeChecks . empty ()) 
+ return false ; 
+
+ DEBUG ( dbgs () << "irce: looking at loop " ; L -> print ( dbgs ()); 
+ dbgs () << "irce: loop has " << RangeChecks . size () 
+ << " inductive range checks: \n " ; 
+ for ( InductiveRangeCheck * IRC : RangeChecks ) 
+ IRC -> print ( dbgs ()); 
+ ); 
+
+ Optional < InductiveRangeCheck :: Range > SafeIterRange ; 
+ Instruction * ExprInsertPt = Preheader -> getTerminator (); 
+
+ SmallVector < InductiveRangeCheck * , 4 > RangeChecksToEliminate ; 
+
+ IRBuilder <> B ( ExprInsertPt ); 
+ for ( InductiveRangeCheck * IRC : RangeChecks ) { 
+ auto Result = IRC -> computeSafeIterationSpace ( SE , B ); 
+ if ( Result . hasValue ()) { 
+ SafeIterRange = IntersectRange ( SafeIterRange , Result . getValue (), B ); 
+ RangeChecksToEliminate . push_back ( IRC ); 
+ } 
+ } 
+
+ if ( ! SafeIterRange . hasValue ()) 
+ return false ; 
+
+ LoopConstrainer LC ( L , & getAnalysis < LoopInfo > (), SE , SafeIterRange . getValue ()); 
+ bool Changed = LC . run (); 
+
+ if ( Changed ) { 
+ auto PrintConstrainedLoopInfo = [ L ]() { 
+ dbgs () << "irce: in function " ; 
+ dbgs () << L -> getHeader () -> getParent () -> getName () << ": " ; 
+ dbgs () << "constrained " ; 
+ L -> print ( dbgs ()); 
+ }; 
+
+ DEBUG ( PrintConstrainedLoopInfo ()); 
+
+ if ( PrintChangedLoops ) 
+ PrintConstrainedLoopInfo (); 
+
+ // Optimize away the now-redundant range checks. 
+
+ for ( InductiveRangeCheck * IRC : RangeChecksToEliminate ) { 
+ ConstantInt * FoldedRangeCheck = IRC -> getPassingDirection () 
+ ? ConstantInt :: getTrue ( Context ) 
+ : ConstantInt :: getFalse ( Context ); 
+ IRC -> getBranch () -> setCondition ( FoldedRangeCheck ); 
+ } 
+ } 
+
+ return Changed ; 
+ } 
+
+ Pass * llvm :: createInductiveRangeCheckEliminationPass () { 
+ return new InductiveRangeCheckElimination ; 
+ } 
+ llvm/trunk/lib/Transforms/Scalar/Scalar.cpp Show All 34 Lines void llvm::initializeScalarOpts ( PassRegistry & Registry ) { 
+ initializeCorrelatedValuePropagationPass ( Registry ); 
+ initializeCorrelatedValuePropagationPass ( Registry ); 
+ initializeDCEPass ( Registry ); 
+ initializeDCEPass ( Registry ); 
+ initializeDeadInstEliminationPass ( Registry ); 
+ initializeDeadInstEliminationPass ( Registry ); 
+ initializeScalarizerPass ( Registry ); 
+ initializeScalarizerPass ( Registry ); 
+ initializeDSEPass ( Registry ); 
+ initializeDSEPass ( Registry ); 
+ initializeGVNPass ( Registry ); 
+ initializeGVNPass ( Registry ); 
+ initializeEarlyCSEPass ( Registry ); 
+ initializeEarlyCSEPass ( Registry ); 
+ initializeFlattenCFGPassPass ( Registry ); 
+ initializeFlattenCFGPassPass ( Registry ); 
+ initializeInductiveRangeCheckEliminationPass ( Registry ); 
+ initializeIndVarSimplifyPass ( Registry ); 
+ initializeIndVarSimplifyPass ( Registry ); 
+ initializeJumpThreadingPass ( Registry ); 
+ initializeJumpThreadingPass ( Registry ); 
+ initializeLICMPass ( Registry ); 
+ initializeLICMPass ( Registry ); 
+ initializeLoopDeletionPass ( Registry ); 
+ initializeLoopDeletionPass ( Registry ); 
+ initializeLoopInstSimplifyPass ( Registry ); 
+ initializeLoopInstSimplifyPass ( Registry ); 
+ initializeLoopRotatePass ( Registry ); 
+ initializeLoopRotatePass ( Registry ); 
+ initializeLoopStrengthReducePass ( Registry ); 
+ initializeLoopStrengthReducePass ( Registry ); 
+ initializeLoopRerollPass ( Registry ); 
+ initializeLoopRerollPass ( Registry ); 
+ ▲ Show 20 Lines • Show All 176 Lines • Show Last 20 Lines llvm/trunk/test/Transforms/IRCE/multiple-access-no-preloop.ll ; RUN: opt -irce -S < %s | FileCheck %s 
+
+ define void @multiple_access_no_preloop ( 
+ i32 * %arr_a , i32 * %a_len_ptr , i32 * %arr_b , i32 * %b_len_ptr , i32 %n ) { 
+
+ entry: 
+ %len.a = load i32 * %a_len_ptr , !range !0 
+ %len.b = load i32 * %b_len_ptr , !range !0 
+ %first.itr.check = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check , label %loop , label %exit 
+
+ loop: 
+ %idx = phi i32 [ 0 , %entry ] , [ %idx.next , %in.bounds.b ] 
+ %idx.next = add i32 %idx , 1 
+ %abc.a = icmp slt i32 %idx , %len.a 
+ br i1 %abc.a , label %in.bounds.a , label %out.of.bounds 
+
+ in.bounds.a: 
+ %addr.a = getelementptr i32 * %arr_a , i32 %idx 
+ store i32 0 , i32 * %addr.a 
+ %abc.b = icmp slt i32 %idx , %len.b 
+ br i1 %abc.b , label %in.bounds.b , label %out.of.bounds 
+
+ in.bounds.b: 
+ %addr.b = getelementptr i32 * %arr_b , i32 %idx 
+ store i32 -1 , i32 * %addr.b 
+ %next = icmp slt i32 %idx.next , %n 
+ br i1 %next , label %loop , label %exit 
+
+ out.of.bounds: 
+ ret void 
+
+ exit: 
+ ret void 
+ } 
+
+ ; CHECK-LABEL: multiple_access_no_preloop 
+
+ ; CHECK-LABEL: loop.preheader: 
+ ; CHECK: [[smaller_len_cmp:[^ ]+]] = icmp slt i32 %len.a, %len.b 
+ ; CHECK: [[smaller_len:[^ ]+]] = select i1 [[smaller_len_cmp]], i32 %len.a, i32 %len.b 
+ ; CHECK: [[upper_bound_cmp:[^ ]+]] = icmp slt i32 %n, %3 
+ ; CHECK: [[upper_bound:[^ ]+]] = select i1 %5, i32 %n, i32 %3 
+
+ ; CHECK-LABEL: loop: 
+ ; CHECK: br i1 true, label %in.bounds.a, label %out.of.bounds 
+
+ ; CHECK-LABEL: in.bounds.a: 
+ ; CHECK: br i1 true, label %in.bounds.b, label %out.of.bounds 
+
+ ; CHECK-LABEL: in.bounds.b: 
+ ; CHECK: [[main_loop_cond:[^ ]+]] = icmp slt i32 %idx.next, [[upper_bound]] 
+ ; CHECK: br i1 [[main_loop_cond]], label %loop, label %main.exit.selector 
+
+ ; CHECK-LABEL: in.bounds.b.postloop: 
+ ; CHECK: %next.postloop = icmp slt i32 %idx.next.postloop, %n 
+ ; CHECK: br i1 %next.postloop, label %loop.postloop, label %exit.loopexit 
+
+ !0 = !{ i32 0 , i32 2147483647 } 
+ llvm/trunk/test/Transforms/IRCE/single-access-no-preloop.ll ; RUN: opt -irce -S < %s | FileCheck %s 
+
+ define void @single_access_no_preloop_no_offset ( i32 * %arr , i32 * %a_len_ptr , i32 %n ) { 
+ entry: 
+ %len = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check , label %loop , label %exit 
+
+ loop: 
+ %idx = phi i32 [ 0 , %entry ] , [ %idx.next , %in.bounds ] 
+ %idx.next = add i32 %idx , 1 
+ %abc = icmp slt i32 %idx , %len 
+ br i1 %abc , label %in.bounds , label %out.of.bounds 
+
+ in.bounds: 
+ %addr = getelementptr i32 * %arr , i32 %idx 
+ store i32 0 , i32 * %addr 
+ %next = icmp slt i32 %idx.next , %n 
+ br i1 %next , label %loop , label %exit 
+
+ out.of.bounds: 
+ ret void 
+
+ exit: 
+ ret void 
+ } 
+
+ ; CHECK-LABEL: single_access_no_preloop 
+
+ ; CHECK-LABEL: loop: 
+ ; CHECK: br i1 true, label %in.bounds, label %out.of.bounds 
+
+ ; CHECK-LABEL: main.exit.selector: 
+ ; CHECK-NEXT: [[continue:%[^ ]+]] = icmp slt i32 %idx.next, %n 
+ ; CHECK-NEXT: br i1 [[continue]], label %main.pseudo.exit, label %exit.loopexit 
+
+ ; CHECK-LABEL: main.pseudo.exit: 
+ ; CHECK-NEXT: %idx.copy = phi i32 [ 0, %loop.preheader ], [ %idx.next, %main.exit.selector ] 
+ ; CHECK-NEXT: br label %postloop 
+
+ ; CHECK-LABEL: postloop: 
+ ; CHECK-NEXT: br label %loop.postloop 
+
+ ; CHECK-LABEL: loop.postloop: 
+ ; CHECK-NEXT: %idx.postloop = phi i32 [ %idx.next.postloop, %in.bounds.postloop ], [ %idx.copy, %postloop ] 
+ ; CHECK-NEXT: %idx.next.postloop = add i32 %idx.postloop, 1 
+ ; CHECK-NEXT: %abc.postloop = icmp slt i32 %idx.postloop, %len 
+ ; CHECK-NEXT: br i1 %abc.postloop, label %in.bounds.postloop, label %out.of.bounds 
+
+ ; CHECK-LABEL: in.bounds.postloop: 
+ ; CHECK-NEXT: %addr.postloop = getelementptr i32* %arr, i32 %idx.postloop 
+ ; CHECK-NEXT: store i32 0, i32* %addr.postloop 
+ ; CHECK-NEXT: %next.postloop = icmp slt i32 %idx.next.postloop, %n 
+ ; CHECK-NEXT: br i1 %next.postloop, label %loop.postloop, label %exit.loopexit 
+
+ define void @single_access_no_preloop_with_offset ( i32 * %arr , i32 * %a_len_ptr , i32 %n ) { 
+ entry: 
+ %len = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check , label %loop , label %exit 
+
+ loop: 
+ %idx = phi i32 [ 0 , %entry ] , [ %idx.next , %in.bounds ] 
+ %idx.next = add i32 %idx , 1 
+ %idx.for.abc = add i32 %idx , 4 
+ %abc = icmp slt i32 %idx.for.abc , %len 
+ br i1 %abc , label %in.bounds , label %out.of.bounds 
+
+ in.bounds: 
+ %addr = getelementptr i32 * %arr , i32 %idx.for.abc 
+ store i32 0 , i32 * %addr 
+ %next = icmp slt i32 %idx.next , %n 
+ br i1 %next , label %loop , label %exit 
+
+ out.of.bounds: 
+ ret void 
+
+ exit: 
+ ret void 
+ } 
+
+ ; CHECK-LABEL: single_access_no_preloop_with_offset 
+
+ ; CHECK-LABEL: loop.preheader: 
+ ; CHECK: [[safe_range_end:[^ ]+]] = sub i32 %len, 4 
+ ; CHECK: [[exit_main_loop_at_cmp:[^ ]+]] = icmp slt i32 %n, [[safe_range_end]] 
+ ; CHECK: [[exit_main_loop_at:[^ ]+]] = select i1 [[exit_main_loop_at_cmp]], i32 %n, i32 [[safe_range_end]] 
+ ; CHECK: [[enter_main_loop:[^ ]+]] = icmp slt i32 0, [[exit_main_loop_at]] 
+ ; CHECK: br i1 [[enter_main_loop]], label %loop, label %main.pseudo.exit 
+
+ ; CHECK-LABEL: loop: 
+ ; CHECK: br i1 true, label %in.bounds, label %out.of.bounds 
+
+ ; CHECK-LABEL: in.bounds: 
+ ; CHECK: [[continue_main_loop:[^ ]+]] = icmp slt i32 %idx.next, [[exit_main_loop_at]] 
+ ; CHECK: br i1 [[continue_main_loop]], label %loop, label %main.exit.selector 
+
+ ; CHECK-LABEL: main.pseudo.exit: 
+ ; CHECK: %idx.copy = phi i32 [ 0, %loop.preheader ], [ %idx.next, %main.exit.selector ] 
+ ; CHECK: br label %postloop 
+
+ ; CHECK-LABEL: loop.postloop: 
+ ; CHECK: %idx.postloop = phi i32 [ %idx.next.postloop, %in.bounds.postloop ], [ %idx.copy, %postloop ] 
+
+ ; CHECK-LABEL: in.bounds.postloop: 
+ ; CHECK: %next.postloop = icmp slt i32 %idx.next.postloop, %n 
+ ; CHECK: br i1 %next.postloop, label %loop.postloop, label %exit.loopexit 
+
+ !0 = !{ i32 0 , i32 2147483647 } 
+ llvm/trunk/test/Transforms/IRCE/single-access-with-preloop.ll ; RUN: opt -irce -S < %s | FileCheck %s 
+
+ define void @single_access_with_preloop ( i32 * %arr , i32 * %a_len_ptr , i32 %n , i32 %offset ) { 
+ entry: 
+ %len = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check , label %loop , label %exit 
+
+ loop: 
+ %idx = phi i32 [ 0 , %entry ] , [ %idx.next , %in.bounds ] 
+ %idx.next = add i32 %idx , 1 
+ %array.idx = add i32 %idx , %offset 
+ %abc.high = icmp slt i32 %array.idx , %len 
+ %abc.low = icmp sge i32 %array.idx , 0 
+ %abc = and i1 %abc.low , %abc.high 
+ br i1 %abc , label %in.bounds , label %out.of.bounds 
+
+ in.bounds: 
+ %addr = getelementptr i32 * %arr , i32 %array.idx 
+ store i32 0 , i32 * %addr 
+ %next = icmp slt i32 %idx.next , %n 
+ br i1 %next , label %loop , label %exit 
+
+ out.of.bounds: 
+ ret void 
+
+ exit: 
+ ret void 
+ } 
+
+ ; CHECK-LABEL: loop.preheader: 
+ ; CHECK: [[safe_start:[^ ]+]] = sub i32 0, %offset 
+ ; CHECK: [[safe_end:[^ ]+]] = sub i32 %len, %offset 
+ ; CHECK: [[exit_preloop_at_cond:[^ ]+]] = icmp slt i32 %n, [[safe_start]] 
+ ; CHECK: [[exit_preloop_at:[^ ]+]] = select i1 [[exit_preloop_at_cond]], i32 %n, i32 [[safe_start]] 
+ ; CHECK: [[exit_mainloop_at_cond:[^ ]+]] = icmp slt i32 %n, [[safe_end]] 
+ ; CHECK: [[exit_mainloop_at:[^ ]+]] = select i1 [[exit_mainloop_at_cond]], i32 %n, i32 [[safe_end]] 
+
+ ; CHECK-LABEL: in.bounds: 
+ ; CHECK: [[continue_mainloop_cond:[^ ]+]] = icmp slt i32 %idx.next, [[exit_mainloop_at]] 
+ ; CHECK: br i1 [[continue_mainloop_cond]], label %loop, label %main.exit.selector 
+
+ ; CHECK-LABEL: main.exit.selector: 
+ ; CHECK: [[mainloop_its_left:[^ ]+]] = icmp slt i32 %idx.next, %n 
+ ; CHECK: br i1 [[mainloop_its_left]], label %main.pseudo.exit, label %exit.loopexit 
+
+ ; CHECK-LABEL: in.bounds.preloop: 
+ ; CHECK: [[continue_preloop_cond:[^ ]+]] = icmp slt i32 %idx.next.preloop, [[exit_preloop_at]] 
+ ; CHECK: br i1 [[continue_preloop_cond]], label %loop.preloop, label %preloop.exit.selector 
+
+ ; CHECK-LABEL: preloop.exit.selector: 
+ ; CHECK: [[preloop_its_left:[^ ]+]] = icmp slt i32 %idx.next.preloop, %n 
+ ; CHECK: br i1 [[preloop_its_left]], label %preloop.pseudo.exit, label %exit.loopexit 
+
+ ; CHECK-LABEL: in.bounds.postloop: 
+ ; CHECK: %next.postloop = icmp slt i32 %idx.next.postloop, %n 
+ ; CHECK: br i1 %next.postloop, label %loop.postloop, label %exit.loopexit 
+
+ !0 = !{ i32 0 , i32 2147483647 } 
+ llvm/trunk/test/Transforms/IRCE/unhandled.ll ; RUN: opt -irce-print-changed-loops -irce -S < %s 2>&1 | FileCheck %s 
+
+ ; Demonstrates that we don't currently handle the general expression 
+ ; `A * I + B'. 
+
+ define void @general_affine_expressions ( i32 * %arr , i32 * %a_len_ptr , i32 %n , 
+ i32 %scale , i32 %offset ) { 
+ ; CHECK-NOT: constrained Loop at depth 
+ entry: 
+ %len = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check , label %loop , label %exit 
+
+ loop: 
+ %idx = phi i32 [ 0 , %entry ] , [ %idx.next , %in.bounds ] 
+ %idx.next = add i32 %idx , 1 
+ %idx.mul = mul i32 %idx , %scale 
+ %array.idx = add i32 %idx.mul , %offset 
+ %abc.high = icmp slt i32 %array.idx , %len 
+ %abc.low = icmp sge i32 %array.idx , 0 
+ %abc = and i1 %abc.low , %abc.high 
+ br i1 %abc , label %in.bounds , label %out.of.bounds 
+
+ in.bounds: 
+ %addr = getelementptr i32 * %arr , i32 %array.idx 
+ store i32 0 , i32 * %addr 
+ %next = icmp slt i32 %idx.next , %n 
+ br i1 %next , label %loop , label %exit 
+
+ out.of.bounds: 
+ ret void 
+
+ exit: 
+ ret void 
+ } 
+
+ !0 = !{ i32 0 , i32 2147483647 } 
+ llvm/trunk/test/Transforms/IRCE/with-parent-loops.ll ; RUN: opt -verify-loop-info -irce-print-changed-loops -irce < %s 2>&1 | FileCheck %s 
+
+ ; This test checks if we update the LoopInfo correctly in the presence 
+ ; of parents, uncles and cousins. 
+
+ ; Function Attrs: alwaysinline 
+ define void @inner_loop ( i32 * %arr , i32 * %a_len_ptr , i32 %n ) #0 { 
+ ; CHECK: irce: in function inner_loop: constrained Loop at depth 1 containing: %loop<header><exiting>,%in.bounds<latch><exiting> 
+
+ entry: 
+ %len = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check , label %loop , label %exit 
+
+ loop: ; preds = %in.bounds, %entry 
+ %idx = phi i32 [ 0 , %entry ], [ %idx.next , %in.bounds ] 
+ %idx.next = add i32 %idx , 1 
+ %abc = icmp slt i32 %idx , %len 
+ br i1 %abc , label %in.bounds , label %out.of.bounds 
+
+ in.bounds: ; preds = %loop 
+ %addr = getelementptr i32 * %arr , i32 %idx 
+ store i32 0 , i32 * %addr 
+ %next = icmp slt i32 %idx.next , %n 
+ br i1 %next , label %loop , label %exit 
+
+ out.of.bounds: ; preds = %loop 
+ ret void 
+
+ exit: ; preds = %in.bounds, %entry 
+ ret void 
+ } 
+
+ ; Function Attrs: alwaysinline 
+ define void @with_parent ( i32 * %arr , i32 * %a_len_ptr , i32 %n , i32 %parent.count ) #0 { 
+ ; CHECK: irce: in function with_parent: constrained Loop at depth 2 containing: %loop.i<header><exiting>,%in.bounds.i<latch><exiting> 
+
+ entry: 
+ br label %loop 
+
+ loop: ; preds = %inner_loop.exit, %entry 
+ %idx = phi i32 [ 0 , %entry ], [ %idx.next , %inner_loop.exit ] 
+ %idx.next = add i32 %idx , 1 
+ %next = icmp ult i32 %idx.next , %parent.count 
+ %len.i = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i , label %loop.i , label %exit.i 
+
+ loop.i: ; preds = %in.bounds.i, %loop 
+ %idx.i = phi i32 [ 0 , %loop ], [ %idx.next.i , %in.bounds.i ] 
+ %idx.next.i = add i32 %idx.i , 1 
+ %abc.i = icmp slt i32 %idx.i , %len.i 
+ br i1 %abc.i , label %in.bounds.i , label %out.of.bounds.i 
+
+ in.bounds.i: ; preds = %loop.i 
+ %addr.i = getelementptr i32 * %arr , i32 %idx.i 
+ store i32 0 , i32 * %addr.i 
+ %next.i = icmp slt i32 %idx.next.i , %n 
+ br i1 %next.i , label %loop.i , label %exit.i 
+
+ out.of.bounds.i: ; preds = %loop.i 
+ br label %inner_loop.exit 
+
+ exit.i: ; preds = %in.bounds.i, %loop 
+ br label %inner_loop.exit 
+
+ inner_loop.exit: ; preds = %exit.i, %out.of.bounds.i 
+ br i1 %next , label %loop , label %exit 
+
+ exit: ; preds = %inner_loop.exit 
+ ret void 
+ } 
+
+ ; Function Attrs: alwaysinline 
+ define void @with_grandparent ( i32 * %arr , i32 * %a_len_ptr , i32 %n , i32 %parent.count , i32 %grandparent.count ) #0 { 
+ ; CHECK: irce: in function with_grandparent: constrained Loop at depth 3 containing: %loop.i.i<header><exiting>,%in.bounds.i.i<latch><exiting> 
+
+ entry: 
+ br label %loop 
+
+ loop: ; preds = %with_parent.exit, %entry 
+ %idx = phi i32 [ 0 , %entry ], [ %idx.next , %with_parent.exit ] 
+ %idx.next = add i32 %idx , 1 
+ %next = icmp ult i32 %idx.next , %grandparent.count 
+ br label %loop.i 
+
+ loop.i: ; preds = %inner_loop.exit.i, %loop 
+ %idx.i = phi i32 [ 0 , %loop ], [ %idx.next.i , %inner_loop.exit.i ] 
+ %idx.next.i = add i32 %idx.i , 1 
+ %next.i = icmp ult i32 %idx.next.i , %parent.count 
+ %len.i.i = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i.i = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i.i , label %loop.i.i , label %exit.i.i 
+
+ loop.i.i: ; preds = %in.bounds.i.i, %loop.i 
+ %idx.i.i = phi i32 [ 0 , %loop.i ], [ %idx.next.i.i , %in.bounds.i.i ] 
+ %idx.next.i.i = add i32 %idx.i.i , 1 
+ %abc.i.i = icmp slt i32 %idx.i.i , %len.i.i 
+ br i1 %abc.i.i , label %in.bounds.i.i , label %out.of.bounds.i.i 
+
+ in.bounds.i.i: ; preds = %loop.i.i 
+ %addr.i.i = getelementptr i32 * %arr , i32 %idx.i.i 
+ store i32 0 , i32 * %addr.i.i 
+ %next.i.i = icmp slt i32 %idx.next.i.i , %n 
+ br i1 %next.i.i , label %loop.i.i , label %exit.i.i 
+
+ out.of.bounds.i.i: ; preds = %loop.i.i 
+ br label %inner_loop.exit.i 
+
+ exit.i.i: ; preds = %in.bounds.i.i, %loop.i 
+ br label %inner_loop.exit.i 
+
+ inner_loop.exit.i: ; preds = %exit.i.i, %out.of.bounds.i.i 
+ br i1 %next.i , label %loop.i , label %with_parent.exit 
+
+ with_parent.exit: ; preds = %inner_loop.exit.i 
+ br i1 %next , label %loop , label %exit 
+
+ exit: ; preds = %with_parent.exit 
+ ret void 
+ } 
+
+ ; Function Attrs: alwaysinline 
+ define void @with_sibling ( i32 * %arr , i32 * %a_len_ptr , i32 %n , i32 %parent.count ) #0 { 
+ ; CHECK: irce: in function with_sibling: constrained Loop at depth 2 containing: %loop.i<header><exiting>,%in.bounds.i<latch><exiting> 
+ ; CHECK: irce: in function with_sibling: constrained Loop at depth 2 containing: %loop.i6<header><exiting>,%in.bounds.i9<latch><exiting> 
+
+ entry: 
+ br label %loop 
+
+ loop: ; preds = %inner_loop.exit12, %entry 
+ %idx = phi i32 [ 0 , %entry ], [ %idx.next , %inner_loop.exit12 ] 
+ %idx.next = add i32 %idx , 1 
+ %next = icmp ult i32 %idx.next , %parent.count 
+ %len.i = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i , label %loop.i , label %exit.i 
+
+ loop.i: ; preds = %in.bounds.i, %loop 
+ %idx.i = phi i32 [ 0 , %loop ], [ %idx.next.i , %in.bounds.i ] 
+ %idx.next.i = add i32 %idx.i , 1 
+ %abc.i = icmp slt i32 %idx.i , %len.i 
+ br i1 %abc.i , label %in.bounds.i , label %out.of.bounds.i 
+
+ in.bounds.i: ; preds = %loop.i 
+ %addr.i = getelementptr i32 * %arr , i32 %idx.i 
+ store i32 0 , i32 * %addr.i 
+ %next.i = icmp slt i32 %idx.next.i , %n 
+ br i1 %next.i , label %loop.i , label %exit.i 
+
+ out.of.bounds.i: ; preds = %loop.i 
+ br label %inner_loop.exit 
+
+ exit.i: ; preds = %in.bounds.i, %loop 
+ br label %inner_loop.exit 
+
+ inner_loop.exit: ; preds = %exit.i, %out.of.bounds.i 
+ %len.i1 = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i2 = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i2 , label %loop.i6 , label %exit.i11 
+
+ loop.i6: ; preds = %in.bounds.i9, %inner_loop.exit 
+ %idx.i3 = phi i32 [ 0 , %inner_loop.exit ], [ %idx.next.i4 , %in.bounds.i9 ] 
+ %idx.next.i4 = add i32 %idx.i3 , 1 
+ %abc.i5 = icmp slt i32 %idx.i3 , %len.i1 
+ br i1 %abc.i5 , label %in.bounds.i9 , label %out.of.bounds.i10 
+
+ in.bounds.i9: ; preds = %loop.i6 
+ %addr.i7 = getelementptr i32 * %arr , i32 %idx.i3 
+ store i32 0 , i32 * %addr.i7 
+ %next.i8 = icmp slt i32 %idx.next.i4 , %n 
+ br i1 %next.i8 , label %loop.i6 , label %exit.i11 
+
+ out.of.bounds.i10: ; preds = %loop.i6 
+ br label %inner_loop.exit12 
+
+ exit.i11: ; preds = %in.bounds.i9, %inner_loop.exit 
+ br label %inner_loop.exit12 
+
+ inner_loop.exit12: ; preds = %exit.i11, %out.of.bounds.i10 
+ br i1 %next , label %loop , label %exit 
+
+ exit: ; preds = %inner_loop.exit12 
+ ret void 
+ } 
+
+ ; Function Attrs: alwaysinline 
+ define void @with_cousin ( i32 * %arr , i32 * %a_len_ptr , i32 %n , i32 %parent.count , i32 %grandparent.count ) #0 { 
+ ; CHECK: irce: in function with_cousin: constrained Loop at depth 3 containing: %loop.i.i<header><exiting>,%in.bounds.i.i<latch><exiting> 
+ ; CHECK: irce: in function with_cousin: constrained Loop at depth 3 containing: %loop.i.i10<header><exiting>,%in.bounds.i.i13<latch><exiting> 
+
+ entry: 
+ br label %loop 
+
+ loop: ; preds = %with_parent.exit17, %entry 
+ %idx = phi i32 [ 0 , %entry ], [ %idx.next , %with_parent.exit17 ] 
+ %idx.next = add i32 %idx , 1 
+ %next = icmp ult i32 %idx.next , %grandparent.count 
+ br label %loop.i 
+
+ loop.i: ; preds = %inner_loop.exit.i, %loop 
+ %idx.i = phi i32 [ 0 , %loop ], [ %idx.next.i , %inner_loop.exit.i ] 
+ %idx.next.i = add i32 %idx.i , 1 
+ %next.i = icmp ult i32 %idx.next.i , %parent.count 
+ %len.i.i = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i.i = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i.i , label %loop.i.i , label %exit.i.i 
+
+ loop.i.i: ; preds = %in.bounds.i.i, %loop.i 
+ %idx.i.i = phi i32 [ 0 , %loop.i ], [ %idx.next.i.i , %in.bounds.i.i ] 
+ %idx.next.i.i = add i32 %idx.i.i , 1 
+ %abc.i.i = icmp slt i32 %idx.i.i , %len.i.i 
+ br i1 %abc.i.i , label %in.bounds.i.i , label %out.of.bounds.i.i 
+
+ in.bounds.i.i: ; preds = %loop.i.i 
+ %addr.i.i = getelementptr i32 * %arr , i32 %idx.i.i 
+ store i32 0 , i32 * %addr.i.i 
+ %next.i.i = icmp slt i32 %idx.next.i.i , %n 
+ br i1 %next.i.i , label %loop.i.i , label %exit.i.i 
+
+ out.of.bounds.i.i: ; preds = %loop.i.i 
+ br label %inner_loop.exit.i 
+
+ exit.i.i: ; preds = %in.bounds.i.i, %loop.i 
+ br label %inner_loop.exit.i 
+
+ inner_loop.exit.i: ; preds = %exit.i.i, %out.of.bounds.i.i 
+ br i1 %next.i , label %loop.i , label %with_parent.exit 
+
+ with_parent.exit: ; preds = %inner_loop.exit.i 
+ br label %loop.i6 
+
+ loop.i6: ; preds = %inner_loop.exit.i16, %with_parent.exit 
+ %idx.i1 = phi i32 [ 0 , %with_parent.exit ], [ %idx.next.i2 , %inner_loop.exit.i16 ] 
+ %idx.next.i2 = add i32 %idx.i1 , 1 
+ %next.i3 = icmp ult i32 %idx.next.i2 , %parent.count 
+ %len.i.i4 = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i.i5 = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i.i5 , label %loop.i.i10 , label %exit.i.i15 
+
+ loop.i.i10: ; preds = %in.bounds.i.i13, %loop.i6 
+ %idx.i.i7 = phi i32 [ 0 , %loop.i6 ], [ %idx.next.i.i8 , %in.bounds.i.i13 ] 
+ %idx.next.i.i8 = add i32 %idx.i.i7 , 1 
+ %abc.i.i9 = icmp slt i32 %idx.i.i7 , %len.i.i4 
+ br i1 %abc.i.i9 , label %in.bounds.i.i13 , label %out.of.bounds.i.i14 
+
+ in.bounds.i.i13: ; preds = %loop.i.i10 
+ %addr.i.i11 = getelementptr i32 * %arr , i32 %idx.i.i7 
+ store i32 0 , i32 * %addr.i.i11 
+ %next.i.i12 = icmp slt i32 %idx.next.i.i8 , %n 
+ br i1 %next.i.i12 , label %loop.i.i10 , label %exit.i.i15 
+
+ out.of.bounds.i.i14: ; preds = %loop.i.i10 
+ br label %inner_loop.exit.i16 
+
+ exit.i.i15: ; preds = %in.bounds.i.i13, %loop.i6 
+ br label %inner_loop.exit.i16 
+
+ inner_loop.exit.i16: ; preds = %exit.i.i15, %out.of.bounds.i.i14 
+ br i1 %next.i3 , label %loop.i6 , label %with_parent.exit17 
+
+ with_parent.exit17: ; preds = %inner_loop.exit.i16 
+ br i1 %next , label %loop , label %exit 
+
+ exit: ; preds = %with_parent.exit17 
+ ret void 
+ } 
+
+ ; Function Attrs: alwaysinline 
+ define void @with_uncle ( i32 * %arr , i32 * %a_len_ptr , i32 %n , i32 %parent.count , i32 %grandparent.count ) #0 { 
+ ; CHECK: irce: in function with_uncle: constrained Loop at depth 2 containing: %loop.i<header><exiting>,%in.bounds.i<latch><exiting> 
+ ; CHECK: irce: in function with_uncle: constrained Loop at depth 3 containing: %loop.i.i<header><exiting>,%in.bounds.i.i<latch><exiting> 
+
+ entry: 
+ br label %loop 
+
+ loop: ; preds = %with_parent.exit, %entry 
+ %idx = phi i32 [ 0 , %entry ], [ %idx.next , %with_parent.exit ] 
+ %idx.next = add i32 %idx , 1 
+ %next = icmp ult i32 %idx.next , %grandparent.count 
+ %len.i = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i , label %loop.i , label %exit.i 
+
+ loop.i: ; preds = %in.bounds.i, %loop 
+ %idx.i = phi i32 [ 0 , %loop ], [ %idx.next.i , %in.bounds.i ] 
+ %idx.next.i = add i32 %idx.i , 1 
+ %abc.i = icmp slt i32 %idx.i , %len.i 
+ br i1 %abc.i , label %in.bounds.i , label %out.of.bounds.i 
+
+ in.bounds.i: ; preds = %loop.i 
+ %addr.i = getelementptr i32 * %arr , i32 %idx.i 
+ store i32 0 , i32 * %addr.i 
+ %next.i = icmp slt i32 %idx.next.i , %n 
+ br i1 %next.i , label %loop.i , label %exit.i 
+
+ out.of.bounds.i: ; preds = %loop.i 
+ br label %inner_loop.exit 
+
+ exit.i: ; preds = %in.bounds.i, %loop 
+ br label %inner_loop.exit 
+
+ inner_loop.exit: ; preds = %exit.i, %out.of.bounds.i 
+ br label %loop.i4 
+
+ loop.i4: ; preds = %inner_loop.exit.i, %inner_loop.exit 
+ %idx.i1 = phi i32 [ 0 , %inner_loop.exit ], [ %idx.next.i2 , %inner_loop.exit.i ] 
+ %idx.next.i2 = add i32 %idx.i1 , 1 
+ %next.i3 = icmp ult i32 %idx.next.i2 , %parent.count 
+ %len.i.i = load i32 * %a_len_ptr , !range !0 
+ %first.itr.check.i.i = icmp sgt i32 %n , 0 
+ br i1 %first.itr.check.i.i , label %loop.i.i , label %exit.i.i 
+
+ loop.i.i: ; preds = %in.bounds.i.i, %loop.i4 
+ %idx.i.i = phi i32 [ 0 , %loop.i4 ], [ %idx.next.i.i , %in.bounds.i.i ] 
+ %idx.next.i.i = add i32 %idx.i.i , 1 
+ %abc.i.i = icmp slt i32 %idx.i.i , %len.i.i 
+ br i1 %abc.i.i , label %in.bounds.i.i , label %out.of.bounds.i.i 
+
+ in.bounds.i.i: ; preds = %loop.i.i 
+ %addr.i.i = getelementptr i32 * %arr , i32 %idx.i.i 
+ store i32 0 , i32 * %addr.i.i 
+ %next.i.i = icmp slt i32 %idx.next.i.i , %n 
+ br i1 %next.i.i , label %loop.i.i , label %exit.i.i 
+
+ out.of.bounds.i.i: ; preds = %loop.i.i 
+ br label %inner_loop.exit.i 
+
+ exit.i.i: ; preds = %in.bounds.i.i, %loop.i4 
+ br label %inner_loop.exit.i 
+
+ inner_loop.exit.i: ; preds = %exit.i.i, %out.of.bounds.i.i 
+ br i1 %next.i3 , label %loop.i4 , label %with_parent.exit 
+
+ with_parent.exit: ; preds = %inner_loop.exit.i 
+ br i1 %next , label %loop , label %exit 
+
+ exit: ; preds = %with_parent.exit 
+ ret void 
+ } 
+
+ attributes #0 = { alwaysinline } 
+
+ !0 = !{ i32 0 , i32 2147483647 } 
+ 

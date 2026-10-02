@@ -1,0 +1,280 @@
+{
+ "_provenance": {
+  "measured_wgpu_rev": "19ffb4ee1a7e",
+  "measured_naga_dirty_diff_sha256": "recorded per run in meta.json",
+  "commits_behind_HEAD_at_2026_10_01": 3,
+  "HEAD_at_2026_10_01": "cce0acfb58c1",
+  "commits_after_measured_rev": [
+   "0ca293a fix(naga): close three unsound elision shapes and override-sized workgroups",
+   "f73a687 chore(naga): drop the sdata_manual zero-init exception and dead safe_indices",
+   "cce0acf feat(naga): runtime-array lengths, shared expression identity and call precision in elision"
+  ],
+  "diff_stat_measured_to_HEAD": "+397/-93 across 3 files",
+  "clamp_counts_verified_unchanged_by_those_commits": "RECORDED, not re-verified here",
+  "runs_analyzed": {
+   "runs-v4": 210,
+   "runs-realworld": 1128
+  }
+ },
+ "_caveats": {
+  "interval_calibration": "The 95% intervals are NOMINALLY 95% but EMPIRICALLY UNCALIBRATED. The bce_dup control is byte-identical SPIR-V, so its true ratio is 1.0 and its interval's exclusion rate IS the type-I error of every reported interval. Measured on the stored runs: realworld-2 Intel 70.1% (nominal 5%), v4 NVIDIA 15.7%. Artifact: bounds-check-testing-framework/runs-v4/control-calibration-20261001.json",
+  "rule_v2_coverage": "The registered rule-v2 across-process t-interval was ALSO measured on the control and is mis-calibrated: realworld-2 Intel 73.7% of workload control intervals exclude the null, NVIDIA 42.1%. On the `empty` kernel, where d = e - c must be exactly 0, the estimator gave +0.1369% (19ffb4e) and +0.2862% (83a90e0) on NVIDIA.",
+  "apparatus_floor": "Measured noise floor of the headline metric d = ln(effect) - ln(control) is ~0.14% to ~0.29%. Effects at or below that are not measurements. Under the secondary analysis (analyze_v3.py) 22 of 38 NVIDIA workloads fall below it.",
+  "intel_run_validity": "realworld-2 Intel: 136 of 180 runs are flagged valid=false by the harness's own gate (valid = correct && control_ok && quiet_during_run), leaving 44 usable. The Intel +7.01% headline and its 22 GAIN / 10 LOSS tally were computed WITHOUT honouring that flag (audit F10). Only 44 runs survive it.",
+  "intel_clock_state": "The entire Intel result set was measured at 210 MHz in P8 (runs-v4: 210 MHz flat, P8 only; realworld: 210-600 MHz, P5/P8). meta.json records gpu_display_active=Disabled in all 1338 runs. The Intel numbers are a low-power-state measurement, not production-representative.",
+  "vello_scenes_not_independent": "All 34 vello scenes compile the SAME 20 shaders: exactly 1 distinct bce SPIR-V sha256 across all 34. They are one shader program with 34 input scenes, not 34 independent tests.",
+  "clamp_vs_proven": "102 UMin clamps removed vs 93 accesses in safe_accesses; the entire +9 gap is one shader (fine_area, 31 removed vs 22 proven). Artifact: bounds-check-testing-framework/runs-v4/clamp-reconciliation-20261001.json",
+  "multiplicity": "76 intervals tested at alpha=0.05 with no family-wise or FDR adjustment. ~3.8 false GAIN/LOSS labels expected under a global null.",
+  "analysis_registered_secondary": "analyze_v2.py is the PRE-REGISTERED primary rule (commit 98bd514) and is unchanged in its verdict semantics. analyze_v3.py (multiplicity-corrected, four-outcome, noise floor) is a DECLARED SECONDARY analysis. Report both; never only v3."
+ },
+ "vello_nvidia_suite_pct": {
+  "value": 0.59,
+  "source": "bounds-check-testing-framework/runs-realworld/summary-v2-nvidia-realworld-2-19ffb4e.json"
+ },
+ "vello_nvidia_verdicts": {
+  "value": {
+   "GAIN": 22,
+   "EQUIVALENT": 6,
+   "LOSS": 4,
+   "INVALID": 2
+  },
+  "source": "bounds-check-testing-framework/runs-realworld/summary-v2-nvidia-realworld-2-19ffb4e.json"
+ },
+ "vello_intel_suite_pct": {
+  "value": 7.01,
+  "source": "bounds-check-testing-framework/runs-realworld/summary-v2-intel-realworld-2-19ffb4e.json"
+ },
+ "vello_intel_verdicts": {
+  "value": {
+   "LOSS": 10,
+   "GAIN": 22
+  },
+  "source": "bounds-check-testing-framework/runs-realworld/summary-v2-intel-realworld-2-19ffb4e.json"
+ },
+ "v4_nvidia_scan_shared_pct": {
+  "value": 15.79,
+  "source": "bounds-check-testing-framework/runs-v4/summary-nvidia-19ffb4e.json"
+ },
+ "v4_intel_scan_shared_pct": {
+  "value": 11.61,
+  "source": "bounds-check-testing-framework/runs-v4/summary-intel-19ffb4e.json"
+ },
+ "v4_nvidia_matmul_tiled_pct": {
+  "value": 10.8,
+  "source": "bounds-check-testing-framework/runs-v4/summary-nvidia-19ffb4e.json"
+ },
+ "v4_intel_matmul_tiled_pct": {
+  "value": -0.01,
+  "source": "bounds-check-testing-framework/runs-v4/summary-intel-19ffb4e.json"
+ },
+ "v4_nvidia_vello_binning_pct": {
+  "value": 15.22,
+  "source": "bounds-check-testing-framework/runs-v4/summary-nvidia-19ffb4e.json"
+ },
+ "v4_intel_vello_binning_pct": {
+  "value": 0.01,
+  "source": "bounds-check-testing-framework/runs-v4/summary-intel-19ffb4e.json"
+ },
+ "v4_nvidia_reduce_tree_pct": {
+  "value": 1.31,
+  "source": "bounds-check-testing-framework/runs-v4/summary-nvidia-19ffb4e.json"
+ },
+ "v4_intel_reduce_tree_pct": {
+  "value": 7.33,
+  "source": "bounds-check-testing-framework/runs-v4/summary-intel-19ffb4e.json"
+ },
+ "v4_nvidia_prefix_scan_hs_pct": {
+  "value": 0.86,
+  "source": "bounds-check-testing-framework/runs-v4/summary-nvidia-19ffb4e.json"
+ },
+ "v4_intel_prefix_scan_hs_pct": {
+  "value": 3.65,
+  "source": "bounds-check-testing-framework/runs-v4/summary-intel-19ffb4e.json"
+ },
+ "v4_nvidia_private_array_pct": {
+  "value": -0.03,
+  "source": "bounds-check-testing-framework/runs-v4/summary-nvidia-19ffb4e.json"
+ },
+ "v4_intel_private_array_pct": {
+  "value": 0.01,
+  "source": "bounds-check-testing-framework/runs-v4/summary-intel-19ffb4e.json"
+ },
+ "census_total": {
+  "value": 729,
+  "source": "research_notes/Real world shader elision gaps/census/F006_*.jsonl (excl. nagatests)"
+ },
+ "census_fixed_or_vector": {
+  "value": 342,
+  "source": "research_notes/Real world shader elision gaps/census/F006_*.jsonl (excl. nagatests)"
+ },
+ "census_proven": {
+  "value": 118,
+  "source": "research_notes/Real world shader elision gaps/census/F006_*.jsonl (excl. nagatests)"
+ },
+ "census_projects": {
+  "value": [
+   "bevy",
+   "egui",
+   "iced",
+   "maplibre-rs",
+   "rerun",
+   "vello",
+   "webgpu-samples",
+   "wgpu-native",
+   "wgpu-upstream"
+  ],
+  "source": "research_notes/Real world shader elision gaps/census/F006_*.jsonl (excl. nagatests)"
+ },
+ "census_runtime_sized": {
+  "value": 364,
+  "source": "research_notes/Real world shader elision gaps/census/F006_*.jsonl (excl. nagatests)"
+ },
+ "census_runtime_sized_pct": {
+  "value": 49.9,
+  "source": "research_notes/Real world shader elision gaps/census/F006_*.jsonl (excl. nagatests)"
+ },
+ "vello_umin_no_bce_bce_unchecked": {
+  "value": [
+   197,
+   95,
+   95,
+   11
+  ],
+  "source": "bounds-check-testing-framework/runs-realworld/20260930T201302Z-vello:13-blend_grid/result.json"
+ },
+ "vello_bounds_clamps_before_after": {
+  "value": [
+   186,
+   84
+  ],
+  "source": "UMin minus shader-authored min() (unchecked slot)"
+ },
+ "v4_binary_identity": {
+  "value": {
+   "scan_shared": {
+    "umin_no_bce": 2,
+    "umin_bce": 0,
+    "bce_equals_unchecked": true,
+    "run": "bounds-check-testing-framework/runs-v4/20260929T125317Z-scan_shared"
+   },
+   "matmul_tiled": {
+    "umin_no_bce": 8,
+    "umin_bce": 0,
+    "bce_equals_unchecked": true,
+    "run": "bounds-check-testing-framework/runs-v4/20260929T125255Z-matmul_tiled"
+   },
+   "vello_binning": {
+    "umin_no_bce": 6,
+    "umin_bce": 0,
+    "bce_equals_unchecked": true,
+    "run": "bounds-check-testing-framework/runs-v4/20260929T125340Z-vello_binning"
+   },
+   "reduce_tree": {
+    "umin_no_bce": 4,
+    "umin_bce": 0,
+    "bce_equals_unchecked": true,
+    "run": "bounds-check-testing-framework/runs-v4/20260929T125306Z-reduce_tree"
+   },
+   "prefix_scan_hs": {
+    "umin_no_bce": 5,
+    "umin_bce": 0,
+    "bce_equals_unchecked": true,
+    "run": "bounds-check-testing-framework/runs-v4/20260929T125329Z-prefix_scan_hs"
+   },
+   "private_array": {
+    "umin_no_bce": 4,
+    "umin_bce": 0,
+    "bce_equals_unchecked": true,
+    "run": "bounds-check-testing-framework/runs-v4/20260929T125352Z-private_array"
+   }
+  },
+  "source": "runs-v4/<latest 19ffb4e run>/artifacts/*.spv (spirv-dis, sha256)"
+ },
+ "vello_suite_ci_across_scenes": {
+  "value": {
+   "nvidia": {
+    "n_scenes": 32,
+    "geomean_pct": 0.59,
+    "ci_lo_pct": 0.15,
+    "ci_hi_pct": 1.03,
+    "scene_pcts": [
+     -0.59,
+     -0.15,
+     -0.13,
+     -0.13,
+     -0.05,
+     -0.03,
+     -0.01,
+     -0.01,
+     0.03,
+     0.07,
+     0.1,
+     0.12,
+     0.14,
+     0.16,
+     0.17,
+     0.2,
+     0.2,
+     0.24,
+     0.27,
+     0.29,
+     0.31,
+     0.36,
+     0.39,
+     0.45,
+     0.8,
+     0.89,
+     0.9,
+     0.92,
+     1.2,
+     2.15,
+     4.4,
+     5.45
+    ],
+    "source": "bounds-check-testing-framework/runs-realworld/summary-v2-nvidia-realworld-2-19ffb4e.json"
+   },
+   "intel": {
+    "n_scenes": 32,
+    "geomean_pct": 7.01,
+    "ci_lo_pct": 3.69,
+    "ci_hi_pct": 10.42,
+    "scene_pcts": [
+     -4.99,
+     -4.41,
+     -3.85,
+     -3.71,
+     -1.26,
+     -1.03,
+     -0.84,
+     -0.75,
+     -0.67,
+     -0.6,
+     1.48,
+     1.92,
+     1.93,
+     3.41,
+     3.58,
+     3.73,
+     4.56,
+     7.89,
+     9.37,
+     9.6,
+     11.63,
+     11.92,
+     12.66,
+     12.74,
+     13.85,
+     13.91,
+     15.28,
+     18.96,
+     19.24,
+     23.36,
+     23.61,
+     34.52
+    ],
+    "source": "bounds-check-testing-framework/runs-realworld/summary-v2-intel-realworld-2-19ffb4e.json"
+   }
+  },
+  "source": "t-interval over per-scene control-corrected mean_d (summary-v2-*-realworld-2-19ffb4e.json); computed for poster v3"
+ }
+}

@@ -1,0 +1,663 @@
+=== [Page 1] ===
+                             Array Bounds Check Elimination
+                        for the Java HotSpotTM Client Compiler
+                                                               ∗
+
+
+
+
+                   Thomas Würthinger                      Christian Wimmer                    Hanspeter Mössenböck
+                                                  Institute for System Software
+                                Christian Doppler Laboratory for Automated Software Engineering
+                                                Johannes Kepler University Linz
+                                                           Linz, Austria
+                                   {wuerthinger, wimmer, moessenboeck}@ssw.jku.at
+
+ABSTRACT                                                                          1. INTRODUCTION
+Whenever an array element is accessed, Java virtual ma-                              To ensure safe execution of programs within a virtual ma-
+chines execute a compare instruction to ensure that the in-                       chine, every illegal memory access must be intercepted. For
+dex value is within the valid bounds. This reduces the exe-                       ﬁeld accesses, this is done by type checking and veriﬁcation
+cution speed of Java programs. Array bounds check elimina-                        of the ﬁeld oﬀset at compile time. Array accesses, however,
+tion identiﬁes situations in which such checks are redundant                      require a run-time check to verify that the speciﬁed index is
+and can be removed. We present an array bounds check                              within the bounds of the array. In case of Java, the lower
+elimination algorithm for the Java HotSpotTM VM based                             bound of an array is always zero, while the upper bound is
+on static analysis in the just-in-time compiler.                                  the length of the array minus one. If the index is not within
+   The algorithm works on an intermediate representation in                       this range, an ArrayIndexOutOfBoundsException must be
+static single assignment form and maintains conditions for                        thrown. The overhead introduced by such checks can be sig-
+index expressions. It fully removes bounds checks if it can                       niﬁcant, especially for mathematical applications, but checks
+be proven that they never fail. Whenever possible, it moves                       fail only in rare cases. When it can be proven at compile
+bounds checks out of loops. The static number of checks                           time that a check never fails, it can be omitted. Such a
+remains the same, but a check inside a loop is likely to be                       check is said to be fully redundant.
+executed more often. If such a check fails, the executing pro-                       There can also be situations where checks are not fully
+gram falls back to interpreted mode, avoiding the problem                         redundant, but the total number of executed checks can be
+that an exception is thrown at the wrong place.                                   reduced by moving checks or combining several checks into
+   The evaluation shows a speedup near to the theoretical                         a single one. For example, a check performed within a loop
+maximum for the scientiﬁc SciMark benchmark suite (40%                            is likely to be executed more often than a check before the
+on average). The algorithm also improves the execution                            loop. The total number of dynamically performed checks
+speed for the SPECjvm98 benchmark suite (2% on aver-                              can be reduced by replacing such a check with another one.
+age, 12% maximum).                                                                In this case, the check is said to be partially redundant.
+                                                                                     One important property that must be kept in mind when
+Categories and Subject Descriptors                                                eliminating or moving checks in Java programs is that the
+                                                                                  semantics must stay the same. When a check fails, the ex-
+D.3.4 [Programming Languages]: Processors—Compil-
+                                                                                  ception must be thrown at the correct code position of the
+ers, Optimization, Code generation
+                                                                                  failing array access. It is not allowed to just stop the pro-
+                                                                                  gram when an array is accessed out of its valid bounds.
+General Terms                                                                        This paper describes our array bounds check elimination
+Algorithms, Languages, Performance                                                algorithm that tries to minimize the total number of dynam-
+                                                                                  ically executed checks in average Java programs. It works
+Keywords                                                                          as an additional optimization step on the just-in-time com-
+                                                                                  piler’s intermediate language, which is in static single as-
+Java, array bounds check elimination, just-in-time compila-                       signment form. It eliminates checks that can be proven to
+tion, optimization, performance                                                   be fully redundant and inserts additional instructions to be
+∗This work was supported by Sun Microsystems, Inc.                                able to remove partially redundant checks by grouping mul-
+                                                                                  tiple checks or moving checks out of loops.
+                                                                                     To avoid loop versioning, i.e. the duplication of code, and
+                                                                                  nevertheless retain the exception semantics of Java, we use
+                                                                                  the facilities of the Java HotSpotTM VM to switch back
+
+c ACM, 2007. This is the author’s version of the work. It is posted               from compiled to interpreted code. Our algorithm focuses
+here by permission of ACM for your personal use. Not for redistribution.          on program structures that are common to Java programs
+The definitive version was published in the Proceedings of the 5th Inter-         and eliminates the checks with a low impact on the compile
+national Symposium on Principles and Practice of Programming in Java,             time. This is important because it is integrated into a fast
+pp. 125–133.
+PPPJ 2007, September 5–7, 2007, Lisboa, Portugal.                                 just-in-time compiler where the additional time needed for
+http://doi.acm.org/10.1145/1294325.1294343                                        compilation decreases the total execution speed.
+
+
+                                                                            125
+
+=== [Page 2] ===
+  We integrated our analysis in the client compiler of the                                Parse Java Bytecodes
+Java HotSpotTM VM. This paper contributes the following:
+
+     • We present a fast algorithm for array bounds check                                   Build Block Structure
+       elimination that is suitable for a just-in-time compiler.
+     • We preserve the exception semantics of Java by using                                                                HIR
+       deoptimization.                                                                      Global Optimizations
+
+     • We show how to handle integer overﬂow when checking
+       bound conditions.                                                                               Bounds Check
+                                                                                                        Elimination
+     • The evaluation shows the impacts of our algorithm
+       on several benchmarks. We compare our results to
+       the speedup theoretically achievable by array bounds                                   LIR Generation
+       check elimination.
+
+2.    SYSTEM OVERVIEW                                                                        Register Allocation           LIR
+                                                   TM
+   The main components of the Java HotSpot             VM in-
+clude the run-time system, the garbage collector and the
+                                                                                            Emit Machine Code
+interpreter. Furthermore, two diﬀerent just-in-time compil-
+ers are available, called the client compiler and the server
+compiler. The server compiler [12] performs aggressive op-                    Figure 1: Structure of the client compiler.
+timizations and produces fast machine code, however the
+time needed to compile a method is high. This is acceptable
+for long-running server applications, but not for interactive               Two LIR instructions are necessary to perform the bounds
+desktop applications where response time is more important               check for every HIR instruction that accesses an array: a
+than peak performance. The client compiler [4, 10] achieves              compare instruction of the array index and the array length,
+a high compilation speed by omitting time-consuming opti-                and a conditional branch to an out-of-line code stub that
+mizations.                                                               throws the exception if the check fails. As the lower bound
+   Both compilers can apply optimizations on optimistic as-              of an array is always 0, the check whether the index is within
+sumptions. If an optimization is invalidated later, e.g. be-             the valid range can be reduced to a single unsigned compare.
+cause of dynamic class loading, the VM can deoptimize the                The comparison if a is greater or equal 0 and smaller than
+machine code [7] at discrete points, called safepoints. Exe-             b can be checked by regarding a as an unsigned value and
+cution is stopped and reverted back to the interpreter. The              testing only whether it is smaller than b.
+local variables and the current operand stack of the inter-                 The current production version of the client compiler does
+preter are reconstructed from the values of the registers and            not perform any kind of sophisticated array bounds check
+the memory.                                                              elimination. A bounds check is only eliminated when both
+   Figure 1 shows the main components of the client com-                 the index and the length of the array are compile-time con-
+piler. The compiler is invoked only for frequently executed              stants. This is however a rare case.
+methods. It transforms the Java bytecodes of the input                      The algorithm is implemented as a separate optimization
+method to machine code with the help of two intermediate                 phase just before LIR generation. It marks those array ac-
+data structures, called the high-level intermediate represen-            cess instructions with a ﬂag whose bounds checks are re-
+tation (HIR) and the low-level intermediate representation               dundant and adds additional HIR instructions in case of
+(LIR). The instructions are organized in basic blocks, which             partially redundant checks. When generating the LIR for
+are groups of sequentially executed instructions.                        an array access instruction, the ﬂag is used to decide if the
+   Only at the end of a basic block, control ﬂow instructions            bounds check must be emitted.
+like goto or if are allowed. A block is linked with all its                 We do not perform an interprocedural analysis. This
+predecessors and successors. The HIR is in static single as-             would require checking the bytecodes of all methods, also
+signment (SSA) form [3], i.e. there is always only a single              of those that never get compiled. Additionally, dynamic
+point of assignment for each instruction. When control ﬂow               class loading could invalidate interprocedural information
+merges, phi instructions are inserted to merge diﬀerent val-             and therefore lead to additional deoptimizations.
+ues of a variable. Data dependencies replace the local vari-
+ables and the operand stack used by the Java bytecodes.
+   After the HIR is constructed, various global optimiza-                3. ALGORITHM
+tions are performed, including global value numbering [2]                   Our array bounds check elimination algorithm maintains
+and elimination of null checks. Our new bounds check elim-               conditions for index variables to decide whether a given in-
+ination algorithm operates on the HIR just before the gen-               dex is within the correct bounds. We keep the kind of condi-
+eration of the LIR. It is applied after all other optimizations          tions as simple as possible without signiﬁcantly reducing the
+on the HIR were performed because it can proﬁt from them.                number of eliminated checks in average Java programs. In
+   The LIR is close to a three operand machine code, but                 comparison to other approaches [1, 14], we do not build an
+still platform-independent. It is used for linear scan register          inequality graph. Instead, the algorithm keeps a condition
+allocation [17]. From the LIR, the ﬁnal platform-dependent               of the following form for every instruction x that computes
+machine code is generated.                                               an integer value:
+
+
+                                                                   126
+
+=== [Page 3] ===
+          ilower + clower <= x <= iupper + cupper
+                                                                                   Data flow                Parameter p         Parameter a
+   The variables ilower and iupper refer to HIR instructions                       Control flow
+(i.e. the values produced by them), while clower and cupper
+are integer constants. If the instruction parts of a condition
+are missing, the bounds are compile-time constants. Ini-                                                   Block 1
+                                                                                                                               Length
+tially, when nothing about the bounds is known yet, every
+instruction has the bounds
+                                                                                                             If smaller or equal
+                     MIN <= x <= MAX
+  where MIN and MAX denote the minimum and maximum                                                               True        False
+possible values of a 32-bit signed integer. When two or more
+bounds are known for a variable, the algorithm tries to cal-                                      Block 2
+culate the conjunction of them. The algorithm needs to be                                                            Const 0
+conservative, e.g. if the bounds involve values that are not
+compile-time constants, only one part of the conjunction is                                           If greater
+saved. When the algorithm knows that x is smaller or equal
+to a and it is smaller or equal to b, it can only save one                                                           False
+of the two conditions. This is a loss of information, but a                                           True
+                                                                                                                                 Return 0
+practical simpliﬁcation in most cases.
+                                                                                  Block 3
+3.1 Fully Redundant Checks                                                                             Const 1
+   Our algorithm beneﬁts from the SSA form of the HIR
+where each variable is assigned only at a single place in the                           Subtract
+program, i.e. its value does not change after its deﬁnition.
+But even if a method is in SSA form, the conditions for a                                 Load Indexed
+variable are not the same at diﬀerent points of the method.
+Control ﬂow instructions like if do not modify the value of                                       Return
+the operands, but do modify their possible bounds in the
+succeeding basic blocks.
+   The algorithm processes the blocks in a dominator-based                           Figure 2: HIR of method get.
+order and maintains a stack of conditions for each variable,
+where the topmost stack element is the current valid condi-
+tion. A dominator of a block is a block that is always exe-                Figure 3 shows how the conditions for the expressions p
+cuted before the block itself is executed. A range condition            and p-1 are derived. At every if instruction, new conditions
+that holds in one of the dominators also holds in the block it-         for the aﬀected expressions are combined with previously
+self. It can only get stronger. Therefore, the algorithm uses           obtained conditions using an and-operation. In case of two-
+a pre-order traversal of the dominator tree. When a block               operand operations like additions or subtractions where one
+is processed, the condition for a variable is the conjunction           operand is constant, the conditions are modiﬁed to reﬂect
+of all conditions on the variable in the parent blocks in the           this operation. In Figure 3, for example, the condition for
+dominator tree. Using this approach the algorithm avoids                p is converted to a condition for p-1 by subtracting 1 from
+building an extended SSA form like in [1].                              the constant part of both the lower and the upper bound.
+   Figure 2 presents the HIR of the Java method get shown                  Using the condition of the index expression p-1, it can
+in Listing 1. The method is split into four blocks. At the end          be proven that the index is always in the valid range. The
+of block 1, an if instruction checks whether p <= a.length,             lower bound is positive and the upper bound is smaller than
+and an if instruction in block 2 checks whether p > 0. If               the array length, therefore the array bounds check is fully
+both conditions hold, the array load is performed in block 3            redundant and can be omitted.
+and the value is returned. The last block, which returns 0                 Blocks that do not dominate a block with an array access
+if a condition does not hold, is omitted for simplicity.                in it are not processed because conditions derived in these
+                                                                        blocks cannot be used to eliminate a bounds check. When
+int get ( int a [] , int p ) {                                          building the basic blocks from the Java bytecode, a ﬂag for
+  if ( p <= a . length && p > 0) {                                      the corresponding block is set when such an instruction is
+    return a [ p - 1];                                                  added. Blocks that need not be processed are removed from
+  }                                                                     the dominator tree before the analysis.
+  return 0;                                                                When executing the SPECjvm98 benchmark suite, 72%
+}                                                                       of all methods do not contain an array access at all, so they
+                                                                        are not processed by the algorithm. Additionally, 64% of
+            Listing 1: Example method get.                              the blocks can be eliminated because they do not dominate
+                                                                        blocks containing bounds checks. In contrast to other ap-
+  In this example, the root of the dominator tree is block 1            proaches such as [5], we do not reduce the whole instruction
+as this block is the start of the method. Block 2 is an im-             graph to contain only instructions used as array indices be-
+mediate child of block 1 and also the parent of block 3. The            cause this would require disproportionally many changes of
+bounds check elimination algorithm therefore processes the              the HIR and the runtime cost for maintaining the conditions
+blocks in the same order as they are numbered.                          for all integer instructions is low.
+
+
+                                                                  127
+
+=== [Page 4] ===
+                                            At start of block 2:
+            Initial bounds of p
+                                          (p <= a.length) is true
+                                                                                       Data flow           Parameter x        Parameter a
+            MIN <= p <= MAX                                                            Phi input
+                                                                                       Control flow
+                                          MIN <= p <= a.length
+
+                    &                                                                                      Block 1
+                                                                                                                        Const 0
+                                            At start of block 3:
+                                              (p > 0) is true                                                   Goto
+           MIN <= p <= a.length
+                                             1 <= p <= MAX
+
+                    &
+
+                                                                                                      Block 2
+                                                                                                                        Phi
+            1 <= p <= a.length
+
+                                  -1   Derived initial bounds of p-1                                   If smaller
+                                         0 <= p-1 <= a.length - 1                                  False
+                                                                                      Return
+                                                                                                           True
+
+
+Figure 3: Conditions for the values of method get.                                             Block 3
+                                                                                                           Const 1             Store Indexed
+
+
+3.2 Loop-Invariant Checks                                                                                              Add
+  The number of fully redundant checks in an average Java                                                                         Goto
+program is not high because it is required that the array
+length is compared with the index expression before the ar-
+ray access. In contrast, the method clear shown in Listing 2
+uses a frequent code pattern where an array is accessed in a                             Figure 4: HIR of method clear.
+loop, but the array length is not checked explicitly.
+
+void clear ( int [] a , int x ) {                                               This condition is not suﬃcient to fully eliminate the check,
+  for ( int i = 0; i < x ; i ++) {                                           because it does not incorporate the actual array length. The
+    a [ i ] = 0;                                                             upper bound of the index as well as the array are parameters,
+  }                                                                          so the method could be called with the parameter x being
+}                                                                            bigger than the length of the array a and the method could
+                                                                             throw an exception. The check is not fully redundant, so it
+          Listing 2: Example method clear.                                   cannot be eliminated by an intraprocedural analysis.
+                                                                                Because the length of the array and the bounds of the
+   The loop variable is used as the array index. The array                   index do not change within the loop, the check is partially
+and the variable x are not changed within the loop, i.e. they                redundant. It can be replaced with a check before the loop.
+are loop-invariant. At the point of the array access, the                    While an instruction in a loop is likely to be executed multi-
+upper bound of the variable i is known when looking at the                   ple times, the instruction before the loop is executed exactly
+loop condition i <= x-1. The lower bound can be inferred                     once. Only if the loop is never executed because the param-
+from the fact that the start value of i is 0 and i is only                   eter x is 0, the new bounds check is unnecessary, but this
+increased.                                                                   overhead can be neglected.
+   Figure 4 shows the HIR of the method. The important                          In the example, the variable x as well as the constant 0
+part for proving that i only increases is the phi function.                  are both loop-invariant. The bounds check can be replaced
+Phi functions are necessary in the SSA form to merge diﬀer-                  by a check before the loop whether x does not exceed the
+ent values of the same variable when control ﬂow joins. In                   array length.
+the example, the phi function merges the values of i that                       Finding out whether an instruction is loop-invariant can
+come from the two predecessor blocks 1 and 3.                                be done in constant time using the dominator tree. Any
+   When processing block 2, our algorithm detects that the                   currently referenced instruction must be deﬁned in a block
+phi and the add instruction form a cycle with no other in-                   that lies on the path between the current block and the root
+structions involved. It derives from this construct that the                 of the dominator tree. When the block of the instruction
+value of i is always increased within the loop. Therefore                    lies between the loop header block and the root block, then
+only the upper bound of the phi instruction must be set to                   the instruction is loop-invariant.
+MAX, while the lower bound is the start value of i before the                   A problem however arises because of the exception seman-
+loop, i.e. the constant 0.                                                   tics of Java. Even in optimized machine code, an exception
+   At the beginning of block 3, the preceding if instruction                 must be thrown at the same point during program execution
+has been evaluated, so an upper bound for the phi instruc-                   as the interpreter would throw it. So we must not throw the
+tion is known too. The two conditions are combined using a                   exception before the loop even if we know that a bounds
+conjunction, so the resulting condition on the index variable                check fails at some point during the loop execution. If the
+at the array access instruction is                                           exception would be thrown for example after 10 iterations,
+                                                                             then these 10 iterations must be executed. It is therefore not
+                          0 <= i <= x − 1                                    allowed to insert a normal bounds check before the loop.
+
+
+                                                                       128
+
+=== [Page 5] ===
+   A common solution to this problem uses loop versioning                    Proving the second part, however, is impossible in most
+(see for example [11]). An optimized version of the loop                  cases. Therefore we need to make sure that deoptimization
+without bounds checks is executed when it is known that                   is called when the loop variable can overﬂow. This could
+the checks are unnecessary, and the unmodiﬁed loop with                   be done by the following explicit check before the loop. As
+bounds checks is executed otherwise. However, this solu-                  deﬁned in Listing 2, x denotes the value never reached by
+tion duplicates the code of the loop and therefore bloats                 the loop variable and c the constant that is added to the
+the method with backup code that is rarely or even never                  loop variable in each iteration:
+executed.
+   To avoid this, our algorithm inserts an instruction that                           deoptimize if x > M AX − c + 1
+triggers deoptimization if the check in front of the loop fails.
+The optimized machine code without the bounds check is                      However, when the condition for the index variable is used
+then discarded and the method is executed in the interpreter              to eliminate a bounds check, then the following deoptimize
+instead, which will throw the exception at the correct point.             instruction is already inserted before the loop:
+In the example, the algorithm adds an instruction that trig-
+                                                                                         deoptimize if x > a.length
+gers deoptimization if the parameter x is bigger than the
+array length.                                                               So the algorithm can safely assume that the loop variable
+   Figure 5 shows the HIR after the insertion of the deopti-              cannot overﬂow if the condition
+mization instruction. If the condition is true, the compiled
+machine code is thrown away and the interpreter continues                                  a.length <= M AX − c + 1
+executing the method.
+                                                                          is always true. If the variable can overﬂow, deoptimization
+                                                                          is called anyway, so we do not need to bother about this
+        Parameter x       Parameter a                Data flow            case. As the length of an array must ﬁt into a 32-bit signed
+                                                     Phi input            integer value, this condition holds for sure if c is equal to 1.
+                                                     Control flow         The maximum length of an array is also bound by the max-
+                                                                          imum heap size divided by the size of a single array element
+       Block 1                                                            in bytes. So in most cases higher values for c are also ac-
+                            Length
+                                                                          ceptable.
+                                                                             The opposite case, when we want to show that a value is
+          Deoptimize if greater         to interpreter                    always decreasing, is simpler. The lower bound of the loop
+                                                                          variable is checked to be greater or equal to zero by the de-
+                      Const 0                                             optimize instruction. If this check succeeds, no subtraction
+                                                                          of any positive value can cause an underﬂow.
+          Goto
+                                                                          3.3 Grouping Checks
+                                                                             Another way of reducing the number of executed bounds
+                                                                          checks is to group multiple checks that aﬀect the same array
+                                                                          into a single one. We apply this optimization for bounds
+                  to block 2 and 3                                        checks that are not removed by the previously discussed
+                   (see Figure 4)
+                                                                          techniques. To simplify the analysis, it is limited to checks
+                                                                          that occur within the same basic block and where the index
+      Figure 5: After insertion of instructions.                          expressions only diﬀer by constants. Listing 3 shows the
+                                                                          method triple with three array stores. The bounds checks
+   We may even deoptimize when the program would have                     of all three stores can be folded to one check before the ﬁrst
+executed completely without an exception. This can be the                 store. Again, deoptimization is needed to ensure that the
+case when the loop body is more complex and contains addi-                exception is thrown at the correct position.
+tional loop exits. The execution in the interpreter is slower,
+but after some time the method is recompiled again. To                    void triple ( int [] a , int i ) {
+prevent cycles of compilation and deoptimization, we use a                  a [ i ] = 0;
+ﬂag to ensure that the aggressive optimizations that caused                 a [ i +1] = 1;
+a deoptimization are not applied again when a method is                     a [ i +2] = 2;
+recompiled. So there is a beneﬁt when the optimistic as-                  }
+sumptions expressed by the deoptimize instructions at the
+beginning of the loop hold, but only a small penalty when                           Listing 3: Example method triple.
+they fail.
+   The analysis that determines if a variable of a Java pro-                Figure 6 shows the HIR representation of the method.
+gram is always increasing within a loop must take integer                 The algorithm needs a single pass over the instructions of
+overﬂow into account: The result of an addition that would                each basic block. For all arrays and index variables, it main-
+be bigger than the maximum integer value is a negative                    tains the minimum and the maximum constants that are
+value. Therefore, we need not only proof that the added                   added to the index variable when the array is accessed. In-
+value is bigger or equal to zero, but also that no overﬂow                stead of the bounds checks, two deoptimize instructions are
+can occur. As our algorithm only processes the addition of                inserted. They check whether the index variable plus the
+constant values to loop variables, checking the ﬁrst part is              minimum constant and the index variable plus the maxi-
+trivial.                                                                  mum constant are within the bounds of the array.
+
+
+                                                                    129
+
+=== [Page 6] ===
+                                                                           To increase the probability that a check can be moved
+         Parameter a      Parameter i              Data flow
+                                                                        out of a loop, we added a simple form of loop-invariant code
+                                                                        motion. Constant expressions are moved out of loops. For
+                                                                        arithmetic operations, additionally both operands need to
+           Block 1                                                      be loop-invariant.
+                        Const 0                                            Because of possible aliasing eﬀects, we need to be conser-
+                                                                        vative when moving ﬁeld loads or array accesses. A ﬁeld
+               Store Indexed             Const 1                        load is only moved out of the loop when there is no ﬁeld
+                                                                        store to a ﬁeld of the same type within the loop. An array
+                                                                        access is moved, when the array and the index expressions
+                                  Add
+                                                                        are loop-invariant and there is no array store to an array of
+                                                                        the same type within the loop.
+                     Store Indexed            Const 2
+                                                                           When moving instructions, we need to care about excep-
+                                                                        tions to occur at the correct code position. A ﬁeld load or an
+                                                                        array load can cause a NullPointerException. We added
+                                        Add                             an instruction ﬂag to mark instructions that must not throw
+                                                                        an exception immediately, but call deoptimization instead to
+                                                                        fulﬁll the exception semantics.
+                            Store Indexed
+                                                                        3.5 On-Stack-Replacement
+                               Return                                      The Java HotSpotTM VM normally compiles a method
+                                                                        only when it is frequently executed, i.e. when its invocation
+                                                                        counter reaches a certain threshold. If a method contains a
+           Figure 6: HIR of method triple.                              long-running loop, however, it is also possible to switch from
+                                                                        interpreted to compiled code while the method is running.
+                                                                        This is called on-stack-replacement (OSR) [8]. Such meth-
+   When this condition holds, also all other array accesses in-         ods are compiled with an additional entry point that jumps
+volving the same index variable and the same array are safe.            directly into a loop to the point where the compilation was
+Checks of multiple array accesses with diﬀerent constant in-            triggered. The local variables and the operand stack of the
+dices are replaced by a single deoptimization instruction that          interpreter are transferred to the machine code in the OSR
+checks whether the maximum constant is smaller than the                 entry block.
+array length.                                                              Figure 7 shows an example of the HIR when a method is
+   Grouping bounds checks is only proﬁtable if more than                compiled with an OSR entry. In this case, the phi instruc-
+two checks can be grouped together. This is because in                  tions for loop values in the loop header have three inputs.
+Java the lower bound of an array is always 0 and there-                 The third one is coming from the OSR block and represents
+fore a normal bounds check can be done with a single un-                the result of the loop iterations that were executed in the in-
+signed compare instruction. For a grouped bounds check,                 terpreter. Block 1 is never executed when the OSR entry is
+however, separate compare instructions for the lower and                used. When on-stack-replacement occurs in a nested loop,
+the upper bound are necessary. In the example, the three                additional phi instructions are also required for all outer
+bounds checks are replaced by the following two deoptimize              loops. After a method is compiled with an OSR entry, the
+instructions at the start of the basic block:                           next invocation of the method causes a normal compilation
+                     deoptimize if i < 0                                without the OSR entry.
+
+            deoptimize if i + 2 >= a.length
+                                                                               Block 1             OSR Block           Data flow
+   It is possible that the calculation of i + 2 results in an                                                          Phi input
+                                                                                   Const 0         Local 1
+overﬂow. However, this case can be handled without any ad-                                                             Control flow
+ditional costs by using an unsigned >= comparison, so that                      Goto                      Goto
+deoptimization is called when i + 2 overﬂows. The compar-
+ison for < 0 of the ﬁrst deoptimization instruction can also
+be performed by an unsigned comparison for >= a.length.
+This automatically handles the case when the addition of
+                                                                                  Block 2
+the index variable and the minimum constant leads to an                                              Phi
+underﬂow.
+                                                                                    Const 1
+3.4 Supporting Optimizations
+  The array bounds check elimination algorithm is applied                                           Add
+as one of the last optimization steps before the HIR is con-
+verted to the LIR. Other optimizations applied prior to our                                 Goto
+algorithm can lead to more bounds checks being eliminated.
+The built-in optimizations of the client compiler like con-
+stant folding and global value numbering help to identify
+stronger conditions on the index variables.                              Figure 7: HIR example for on-stack-replacement.
+
+
+                                                                  130
+
+=== [Page 7] ===
+  When our algorithm is applied to OSR methods without                be eliminated are mostly checks of array accesses that are
+any changes, it is only capable of removing few array bounds          outside of loops, not fully redundant and cannot be grouped.
+checks. It cannot assume any conditions on the values com-            As the overhead of a method invocation is quite high, such
+ing from the OSR entry block. Therefore, all conditions for           bounds checks are not worth being eliminated. Section 4.3
+them need to be cleared.                                              shows that the theoretically possible speedup achievable by
+  We enhanced the algorithm such that it takes beneﬁt of              bounds check elimination for such applications is low.
+the fact that the values of the OSR entry are coming from               In the MC benchmark, none of the array bounds checks
+the execution of the method in the interpreter. This is done          can be eliminated because the indices are ﬁelds and an in-
+by ignoring a value from an OSR entry when updating the               terprocedural analysis would be necessary to prove that an
+conditions of a phi instruction. The algorithm can assume             exception cannot occur.
+that the conditions for the value coming from the interpreter
+are the same as for the phi instruction itself. Special care          4.2 Impact on Compile Time
+must be taken when a bounds check is moved out of a loop                 One important design goal of our algorithm is to have a
+that has an OSR entry. The deoptimize instructions must               small impact on the overall compilation time. The algorithm
+be inserted twice: once as usual before the loop and a second         is designed for the use in a fast just-in-time compiler, so the
+time at the end of the OSR block.                                     time needed for bounds check elimination adds to the run
+                                                                      time of an application.
+4.   EVALUATION                                                          When enabling bounds check elimination, the time spent
+   This section evaluates our implementation of the algo-             in the compiler is increased by 1.8% when executing the
+rithm in the Java HotSpotTM VM. It is currently integrated            SPECjvm98 benchmark suite and increased by 5.6% when
+into the early access build b04 of the JDK 7 [16]. We mea-            executing SciMark. The overhead for SciMark is higher be-
+sure the percentage of removed dynamic bounds checks, the             cause the relative number of array accesses is higher and
+impact on the compilation speed, and the impact on the                more bounds checks are eliminated.
+execution speed.                                                         For all executed benchmarks, deoptimization because of
+   All measurements were performed on an Intel Pentium 4              a loop-invariant or grouped array bounds check is never
+processor 540 with 3.2 GHz and 1 GByte of main memory.                needed. So in the common case there is no additional com-
+The operating system was Windows XP Professional with                 pilation overhead introduced by recompiling deoptimized
+Service Pack 2 installed. We did not modify the default               methods.
+conﬁguration of the HotSpotTM VM, so the standard sizes
+for the heap are used.                                                4.3 Impact on Run Time
+   For the evaluation we executed the two benchmark suites               The speedup obtained by array bounds check elimination
+SPECjvm98 [15] and SciMark 2.0 [13]. The ﬁrst one includes            depends on the type of application. If the most frequently
+benchmarks with few array accesses like javac or jack, while          executed methods contain array access instructions, elimi-
+the second one performs scientiﬁc computations that operate           nation of bounds checks is very eﬀective. On the contrary,
+mostly on large arrays.                                               no speedup can be expected if only a low percentage of the
+                                                                      execution time is spent accessing arrays. Therefore we did
+4.1 Eliminated Bounds Checks                                          not only measure the speedup achieved by our algorithm,
+   When comparing bounds check elimination algorithms,                but also the theoretically possible speedup reachable with
+the percentage of removed checks is the most important                bounds check elimination by generating no bounds checks
+criteria. We instrumented the generated machine code to               at all. With this change, the Java VM does not conform to
+increment counters before each array access and also before           the speciﬁcation, as an ArrayIndexOutOfBoundsException
+each newly inserted deoptimization instruction. Figure 8              will never be thrown and a program could freely access the
+shows the results of our algorithm when only fully redun-             memory and disable all security mechanisms by accessing
+dant checks are removed, when the loop invariant motion               an array with an incorrect index. However, the benchmarks
+of checks is enabled and ﬁnally also with the grouping of             are not aﬀected by this change as the indices of all array
+checks enabled. One deoptimization instruction is counted             accesses are within the correct bounds.
+as if one bounds check was performed. A bounds check and                 When executing the SPECjvm98 benchmarks for the ﬁrst
+a check for deoptimization are expressed both by a compare            time, the compilation time is relevant in comparison to the
+instruction, a conditional branch, and in some cases also by          total execution time. Therefore we executed each bench-
+an instruction that loads the length of an array.                     mark several times and measured the slowest and the fastest
+   The removal of partially redundant checks by inserting             execution time. The slowest and the fastest runs are shown
+a deoptimization instruction before the loop increases the            on top of each other relative to the same baseline. For
+removed bounds checks signiﬁcantly for nearly all bench-              SciMark, the compilation time is insigniﬁcantly low. Fig-
+marks. The grouping of checks is eﬀective only in special             ure 9 shows the achieved speedup reached by our algorithm
+cases, mainly because there is only an improvement if more            and the theoretically possible speedup of array bounds check
+than two checks are grouped and the number of additionally            elimination.
+inserted deoptimize instructions is quite high. The bench-               Only for four of the twelve benchmarks, the achievable
+mark mpegaudio is the only one where this optimization                speedup is above ﬁve percent. Even if an algorithm elimi-
+yields signiﬁcantly better results.                                   nates all bounds checks, it cannot cross this limit. For ex-
+   In mathematical benchmarks that perform array opera-               ample, even though our algorithm eliminates 96% of the
+tions within loops like mpegaudio, FFT, SOR, SMM and                  bounds checks in the SOR benchmark, there is no measur-
+LU, our algorithm eliminates the majority of the checks.              able speedup because the array accesses are only responsible
+For the other benchmarks, the bounds checks that can not              for a small fraction of the total execution time.
+
+
+                                                                131
+
+=== [Page 8] ===
+                                                                                                                            96%                                99%
+                                                                                                                            96%                                99%
+       100%
+
+
+        80%               Fully redundant
+                          Plus loop motion                                                                56%
+                                                                            60%                             60%                                 56%
+        60%               Plus grouping                                                                     60%                                 56%
+                                                                      48%
+
+        40%                                                     34%
+                                                         22%                           22%
+                                                         22%                           23%
+        20%   10%
+               12%                                                                                  10%
+                                      5%
+               12%                      9%          8%                            8%                10%
+                        0%              9%                                                     4%                                        4%
+                                                                                                                       0%                               0%
+                        1%                                                                                                        0%
+                                                                                                                                  0%
+                         2%
+         0%
+                                                                                                                                  0%
+
+                mtrt     jess         compress           db    mpegaudio            jack        javac       FFT         SOR        MC      SMM                 LU
+
+                       Figure 8: Percentage of removed bounds checks (taller bars are better).
+
+                                                                                                                                                           197%
+                                      Baseline                                                                                                              201%
+       200%                       1
+
+                                                                          Slowest run                                                            185%
+                                      Elimination                     1
+
+
+                                                                          Fastest run
+                                      No checks
+                                                                                                                                            146%
+       150%                                                                                               100%
+                                                                100%
+              100%      100%          100%          100%          112%            100%         100%           125%     100%       100%
+                                                                                                                                         100%           100%
+              101%                    100%
+                                                                                                                134%
+                        100%                        100%                          101%         100%                    100%       100%
+               105%      104%          105%          103%           121%          102%         101%                    101%       98%
+       100%
+
+
+        50%
+
+
+         0%
+                mtrt      jess        compress           db    mpegaudio            jack        javac       FFT         SOR        MC      SMM               LU
+
+       Figure 9: Speedup when using the bounds check elimination algorithm (taller bars are better).
+
+
+   The slowest runs of SPECjvm98 show that the slightly in-                                   a concept similar to our deoptimization. The basic ideas of
+creased compilation time does not aﬀect the start-up perfor-                                  grouping multiple checks into a single one as well as moving
+mance of an application. The beneﬁt outweighs the analysis                                    checks out of loops are similar to our algorithm. However,
+overhead. Bounds check elimination has no signiﬁcant neg-                                     his algorithm does not take advantage of conditions intro-
+ative impact on the run time of any benchmark. The mpe-                                       duced by conditional branches.
+gaudio is the only benchmark of the SPECjvm98 suite that                                         To reduce the execution time, Gupta’s algorithm works
+has a theoretically possible speedup of more than 5%. This                                    on a reduced control ﬂow graph, which contains only in-
+is because the benchmarks carries out calculations based on                                   structions that are involved in array accesses. While Gupta
+arrays, e.g. the discrete cosine transformation. The other                                    diﬀerentiates between the lower and the upper bound check,
+SPECjvm98 benchmarks rarely access arrays, so their per-                                      this does not make sense for our algorithm, as the costs for
+formance can hardly be improved by removing array bounds                                      applying both or only one of them are the same in the Java
+checks.                                                                                       HotSpotTM VM.
+   The best results are achieved for the LU benchmark. The                                       Bodı́k et al. present an algorithm that allows bounds check
+theoretically possible speedup is 201%. Because our algo-                                     elimination for Java to be performed on demand [1]. This
+rithm eliminates 99% of all bounds checks, the benchmark                                      way it is possible to use the algorithm only for array accesses
+executes nearly twice as fast as before. Signiﬁcant perfor-                                   that are frequently executed. The input to their algorithm
+mance improvements are also achieved for the benchmarks                                       is a representation similar to the HIR which is also in SSA
+SMM (146%), FFT (125%) and mpegaudio (112%).                                                  form. They convert it to an extended SSA form in such a
+                                                                                              way that the conditions do not change within the lifetime
+                                                                                              of a value. Therefore they need to insert additional pi in-
+5.   RELATED WORK                                                                             structions to represent new conditions for certain values, e.g.
+   Gupta presents algorithms for bounds check elimination                                     after if conditions.
+based on bound conditions [5, 6]. One important diﬀerence                                        Our algorithm does not need to insert such instructions
+to our algorithm is the way the case of an index being out                                    and solves the problem by the special pre-order traversal of
+of bounds is handled. While we must adhere to the Java ex-                                    the dominator tree. They use a full inequality graph in-
+ception semantics, Gupta does not care about throwing the                                     stead of maintaining simpliﬁed conditions and perform an
+exception at the correct place and therefore does not require                                 adapted shortest path algorithm to check whether an index
+
+
+                                                                                        132
+
+=== [Page 9] ===
+is within the correct bounds or not. In case of conditional            [4] R. Griesemer and S. Mitrovic. A compiler for the Java
+branches, our algorithm updates the bounds of the instruc-                 HotSpotTM virtual machine. In L. Böszörményi,
+tions, while their algorithm adds additional edges to the                  J. Gutknecht, and G. Pomberger, editors, The School
+inequality graph.                                                          of Niklaus Wirth: The Art of Simplicity, pages
+   Qian et al. perform an intraprocedural analysis and build               133–152. dpunkt.verlag, 2000.
+inequality graphs for important points in a method [14].               [5] R. Gupta. A fresh look at optimizing array bound
+They update the inequality graph of a block by merging                     checking. In Proceedings of the ACM SIGPLAN
+the graphs of its predecessors. When processing loops, they                Conference on Programming Language Design and
+do a ﬁx-point calculation. They further improve their algo-                Implementation, pages 272–282. ACM Press, 1990.
+rithm by doing an interprocedural ﬁeld analysis and a special          [6] R. Gupta. Optimizing array bound checks using ﬂow
+analysis for ﬁnding rectangular arrays. However, their algo-               analysis. ACM Letters on Programming Languages
+rithm is not capable of handling partially redundant checks.               and Systems, 2(1-4):135–150, 1993.
+They integrated their algorithm into the Kaﬀee Java VM                 [7] U. Hölzle, C. Chambers, and D. Ungar. Debugging
+and into IBM’s HPCJ and provide evaluation results for the                 optimized code with dynamic deoptimization. In
+mpegaudio benchmark and the SciMark benchmark suite.                       Proceedings of the ACM SIGPLAN Conference on
+   Some approaches eliminate bounds checks by annotating                   Programming Language Design and Implementation,
+Java bytecodes [9, 18]. The advantage of this method is                    pages 32–43. ACM Press, 1992.
+that the just-in-time compiler does not need to perform the            [8] U. Hölzle and D. Ungar. Optimizing
+elimination. A more complex analysis can be applied as                     dynamically-dispatched calls with run-time type
+the analysis time does not add to the execution time of the                feedback. In Proceedings of the ACM SIGPLAN
+Java program. The disadvantages are larger class ﬁles and                  Conference on Programming Language Design and
+the need for veriﬁcation of the annotations in the virtual                 Implementation, pages 326–336. ACM Press, 1994.
+machine.
+                                                                       [9] J. Hummel, A. Azevedo, D. Kolson, and A. Nicolau.
+                                                                           Annotating the Java bytecodes in support of
+6.   CONCLUSIONS                                                           optimization. Concurrency: Practice and Experience,
+   We presented an array bounds check elimination algo-                    9(11):1003–1016, 1997.
+rithm for Java and evaluated our implementation in the Java           [10] T. Kotzmann, C. Wimmer, H. Mössenböck,
+HotSpotTM VM. Our algorithm is based on an intermediate                    T. Rodriguez, K. Russell, and D. Cox. Design of the
+representation in SSA form and performs an intraprocedu-                   Java HotSpotTM client compiler for Java 6. Technical
+ral constraint analysis on the index instructions. We remove               report, 2007.
+partially redundant bounds checks and retain the correct ex-          [11] V. V. Mikheev, S. A. Fedoseev, V. V. Sukharev, and
+ception semantics by using deoptimization. The algorithm                   N. V. Lipsky. Eﬀective enhancement of loop versioning
+is designed to eliminate bounds checks for typical Java pro-               in Java. In Proceedings of the International
+grams. While having a low impact on the compilation time,                  Conference on Compiler Construction, pages 101–115.
+it succeeds to eliminate the majority of all bounds checks                 LNCS 2304, Springer-Verlag, 2002.
+and leads to a speedup close to the theoretical maximum               [12] M. Paleczny, C. Vick, and C. Click. The Java
+for the scientiﬁc SciMark benchmark. There are plans to                    HotSpotTM server compiler. In Proceedings of the Java
+integrate the algorithm in one of the upcoming releases of                 Virtual Machine Research and Technology Symposium,
+the Java HotSpotTM virtual machine.                                        pages 1–12, 2001.
+                                                                      [13] R. Pozo and B. Miller. SciMark 2.0, 1999.
+Acknowledgements                                                           http://math.nist.gov/scimark2/.
+We would like to thank the Java HotSpotTM compiler team               [14] F. Qian, L. J. Hendren, and C. Verbrugge. A
+at Sun Microsystems, especially Kenneth Russell, Thomas                    comprehensive approach to array bounds check
+Rodriguez and David Cox, for their persistent support, for                 elimination for Java. In Proceedings of the
+contributing many ideas and for helpful comments on all                    International Conference on Compiler Construction,
+parts of the Java HotSpotTM VM.                                            pages 325–342. LNCS 2304, Springer-Verlag, 2002.
+                                                                      [15] Standard Performance Evaluation Corporation. The
+                                                                           SPECjvm98 Benchmarks, 1998.
+7.   REFERENCES                                                            http://www.spec.org/jvm98/.
+ [1] R. Bodı́k, R. Gupta, and V. Sarkar. ABCD:                        [16] Sun Microsystems, Inc. Java Platform, Standard
+     Eliminating array bounds checks on demand. In                         Edition 7 Source Snapshot Releases, 2007.
+     Proceedings of the ACM SIGPLAN Conference on                          http://download.java.net/jdk7/.
+     Programming Language Design and Implementation,                  [17] C. Wimmer and H. Mössenböck. Optimized interval
+     pages 321–333. ACM Press, 2000.                                       splitting in a linear scan register allocator. In
+ [2] P. Briggs, K. D. Cooper, and L. T. Simpson. Value                     Proceedings of the ACM/USENIX International
+     numbering. Software: Practice and Experience,                         Conference on Virtual Execution Environments, pages
+     27(6):701–724, 1997.                                                  132–141. ACM Press, 2005.
+ [3] R. Cytron, J. Ferrante, B. K. Rosen, M. N. Wegman,               [18] H. Xi and S. Xia. Towards array bound check
+     and F. K. Zadeck. Eﬃciently computing static single                   elimination in JavaTM virtual machine language. In
+     assignment form and the control dependence graph.                     Proceedings of the Conference of the Centre for
+     ACM Transactions on Programming Languages and                         Advanced Studies on Collaborative Research, pages
+     Systems, 13(4):451–490, 1991.                                         110–125. IBM Press, 1999.
+
+
+                                                                133

@@ -1,0 +1,117 @@
+# 2026-09-27 loop-IV coverage probes, bce-expectation-dump (RZSW) @ wgpu 83a90e0; OpULessThan via spirv-dis. NOTE: a u32 for-loop's own i<N condition is 1 OpULessThan in BOTH arms; signed compares are OpSLessThan (not counted).
+01_decrement_signed.wgsl en=0 dis=1 checks_removed=1
+02_decrement_unsigned_eq0.wgsl en=1 dis=1 checks_removed=0
+03_affine_i_plus_1.wgsl en=1 dis=2 checks_removed=1
+04_nested_affine_2d.wgsl en=2 dis=3 checks_removed=1
+05_derived_i_plus_j.wgsl en=2 dis=3 checks_removed=1
+06_const_bound.wgsl en=1 dis=2 checks_removed=1
+07_step4_unrolled.wgsl en=2 dis=3 checks_removed=1
+08_secondary_iv.wgsl en=2 dis=2 checks_removed=0
+09_signed_up.wgsl en=0 dis=1 checks_removed=1
+10_negstart_must_retain.wgsl en=1 dis=1 checks_removed=0
+11_off_by_one_must_retain.wgsl en=2 dis=2 checks_removed=0
+12_runtime_bound_must_retain.wgsl en=2 dis=2 checks_removed=0
+13_min_clamped_bound.wgsl en=2 dis=2 checks_removed=0
+== 01_decrement_signed.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 31i; i >= 0i; i--) { t[i] = 1.0; }
+}
+== 02_decrement_unsigned_eq0.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    var i = 32u; loop { if (i == 0u) { break; } i = i - 1u; t[i] = 1.0; }
+}
+== 03_affine_i_plus_1.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < 31u; i++) { t[i + 1u] = 1.0; }
+}
+== 04_nested_affine_2d.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < 8u; i++) { for (var j = 0u; j < 4u; j++) { t[i * 4u + j] = 1.0; } }
+}
+== 05_derived_i_plus_j.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < 16u; i++) { for (var j = 0u; j < 16u; j++) { t[i + j] = 1.0; } }
+}
+== 06_const_bound.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    const N = 32u; for (var i = 0u; i < N; i++) { t[i] = 1.0; }
+}
+== 07_step4_unrolled.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < 32u; i += 4u) { t[i] = 1.0; t[i+3u] = 1.0; }
+}
+== 08_secondary_iv.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    var k = 0u; for (var i = 0u; i < 32u; i++) { t[k] = 1.0; k = k + 1u; }
+}
+== 09_signed_up.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0i; i < 32i; i++) { t[i] = 1.0; }
+}
+== 10_negstart_must_retain.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = -5i; i < 32i; i++) { t[i] = 1.0; }
+}
+== 11_off_by_one_must_retain.wgsl
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i <= 32u; i++) { t[i] = 1.0; }
+}
+== 12_runtime_bound_must_retain.wgsl
+@group(0) @binding(0) var<uniform> n: u32;
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < n; i++) { t[i] = 1.0; }
+}
+== 13_min_clamped_bound.wgsl
+@group(0) @binding(0) var<uniform> n: u32;
+var<workgroup> t: array<f32, 32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < min(n, 32u); i++) { t[i] = 1.0; }
+}
+
+# follow-up probes
+a_arraylength_loop en=2 dis=2
+b_blur_i32_to_u32 en=1 dis=1
+c_blur_all_u32 en=1 dis=2
+== a_arraylength_loop.wgsl
+@group(0) @binding(0) var<storage, read_write> p: array<f32>;
+@compute @workgroup_size(1)
+fn main() {
+    for (var i = 0u; i < arrayLength(&p); i++) { p[i] = 1.0; }
+}
+== b_blur_i32_to_u32.wgsl
+var<workgroup> t: array<f32, 128>;
+@compute @workgroup_size(32)
+fn main(@builtin(local_invocation_id) l: vec3<u32>) {
+    for (var c = 0; c < 4; c++) { t[4u * l.x + u32(c)] = 1.0; }
+}
+== c_blur_all_u32.wgsl
+var<workgroup> t: array<f32, 128>;
+@compute @workgroup_size(32)
+fn main(@builtin(local_invocation_id) l: vec3<u32>) {
+    for (var c = 0u; c < 4u; c++) { t[4u * l.x + c] = 1.0; }
+}

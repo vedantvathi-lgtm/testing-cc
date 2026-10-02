@@ -1,0 +1,2202 @@
+=== [Page 1] ===
+Conference Record
+of the
+FOURTH ACM SYMPOSIUM ON
+PRINCIPLES OF PROGRAMMING LANGUAGES
+
+Papers Presented at the Symposium
+Los Angeles, California
+January 17-19, 1977
+
+Sponsored by the
+ASSOCIATION FOR COMPUTING MACHINERY
+SPECIAL INTEREST GROUP ON AUTOMATA AND COMPUTABILITY THEORY
+SPECIAL INTEREST GROUP ON PROGRAMMING LANGUAGES
+
+=== [Page 2] ===
+ABSTRACT INTERPRETATION :
+
+A UNIFIED LATTICE MODEL FOR STATIC ANALYSIS
+
+OF PROGRAMS BY CONSTRUCTION OR APPROXIMATION OF FIXPOINTS
+
+Patrick Cousot”and Radhia Cousot™”
+
+Laboratoire d'Informatique, U.S.M.G., BP. 53
+38041 Grenoble cedex, France
+
+1. Introduction
+
+A program denotes computations in some universe of
+objects. Abstract interpretation of programs con-
+sists in using that denotation to describe compu-
+tations in another universe of abstract objects,
+so that the results of abstract execution give
+some informations on the actual computations, An
+intuitive example (which we borrow from Sintzoff
+721) is the rule of signs. The text -1515* 17
+may be understood to denote computations on the
+abstract universe {(+), (-), (+)} where the se-
+mantics of arithmetic operators is defined by the
+rule of signs. The abstract execution -1515* 17
+==> -(+) * (+) => (-) * (+) => (-), proves that
+-1515*17 is a negative number. Abstract interpre-
+tation is concerned by a particular underlying
+structure of the usual universe of computations
+(the sign, in our example). It gives a summary of
+some facets of the actual executions of a program.
+In general this summary is simple to obtain but
+inaccurate (e.g. -1515+ 17 => -(+)+(+) =>
+
+(-) + (+) => (£)). Despite its fundamentally in-
+complete results abstract interpretation allows
+the programmer or the compiler to answer ques-—
+tions which do not need full knowledge of program
+executions or which tolerate an imprecise answer,
+(e.g. partial correctness proofs of programs igno-
+ring the termination problems, type checking, pro-
+gram optimizations which are not carried in the
+absence of certainty about their feasibility, ...).
+
+2. Summary
+
+Section 3 describes the syntax and mathematical
+semantics of a simple flowchart language, Scott
+
+and Strachey[71]. This mathematical semantics is
+used in section 4 to built a more abstract model of
+the semantics of programs, in that it ignores the
+sequencing of control flow. This model is taken to
+be the most concrete of the abstract interpretations
+of programs. Section 5 gives the formal definition
+of the abstract interpretations of a program.
+
+* Attaché
+Associé
+
+de Recherche au C.N.R.S., Laboratoire
+n° 7.
+
+**x This work was supported by IRIA-SESORI under
+grants 75-035 and 76-160.
+
+238
+
+Abstract program properties are modeled by a com-
+plete semilattice, Birkhoff[61]. Elementary pro~
+gram constructs are locally interpreted by order
+preserving functions which are used to associate
+
+a system of recursive equations with a program. The
+program global properties are then defined as one
+of the extreme fixpoints of that system, Tarski [55].
+The abstraction process is defined in section 6. It
+is shown that the program properties obtained by
+an abstract interpretation of a program are consis~
+tent with those obtained by a more refined inter-
+pretation of that program. In particular, an ab-
+stract interpretation may be shown to be consistent
+with the formal semantics of the language. Levels
+of abstraction are formalized by showing that con-
+sistent abstract interpretations form a lattice
+(section 7). Section 8 gives a constructive defi-
+nition of abstract properties of programs based on
+constructive definitions of fixpoints. It shows
+that various classical algorithms such as Kildall
+{73], Negbreitl75] compute program properties as
+limits of finite Kleene[52]'s sequences. Section
+9 introduces finite fixpoint approximation methods
+to be used when Kleené's sequences are infinite,
+Cousotl76]. They are shown to be consistent with
+the abstraction process. Practical examples illus-
+trate the various sections. The conclusion points
+out that abstract interpretation of programs.is a
+unified approach to apparently unrelated program
+analysis techniques.
+
+3. Syntax and Semantics of Programs
+
+We will use finite flowcharts as a language inde-
+pendent. representation of programs,
+
+3.1 Syntax of a Program
+
+A program is built from a set Nodes”. Each node
+has successor and predecessor nodes
+
+Nodes |
+
+n-succ, n-pred : Nodes+2 (me n-succ (n))
+
+<==>(ne n-pred(m))
+
+Hereafter, we note {S| the cardinality of a set S$.
+When \s| = 1 so that S = {xtwe sometimes use $ to
+denote x.
+
+The node subsets “Entries’, "Assignments", "Tests",
+"Junctions" and “Exits partition the set Nodes.
+
+- An entry node (n ¢ Entries) has no predecessors
+and one successor, ((n-pred(n) = @) and
+(|n-suec (n) | = 1)).
+
+=== [Page 3] ===
+- An assignment node (n ¢ Assignments) has one
+predecessor and one successor (C|n=pred(n) | =l)
+and ({n-suce(n) | = 1)). Let "Ident" and "Expr"
+be the distinct syntactic categories of identi-
+fiers and expressions. An assignment node n as-—
+signs the value of the right hand-side expres—
+sion expr(n) to the left hand~-side identifier
+id(n) :
+
+expr : Assignments + Expr
+
+id: Assignments + Tdent
+
+~ A test node (neTests) has a predecessor and two
+successors, ((}n-pred(n) | = 1) and ([n-suce (n) |
+= 2)). The true and false successor nodes are
+respectively denoted n-suce-t(n) and n-succ-f(n):
+
+n~suce-t, n-suce-f : Tests > Nodes |
+(¥n € Tests, n-suee(n) = fn-succ-t(n),
+n-succe-f(n)}).
+Let "Bexpr” be the syntactic category of boo-
+lean expressions, each test node n contains a
+boolean expression test(n)
+
+test = Tests > Bexpr
+
+- A junction node (n € Junctions) has one succes—
+sor and more than one predecessor, (Cha-suee(n)|
+= 1) and (|n-pred(n) | > 1)), Immediate predeces-
+sor nodes of a junction node are not junction
+nodes, (¥n € Junctions, Ym ¢ n-pred(n),
+not(m € Junctions)).
+
+~ An exit node n has one predecessor and no succes—
+
+sor, ((|n-pred(m)| = 1) and (n=suee(n) = )).
+
+The set "Arcs" of edges of a program is a subset of
+Nodes * Nodes defined by :
+
+Arcs = {<n,m> | (nm € Nodes) and (m e n-suec(n))}
+which may be equivalently defined by :
+
+Arcs ={<n,m>| (m ¢ Nodes) and (n ¢ n=pred(m))}.
+
+We will assume that the directed graph <Nodes, Arcs>
+
+is connected.
+We will use the following functions
+
+origin, end :
+
+end(a)>)
+atsucc Nodes + gAres
+a-suee(n) = {<n,m> | m € n-suce(n)}
+a-pred : Nodes + ghres
+acpred(n) = {<m,n>| me n-pred(n)}
+avsucce-t : Tests > Arcs
+
+a-suce-t{n) = <n, n-suce~t(n)>
+
+avsucce-f£ : Tests > Arcs
+a-succ-f(n) = <n, n-suce-f(n)>
+
+Example
+
+Ares + Nodes| (¥a ¢ Arcs, a = <origin(a),
+
+3.2 Semanties of Programs
+
+This section develops a simple “mathematical seman-
+tics" of programs, in the style of Scott and
+Strachey[71].
+
+- If S is a set we denote $° the complete lattice
+obtained fromS by adjoining figs To} to it, and
+imposing the ordering igs xs Ts for all xe S.
+
+- Thesemantic domain "Values" is a complete latti-~
+ce which is the sum of the lattice Bool = {true,
+false}® and some other primitive domains.
+
+- Environments are used to hold the bindings of
+identifiers to their values
+Env = Ident® > Values
+
+- We assume that the meaning of an expression
+expr € Expr in the environment e ¢ Env is given
+by val Lexprl (e) so that :
+
+val : Expr + [Env > Values].
+
+In particular the projection val | Bexpr of the
+function val in domain Bexpr has the functiona-
+lity: 9
+val | Bexpr : Bexpr + [Env + Bool].
+The state set “States consists of the set of
+ail information configurations that can occur
+during computations :
+States = Arcs’ x Env,
+
+A state (s € States) consists in a control state
+(cs(s)) and an environment (env(s)), such that :
+Ys « States, s = <cs(s), env(s)>.
+
+- We use a continuous conditional function cond(b,
+Qe); ey) equal to 1, e,, e, or T respectively as
+the value of b is L, true, false or T. We also use
+if b then e, else &5 fi to denote cond(b, ey>
+
+@)-
+
+- Tf ee Env, v € Values, x € Ident then
+e [v/x] = Ay. cond(y = x, v, e(y)).
+
+~ The state transition function defines for each
+state a next state (we consider deterministic
+programs)
+n-state : States > States
+
+n-state(s) =
+let n be end(cs(s)), e be env(s) within
+
+casenin
+“Assignments ==>
+<a-suee(n),el val [Lexpr(n) Tl (e)/id(n)}>
+Tests = ~
+
+cond(val [[test(n) I] (e) | Bexpr,
+
+<a-suce-t(n), e>,<a-suce-f(n), e>)
+Junctions => <a-succ(n), e>
+Exits => s
+
+esac
+
+(Each partial function f on a set § is extended
+to a continuous total function on the correspon—
+ding domain $° by £(1) = 4, £(7) = T and f(x) =L
+if the partial function is undefined at x).
+
+- Let diy be the bottom function on Env such that
+0 =
+(¥x € Ident’, Leny6®) = values?’
+Let I-states be the subset of initial states
+I-states = {<arsuce(m) 1,7 | me Entries}
+
+=== [Page 4] ===
+- A "computation sequence” with initial state
+ig € I-states is the sequence
+
+sy = n-state"(i,) for n=0, 1,...
+where £° is the identity function and
+gntl = f o £m,
+
+- The initial to final state transition function :
+
+©
+
+mostate : States + States
+
+is the minimal fixpoint of the functional
+AF. (m-state o F)
+
+Therefore
+
+n-state® = CAF . (n-state o F))
+
+Ygtates+ States
+where Y,(f) denotes the least fixpoint of
+fo : DD, Tarskif55].
+
+4. Statice Semanttes of Programs
+
+The constructive or operational semantics of pro-
+grams defined in section 3 considers the sequence
+in which states occur during execution. The funda~
+mental remark of Floyd!67] is that to prove static
+properties of programs it is often sufficient to
+consider the sete of states associated with each
+program point.
+
+Hence, we define the context Cq at some program
+point q « Arcs of a program P to be the set of all
+environments which may be associated to q in all
+the possible computation sequences of P
+
+Cq € Contexts = Env
+
+Cq = fe] (In 2 0,4 i, ¢ I-states |
+
+<qye> = nzstate"(i,))}
+
+The context vector Cv associates a context to each
+of the program points of a program :
+
+Cy ¢ Context-Vectors = Arcs® > Contexts
+
+Cv = Aq. fe! (Gn 2 0, 4 ig ¢ T-states |
+
+<q,e> = nostate"(i,))}
+According to the semantics of programs, the con-
+text Cv(r) associated to are r is related to the
+contexts Cv(q) at ares q adjacent to r,
+toe q r . woe
+(end(q) = origin(r), ——>). From the defini-
+tion of the state transition function we can prove
+the equation :
+Cv(r) = necontext(r, Cv)
+where
+n-context :
+is defined by:
+neeontext(r, Cv) =
+case origin(r) in
+Entries =>{1, 3
+Env
+Assignments U Tests u Junctions =>
+
+J U env-on(r)(n-state(<q,e>))
+eefv(q)
+qe avpred(origin(r))
+
+esac
+
+(We define env-on : Arcs’ + [States > bevy to be
+Ar. (As. cond(r = es(s), fenv(s)}, @))).
+
+Ares® x Context~Vectors + Contexts
+
+240
+
+Since the equation Cv(r) = n-context(r, Cv) must
+be valid for each arc, Cv is a solution to the sys-
+tem of “forward” equations
+Cv = F-cont(Cv)
+where
+F-cont : Context-Vectors + Context-Vectors
+is defined by :
+F-cont(Cv) = Ar
+is a complete lattice with union o
+
+Cvy = Ax. (Cvy(r) U Cvo(r)).
+
++ prcontext(r, Cv)
+Context~-Vectors
+such that cv, o
+
+preserving for the ordering € of
+which is defined by :
+
+F-cont is order
+Context-Vec tors
+
+{Cv, € ov} <=> {¥r © Arcs, cy, (r) = Cvy(r)}
+
+Hence it is known that F-cont has fixpoints, Tarski
+[55]. However, it is trivial to exhibit examples
+which show that these fixpoints are not always
+unique. Fortunately, it can be shown that Cv is
+included in any solution § to the system of equa-
+tions X = F-cont(X), (Cv € $). Tarski[55] shows that
+this property uniquely determines Cv as the least
+fixpoint of F-cont. Thus Cv can be €quivalently de~
+fined by
+
+DI: Cv = Aq. f{e| Cin 0, J i, ¢ I-states |
+— Dee
+<q,e> = nostate (i,))}
+or
+be cy = Yoontext-Vectors (Excont)
+
+The concrete context vector Cv is such that for any
+program point q e Arcs of the program P,
+
+(a) Cv(q) contains at least the environments e
+which may be associated to q during any exe-
+
+cution of P
+
+{Fizo, 4 i, « I-states | <q,e> n-state (i,)}
+
+=> fe « Cv(q)}
+(8) Cviq) contains only the environments e which
+may be associated to q during an execution of
+Pi:
+
+fe « Cv(q)} => {di 2 0, 4 i, ¢ I-states |
+
+<q,e> = n-state (ig)}
+Cv is merely a static summary of the possible exe-
+eutions of the program, However, our definitions D1
+or D2 of Cv cannot be utilized at compile time since
+the computation of Cv consists in fact in running
+the program (for all the possible input data). In
+practice compilers may consider states which can
+never occur during program execution (e.g. some
+compilers consider that any program may always per-
+form a division by zero although this is not the
+case for most programs). Hence compilers may use
+“abstract” contexts satisfying (a) but not necessa~
+rily (8), which therefore correctly approximate the
+concrete contexts we considered until now.
+
+5. Abstract Interpretation of Programs
+5.1 Formal Definition
+
+An abstract interpretation Iofa program P is a tuple
+I = <A-Cont, °, ©, 7, 4 , Int>
+
+where the set of abstract contexts is a complete
+
+o-semilattice with ordering <, ({x $ y} <=>
+
+{x o y = y}). This implies that A-Cont has a supre-
+
+mum T. We suppose also A-Cont to have an infimum 1.
+
+=== [Page 5] ===
+This implies that A-Cont is in fact a complete lat-
+tice, but we need only one of the two join and meet
+operations. The set of context vectors is defined
+by A-Cont = Arcs’ + A-Cont.
+
+Whatever (Cv', Cv") « A“Cont? may be, we define
+
+Cv' 3 Cv" = dr. Cv'(r) © Cv" (r)
+Cv' < Cv" = {¥r « Arcs’, Cv'(r) < Cv"(r)}
+
+Tsar. 7 and f= aArei
+
+a4 ~ ~
+<A-Cont, o, $5, T, 1> can be shown to be a com-
+plete lattice. The function
+
+Int : Ares® ont > A-Cont
+
+defines the interpretation of basic instructions.
+Ig {C(q) | q ¢ a-pred(n)} is the set of input con-
+texts of node n, then the output context on exit
+arc r of n (r € a-succ(n)) is equal to Int(r, C).
+Int is supposed to be order~preserving r
+
+¥a e Arcs, ¥(Cv', Cv") « A-Ceat?,
+{cv' 3 Cv"} => {Int(a, Cv") < Int(a, Cv't)}
+
+The local interpretation of elementary program cons-
+tructs which is defined by Int is used to associate
+a system of equations with the program. We define
+
+Tat : AOohe + Aeon | TRe(ev) = de. Int(e, cv)
+
+It is easy to show that Tat is order-preserving.
+Hence it has fixpoints, Tarskil55]. Therefore the
+context vector resulting from the abstract inter-
+pretation I of program P, which defines the global
+properties of P, may be chosen to be one of the
+extreme solutions to the system of equations
+
+ov = Tat (cy).
+
+5.2 fypology of Abstract Interpretations
+
+The restriction that "A-Cont" must be a complete
+semi~lattice is not drastic since Mac Neille[37]
+showed that any partly ordered set § can be embed-
+ded in a complete lattice so that inclusion is pre-
+served, together with all greatest lower bounds and
+lowest upper bounds existing in $. Hence in practice
+
+the set of abstract contexts will be a lattice, which
+
+can be considered as a join (uv) semi-lattice or a
+meet (n) semi-lattice, thus giving rise to two dual
+abstract interpretations.
+
+It is a pure coincidence that in most examples (see
+5.3.2) the nm or v operator represents the effect of
+path converging. The real need for this operator is
+to define completeness which ensures Tat to have
+extreme fixpoints (see 8.4). a
+
+The result of an abstract interpretation was defined
+as a solution to forward (+) equations the output
+contexts on exit ares of node n are defined as a
+
+function of the input contexts on entry arcs of node
+n. One can as well consider a system of backward (<)
+equations : a context may be related to its succes-
+sors. Both systems (+, >) may also be combined.
+
+Finally we usually consider a maximal (+) or mini-
+mal (+) solution to the system of equations, (by
+agreement, maximal and minimal are related to the
+ordering < defined by (x < y) <=> (x u y = y)
+<=> (x a y = x)). However known examples such as
+Manna and Shamirl75] show that the suitable solu-
+tion may be somewhere between the extreme ones.
+
+These choices give rise to the following types of
+abstract interpretations
+
+(u,7,%) (9,754)
+(o>, 4)
+(uss)
+(u,+,4) (n,«s¥)
+(u,eyt) (n,*, +)
+Examples :
+
+Kildal1L73] uses (n,>,+), Wegbreitl75] uses
+(u,>,+).  Tenenbaum{ 74] uses both (u,>>*) and
+(ny+t).
+
+6.3 Examples
+6.8.1 Statie Semantics of Programs
+
+The static semanticsof programs we defined in sec~
+tion 4 is an abstract interpretation :
+
+Tyg = <Contexts, u, ©, Env, $, n-context>
+
+where Contexts, u, c, Env, @, n-context, Context-
+Vectors, u, ©, F-Cont respectively correspond to
+A-Cont, o, S, T, 1, Int, A-Cont, o, <, Int.
+
+5.8.2 Data Flow Analysis
+
+Data flow analysis problems (see references in
+Ullman [75 ]) may be formalized as abstract inter-
+pretations of programs.
+
+"Available expressions" give a classical example.
+An expression is available on are r, if whenever
+control reaches r, the value of the expression has
+been previously computed, and since the last com—
+putation of the expression, no argument of the ex~
+pression has had its value changed.
+
+Let Exprp be the set of expressions occuring in a
+program P. Abstract contexts will be sets of
+available expressions, represented by boolean vec-
+tors
+
+Brvect : Expr + {true, false?
+
+B-vect is clearly a complete boolean lattice, The
+interpretation of basic nodes is defined by :
+
+avail(r, By)
+Tet n be origin(s) within
+~~case n
+Entries => Ae. false
+Assignments u Tests U Junctions ==>
+de. (generated(nye) or (and By(p)(e)
+~~ pea-pred(n)
+and transparent(n)(e))
+
+esac
+
+(Nothing is available on entry arcs. An expression
+e is available on are r (exit of node n) if either
+the expression e is generated by n or forall prede~
+cessorsp of n, e is available on p and n does not
+modify arguments of e).
+
+The available expressions are determined by the ma-
+ximal solution (for ordering Ae . false “Ae . true)
+of the system of equations
+
+By = avail (By)
+
+=== [Page 6] ===
+The determination of available expressions, back—
+dominators, intervals, ... requires a forward sys~
+tem of equations. Some global flow problems, nota-
+bly the live variables and very busy expressions
+require propagating information backward through
+the program graph, they are examples of backward
+systems of equations.
+
+5.3.3 Remarks
+
+Our formal definition of abstract interpretations
+has the completeness property since the model en-
+sures the existence of a particular solution to
+the system of equations and therefore defines at
+least some global property of the program. It must
+also have the consistency property, that is define
+only correct properties of programs.
+
+One can distinguish between syntactic and semantic
+abstract interpretations of a program. Syntactic
+interpretations are proved to be correct by refe-
+rence to the program syntax (e.g. the algorithm for
+finding available expressions is justified by rea-
+soning on paths of the program graph). By contrast
+semantic abstract interpretations must be proved
+
+to be consistent with the formal semantics of the
+language (e.g. constant propagation).
+
+6. Consistent Abstract Interpretations
+
+An "abstract" interpretation I = <A-Cont, ©, <,
+
+JT, 1, Tnt> of a program is consistent with a "con-
+crete" interpretation I <C-Cont, 9, S, T, 1, Int>
+if the context vector Cv resulting from T is a cor~
+xect approximation of the context vector Cv resul-
+ting from the more refined interpretation I. This
+may be rigorously defined by establishing a corres—
+pondence (& abstraction) between concrete and ab-
+stract context vectors, andinversely (y : concreti-
+
+zation), and requiring
+6.0 fev < Y(Gv)} and {&(cv) © Gy}
+In words the abstract context vector must at least
+
+contain the concrete one, (but not only the concrete
+one).
+
+If € : D+ D' we note D = Arcs? +D and D! =Arcs?>D"
+and F: D> BY = Ad. (ar. f(d(r)).
+
+We will suppose & and y to satisfy the following
+hypothesis :
+
+A-Cont + C-Cont
+
+6.1 o& : C-Cont » A-Cont, y :
+6.2 & and Y are order-preserving
+6.3 ¥x « A-Cont, x = a(y(x))
+6.4 ¥x « C-Cont, x < y(a(x))
+
+Intuitively, hypothesis 6.2 is necessary because
+context inclusion (that is property comparison)
+must be preserved by the abstraction or concreti-
+zation process. 6.3 requires that concretization
+introduces no loss of information, It implies that
+oa is surjective and y is injective. 6.4 introduces
+the idea of approximation :the abstraction a(C) of
+a concrete context C may introduce some loss of
+information so that when concretizing again y(a(c))
+we may get a larger context y(a(C)) = C. Note that
+it is easy to_prove properties corresponding to
+6.1-6.4 for & and Y.
+
+242
+
+Instead of the global hypothesis 6.0 we will use
+the following local hypothesis on the concrete and
+abstract interpretations of primitive language cons-
+
+tructs ~
+
+{¥(a, x) € Arcs x A-Cont, _ _
+yCint(a, x) 2 Int(a, y(x))}
+6.5 and
+{¥(a, x) ¢ Arcs x c-C3it,
+
+Tnt(a, a(x)) = a(Int(a, x))}
+
+These two hypothesis are in fact equivalent (lemma
+L2 in appendix 12). The following schema illustra-
+tes 6.5, i.e. the idea of abstract simulation of
+concrete computations
+
+Int(a, cy)
+
+c 26
+I xk : 0
+~t !
+ay ly
+
+\
+I
+|
+ero
+I WA
+
+_é >
+
+cy Int(a, cm) “0
+
+Suppose we want to compute the concrete output con-
+text C, (associated with arc a) resulting from con-
+crete input contexts Cy : Cy Int(a, Cy). We can
+as well approximate this computation in the abstract
+universe, and get Ch = yCint(a, a(Cz)). 6.5 requires
+£5 to contain at least Cg, that is Cg * CO. On the
+contrary we do not require Cg to contain at most
+that is C4 < Co is not compulsory.
+
+We will say that T is a refinement of T, or that
+
+T is an abstraction of I, denoted I < (a, Y)T, if
+and only if there exist « and y satisfying hypothe—
+sis 6.1 to 6.5.
+
+Note that I < (a, y)I imposes a local consistency
+of the interpretations Land T, at the level of pri-
+mitive language constructs (6.5). Theorems T! and
+12 of Appendix 12 then prove_6.0 which defines the
+global consistency of I and I at the program level.
+
+Co,
+
+In particular if we take
+
+Igg = <Contexts, u, ¢, Env, @,
+any abstract interpretation T of P, consistent with
+Igg (Igg € (%, Y)T) is consistent with the seman-
+tics of P, which implies
+
+n-context>
+
+¥q ¢ Arcs, let Cy be the result of T,
+
+{inc 0, di, € I-States | <q,e> =nestate (i,)}
+=> fee y(Ev(q))}
+
+As previously noticed, the abstract interpretations
+will not in general be powerful enough to establish
+the reciprocal.
+
+Example : Deductive Semanttes of Programs
+Contexts will be predicates such as P(x,,..., x.) n
+€ Pred over the program variables (x,,..,x Jé tden¢
+which are the free variables in the predicate. The
+abstract interpretation is then :
+
+Ibs
+
+<Pred, or, =>, true, false, n-pred>
+
+=== [Page 7] ===
+where n-pred defines Floydl67]'s strongest post
+condition :
+
+n-pred(r, Pv) =
+
+let(n be origin(r), (p be a-pred(origin(r)))within
+case n in
+
+Entries =>(¥xe Ident, x = “values?
+
+Junctions => or (Pv(q))
+qea-pred(n)
+
+Tests = >case r in
+
+“{a-suce-t(n)} => Pv(p) and
+~~ test(n)
+
+{a-succ-f(n)} => Pv(p) and
+not test(n)
+
+esac TO
+
+Assignments =>
+let (P be Pv(p)), (x be id(n)),
+(e be expr(n)) within
+(dv Values | Plv/x] and x= elv/x)
+
+esac
+
+The "invariants" of the program are defined by the
+least fixpoint of n-p¥ed (least for ordering? (=>),
+so that an invariant implies any other correct as—
+sertion).
+
+The deductive semantics is easily validated by pro-
+
+ving that Ig, < (a, YIpg> where ;:
+
+a : Contexts > Pred
+AC. Cor (€ and
+ecC xe Ident
+
+(x = e(x))
+
+y : Pred » Contexts
+de. fe | PLe(x)/x, x € Ident]}
+
+The main point is to justify Hoare[67]'s proof
+rules by showing :
+~~
+{¥a « Arcs, ¥Pv « Pred,
+
+a(n-context(a, y(Pv)))=> nc-pred(a, Pv)}
+
+See Hoare and Lauer[74], Ligler{ 75]. In particular
+Liglerl75] shows clearly that the proof can be done
+only when considering realizable Contexts and pro-
+grams involving "clean" basic constructs (e.g. cons-
+tructs excluding non-termination, errors, side-ef-
+fects, sharing between identifiers, ...).
+
+Once Igg < (a, 6) tog has been proved, we know that
+the deductive semantics gives a valid proof techni-
+que, which will never permit a false theorem to be
+deduced :
+
+¥q ¢ Arcs, let Pv be the result of Inge
+{in2 0, J ize I-states | <q,e> = n-state Nags
+=> {Pv(q) => a(e)}
+
+7. The Lattice of Abstract Interpretations
+
+The relation © comparing the levels of abstraction
+of two intepretations is a quasi-ordering since it
+is
+
+reflexive : (I $ (1, 1)1) where 1 = Ax.x is
+the identify function,
+
+(os Y,)1') and
+
+(1" < (4g, Y2)I") imply
+"
+
+I< (2, ° ys Yo ° ¥pPt .
+
+transitive : (I <
+
+243
+
+The relation = on abstract interpretations defined
+by :
+{— = I'} <=> {(I1 < I') and (I' < 1)}
+is an equivalence relation. We have
+{I = (8)I'} <=> {8 is an isomorphism between
+the algebras I and I'}
+
+The proof gives some insight in the abstraction
+process :
+
+1 {1 = (Ith => (<= GBT) and
+(I's (6, 8)1)}
+
+2-reciprocally,
+If 1s (4, yp, let = (Q,) be the equivalence
+relation derided on I (properly speaking, on the
+set of abstract contexts of I) by :
+fx = (ay)y} <=> fo, (x) = 0, ¢y)}
+
+¥x'! € I', each equivalence class C_, = {x ¢ 1|
+aj(x) = x'} has a least upper bound which is
+y,(a'). Hence the projection a, ly, (i') of a
+on y,() is a bijection from the set ¥,a') of
+representers of the equivalence classes on I.
+Let us show now that under the hypothesis
+
+I< (@), yt and I' < (G9, YI, a, is bi-
+jective.
+
+a, | yy(1') and Oy | Y2(I) are bijections, hence
+¥xte I', dix (unique) € ¥,)(I') such that
+
+x!o= (a, | y, I'D) (x). Likewise, x € ¥,(1')
+
+= x eT => Hx ¢ y9(L) | x = (| ¥(1)) Cx").
+Therefore, ¥x' ¢ I’, dix" € y9(1) i
+
+xt = (@,] ¥,(E")) © Cy] ¥9(T))("). Thus
+
+(ay | ¥)(1')) © (oy | y2(1)) is a bijection between
+yo(T) and L'. Since (a ] ¥5(1))7! is a bijee-
+tion between I and oT) the composition
+
+(a, by") 0 Cag] ¥,(1) © Gy 1 ¥,CE)™
+
+=, |")
+
+is a bijection between I and I', hence a, is a
+bijection between I and I' which is trivially
+an algebraic morphism. (a, is isotone, its in-
+verse @)° = Yy is isotone and a, Cint(a, xX)
+
+= Int'(a, a (XD) Q.E.D.
+
+]
+
+Let I be the set of abstract interpretations of a
+program, if equivalent interpretations are iden-
+tified, the quasi-ordering = becomes a partial or-
+dering.
+
+In particular, we can restrict I to be set of in-
+terpretations which abstract I J is then a lat-
+tice, (with ordering £) which is isomorphic with
+a subset of the lattice of equivalence relations
+on Contexts.
+
+Example :
+
+Let P be a program with a single integer variable,
+(the generalization is obvious). Environments will
+be integers (the value of the variable). Contexts
+are sets of integers (the set of values at some
+program point).
+
+A context S may be abstracted by a closed interval
+a(S) = [min(S), max(S)]. When $ is infinite the
+bounds will eventually be -*or +”.
+
+y(la, b]) = {x | a <x <b}. The abstract contexts
+are then, (Cousot£76])
+
+=== [Page 8] ===
+A further abstraction may be
+
+a(Ca, b]) = if a +b then a elsif a > 0 then +
+elsif b < 0 then - else + fi.y(n) = En, nJ,
+yO) = £0, +e), y-)=0-~, 01, y(4) = [-~, +].
+
+The abstract contexts are then :
+44 iw wii NS.
+
+-4-3 -2 -1 1 2
+
+This interpretation may be abstracted by two non-
+comparable abstractions :
+
+LS
+
+o -2 \
+
+a
+e\ YS
+|
+
+4
+
+Tgp is used by Kildal1[73] for constant propagation.
+Ipg might be used to apply the rules of signs. Both
+
+interpretations may be abstracted by :
+
+which may be used to check that any vertex in the
+program graph is reachable from the entry nodes.
+Finally, the most abstract interpretation is the
+upper bound of 7
+
+= <{1}, A(x, y)- 1,
+
+where t is the relation which is always true.
+have exhibited a sublattice of I which is
+
+t, I, T, Aa, ©). I>
+We
+
+Top
+
+Ze Hh
+
+TRs
+
+ss
+
+&. Abstract Evaluation of Programs
+
+The system of equations
+cw + Ent (cv)
+
+resulting from an interpretation I = <A-Cont, o,
+=, T, L, Int> of a program P may be solved by
+“elimination” methods, (e.g. Tarjanl75J). Other-
+wise, one can use an "iterative" algorithm which
+computes Kleene's sequence (L4 of Appendix 12)
+
+Cv :=(C r=f: until c= Tat(c) do C:= Tat(C) reneat ;C)
+8.1 Correctness
+
+If Int is supposed to be a complete morphism (i.e.
+infinitely distributive over .) then Cv is the
+least fixpoint of Tit. (e.g. Kildall[73], since in
+a semi-lattice of finite length, any distributive
+function is a complete morphism). Under the weaker
+assumption that Int is continuous, the limit Cv of
+Kleene's sequence can also be shown to be the least
+fixpoint of Tit (e.g. Wegbreit[75], since in a well
+founded semi-lattice, any isotone function is con-
+tinuous). Finally, if Int is only supposed to be
+isotone, Cv is an approximation (2) of the least
+fixpoint (e.g. Kam and Ullman[75]).
+
+8.2 Termination
+
+The abstract evaluation terminates iff Kleene's
+sequence is finite. This may be the case because
+A-Cont is finite (e.g. type checking in ALGOL 60,
+Naur[65}), or a finite subset only is to be consi-
+dered for any particular program (e.g. type che-
+cking in ALGOL 68), or A-Cont may be of finite
+length m (the length of any strictly increasing
+chain is bounded by m, Kildal1£73], Wegbreitl75])
+or A-Cont may satisfy the ascending chain condition
+(every strictly increasing chain is finite, although
+not bounded). A lattice may have infinite chains,
+although Int is chosen so that Kleene's sequences
+are finite. Finally an infinite Kleene's sequence
+may be arbitrarily truncated (to get a lower bound
+
+of its limit), some induction principle (Sintzoff
+£75}) or heuristics (Katz and Mannal76]) may be
+used to pass to the limit, or approximate it,
+(Cousot[76]).
+
+8.3 Efftetency
+
+In practice efficient versions of the Kleene's sequen-
+ce are used. These consist ina symbolic execution of
+the program which propagates information along
+
+paths of the program until stabilization. A speci-
+fication of order of information propagation may
+lead to optimal algorithms for specific applica-
+tions (references in Tarjan[761).
+
+=== [Page 9] ===
+8.4 Example : Performance Analysts of Programs
+The performance of programs may be analyzed by de-
+riving for each program point the final value of
+an imaginary counter which is incremented each time
+
+control goes through that point.
+
+Let A-Cont be the lattice R of positive real num-
+bers augmented by the upper bound », with natural
+ordering <. The abstract interpretation
+
+I, =<R* 0, ©,
+
+PB
+may be used to derive the mean values of the coun-
+ters using Kirchhoff's law of conservation of flow:
+
+> max, <, Kir>
+
+let n be origin(r) within
+“case n in
+Entries => 1 {unique entry node}
+Junctions u Assignments => z
+pea-pred (n)
+
+Cv(p)
+
+Tests
+case r in
+Ta-suce-t(n)} => Cv(a-pred(n) *
+~~~ Prob(test(n) = true)
+{acsuce-f(n)} ==> Cv(acpred(n)) *
+(1-Prob(test(n) = true))
+
+==>
+
+esac
+esac
+
+The main difficulty is to obtain the probability
+Prob(test(n) = true) of taking the true path at a
+test node n. Suppose the values of these probabili-
+ties can be determined (from hypothesis on the in-
+put data).
+
+For fixed probabilities, the function gir is clear-
+ly continuous (although it is not a complete mor-
+phism) since
+
+then max( Cv, (p)) = z (Mak (Cv, pr)
+
+i=0 pe a-pred(n) pea-pred(a) i=0
+
+= (max (n;)) * qe
+ica
+
+and
+
+The least fixpoint of Kit is the limit of Kleene's
+sequence (the length of the sequence is in general
+infinite) :
+
+- Let
+The
+ven
+n=
+
+P be the program "begin L : go to L end”.
+number n of iterations in the loop is gi-
+by the minimal solution to the equation
+
+n+] which is » limit of O+14+1414+...
+
+- Let P be the program "begin while T do I end”.
+The number n of times the expression [ is tes-—
+ted is given by the minimal solution to the
+equation n = 1 + q * n where q is the probabi-
+lity of T to be true. n may be determined by
+the limit of Kleene's sequence :
+
+oO]
+
+tqt gti. tqee.,
+
+which is an infinite series. Its sum is
+
+l-q?
+This abstract interpretation leads to a system of
+linear equations. Kleene's sequence corresponds to
+the Jacobi's iterative method (for numerical
+coefficients).
+
+245
+
+9. Fixpotnts Approximation Methods
+
+When the extreme fixpoints of the system of equa-
+tions established for an abstract interpretation
+
+I of a program P cannot be computed in finitely
+many steps, they can be approximated. A more abs-
+tract interpretation I (I < T) may be used for
+
+that purpose (e.g. Tenenbaumf74]). It is often bet
+ter to make approximations in I, for example by
+“accelerating the convergence" of Kleene's sequences.
+
+9.1 Finite Tterative and Increasing Approximation
+of the Least Pixpoint Starting from a Lower
+Bound
+
+Let I = <A-Cont, o, S, !, T, Int> be an interpre-
+tation of P. When the least fixpoint Cv of Tht
+
+is unreachable, we look for an upper bound Ub of
+Cy, since according to the correctness zeguirement
+6.0, Cv £ ¥ (Cv) and Cy = ub implies Cv < y(Ub).
+
+9.1.1 Inereasing Avproximation Sequence
+
+Let A-tHt : A-Cont > A-Cone be such that
+91.1.1 {¥n > 0, 6 = k-tat'() and not (THE(c) = c)}
+={C F Int(c) 2 Amine (c)}
+* cee ~ ows
+9.1.1.2 Every infinite sequence 1, A-int(1), ...,
+
+card ow . . > +
+A-int"(T), ... is not strictly increasing.
+
+The approximation sequence So» bees Syseee is recur-
+sively defined by :
+=.
+9.1.1.3 89
+Saal = if not (THe (Ss, )2%s5 ) then
+actrt(s,)
+else
+s,
+fi
+
+We now prove that Jm finite such that
+
+a
+
+Sy = Sy wee
+
+Let m be the least natural number (eventually in-
+
+Finke) suc that S| = = Sma: ¥k ¢ [0, ml, we know
+from 9. .3 that not (THES, »z S_ ea) Whence s.. de-
+fleveion’ uf the ordering &, Se # Int(s,) o
+
+Since 8, =
+that S, %
+and 9.1.1.1
+
+= wt [é
+Spay 7 Acae(s,) 3 Int
+
+Tit (S,.) rs
+THt(S;,) 3
+imply :
+
+S,is always true we we can state
+S,- Besides not (Tit (S,) gz 8.)
+
+(Sy) 0 8,
+
+and therefore we conclude Sia > Sie Yk e [1, ml.
+
+Moreover 9.1.1.2 implies that m is finite. Q.E.D.
+
+it is the
+ACCBRE such
+
+Let Ww be the least fixpoint of Tht,
+greatest lower bound of the set of X «
+that Tae(x) = X (Tarskif55]) hence
+
+¥X « ASCoft, (Die(x) 2 x} => {Cy 2 x}
+Since S, = Sm+1 we have Tht(S,_) = Si and therefore
+Cv Ea Sine 8, is a correct approximation of Cv.
+
+=== [Page 10] ===
+9.1.8 Generalization of Kleena's Ascending Sequence
+
+When A-Cont satisfies the ascending chain condition
+one can choose ATint to be Tht and therefore the
+approximation sequence generalizes Kleene's sequer
+ce and the related methods.
+
+2.1.8 Widening in Increasing Approximation se-
+quences
+
+eset inition of the approximate interpretation
+A-int in 9. is, global. We now indicate a way
+to construct ot nt by local modifications to int.
+
+Let (q, cr) « Arcs®, we say that the context asso-
+ciated to q is dependent on the context associated
+to r, if and only if
+
+{Jove A-CoAt, FC A-Cont | Int(q,Cv) ¢ Int(q,CvlC/r])}
+
+(e.g. in a forward system of equations the context
+associated to q may only depend on the contexts
+associated with the immediate predecessor arcs of
+q). In the system of equations Cv = Int(Cv) we de-
+fine a cycle to be a sequence <q,, v++5 dy” of
+ares, such that Vie [1, nl, Cv(qj4;) depends on
+Cv(q;) and Cv(q,) depends on ovlq, ). (e.g. ina
+Forward interpretation a cycle corresponds to a
+loop in the program).
+
+In any infinite strictly increasing Kleene's se-
+
+quence Cv, weey Cv, 4... Since Arcs is finite there
+is some are q for which the sequence Cv)(q),..-5
+Cv,(q), ... never stabilizes. Therefore q must be~
+
+Tong to a cycle or the contexts associated te q
+transitively depend on the contexts associated to
+some other arc r which itself belongs to a cycle.
+The sequence of contexts associated to any are of
+that cycle never stabilizes. In order to avoid this
+phenomenon, we introduce
+
+- The binary operation ¥ called widening defined
+by :
+9.1.3.1 Vo: A-Cont x A-Cont + A-Cont
+9.1.3.2 ¥(C, C') « ACont*, ¢ , c's ce!
+
+9.1.3.3 Every infinite sequence Sqr tees Syreee
+of the form s = Cos heey Sy = Spy V Ons
+
+(where C +s Cy, «+. are arbi-
+
+trary abstract contexts) is not strictly
+
+increasing.
+
+- The set W-ares of widening arcs, which is one of
+the minimal sets of arcs such that any cycle
+
+<d)> ae q.> of the system of equations
+Cv Int (Cw) contains at least a widening are:
+Jie TT, nT] ¢ Wearcs. (e.g. in a forward
+
+interpretation! on a reducible program graph,
+W-arcs may be chosen to be the set of exit
+arcs of the junction nodes which are interval
+headers. On irreducible graphs an arbitrary
+choice has to be made so that any loop of the
+program goes through a widening arc).
+
+- The approximate interpretation
+A-int : Arcs® x A“Cont > A-Cont defined by :
+
+1.3.4 A-int = A(q, Cv). if q € W-arcs then
+~~ “€v(q) ¥ Int(q, Cv)
+else ~~
+Int(q, Cv)
+a
+
+246
+
+As before, we define
+
+9.1.3.5 A-DWE = ACy. (Aq. Avint(q, Cv))
+
+Now we have to show that this definition of A
+
+satisfies the requirements 9.1.1.2 and 9.13.1
+Let_us consider a sequence S, = tT, wang S
+—~ . atl,
+= A-int(S w? ... We show that this sequence is
+
+increasing that is to say:
+
+9.1.3.6 8) < A-int(s,), ¥n 2 0.
+
+Trivially for n=0, $ Q= if enaen ). For the
+induction step, suppose the result to be true
+for n < m. Let us prove that
+
++1
+<= 8.) (a) § Avint(a, Stl )s¥q € Arcs.
+If q € W-arcs, then A-int(q, S
+Sn (Q) ¥ Int(q, $15) 2 8
+
+)=
+m+]
+(q) o Int(a, S41)
+
+m+
+= Si (O-
+Tf q ¢ Weares, then
+Avint(q, Sa = Int(q, Saal
+= Int(q, $ mm S Avint(q, § mt since
+S_ = 8 and Tot is order preserving. Moreover
+
+fFom ae W-arcs and 9.1.3.4 we get int(q, S_)
+int(q, S im) and therefore Sa aD = = Arint(q,$.)
+
+Ar-int(q¢, See
+Finally Sel s
+spe ~ ~~ aw
+An infinite sequence §, = +, ..., $. = A-int (1),...
+0 n
+
+cannot be strictly increasing since otherwise there
+would exist some widening are q for which the se-
+quence § 9 (D> sees S (a), ++. would never stabilize
+thus contradicting 9.1.3.3.
+
+We now prove 9.1.1.1 that is to say that :
+Yo = 0, 9. = A-tHt*(?)
+implies
+Ss
+Th
+
+c= (8, STRE(S Dg) 2 ABHECS )(@), Ya € Arcs
+<=> 8 C4) o Int(q, 8) < A-int(q, 8) (see 9.1.3.5)
+If q € W-arcs, we have A-int(q, S$ =
+S(q) ¥ Int(q, 8.) = Sq) 6 Iot(G, § nw PY
+
+1.3.2. If now q ¢ Weares we must show :
+
+8(a) © Int(q, 8) < Int(q, 8.)
+
+<—> $¢q) o Int(q, s)) = Int(q, 8)
+<=> Sa) < Int(q, 8)
+<=> $a) s A-int(q, 8) by 9.1.3.4
+which is true, from 9.1.3.6, Q.E.D.
+
+9.2 Example : Bounds of Integer Vartables
+
+In a PASCAL program operating on arrays, the compi-
+ler should ensure that arrays are subscripted only
+by indices within bounds. For that purpose one can
+use the lattice T, of section 7, Let us take an
+obvious example
+
+=== [Page 11] ===
+c5
+false
+
+Let us note La, b] where a < b the predicate
+a <x <b. The system of equations corresponding
+to the example is
+
+(0) coOseL, 1
+
+qd) ¢l=il, 13
+
+(2) 2 = Clu C4
+
+G) C63 =¢2 1 [-%, 100]
+(4) C4 = C3 #1, 1]
+(6) C5 =C2n [101, +%)
+
+Assignment statemeits are treated using an inter—
+val arithmetic (e.g. Li, j] + [k, 2] = [itk, j+h]
+naturally extended to include the case of the emp-
+ty interval). Similarly tests are treated using an
+"interval logic’. Since there exist infinite
+Kleene's sequences (e.g. C , J<f0, 0] < [0, 1]
+
+< ... < (0, +] for the program x := 0 ; while
+true do x := x+1), we must use an approximation
+sequence. Hence the results will be somewhat inac~
+curate but runtime subscript tests may be inserted
+in the absence of certainty.
+
+Let us define the widening ¥ of intervals by :
+
+-[ , ] is the null element of ¥
+
+~fi, jl Vik, 2) = Cif k < i then -welse i fi,
+
+Tf 2> j then +~else j fil
+
+satisfies the requirements of 9.1.3. According
+
+to 9.1.3.4 the system of equations is modified by :
+
+(2) C2 = ¢2 V (Clu C4)
+
+The corresponding approximation sequence is :
+
+i=l, J] for ie £0, 53
+* Ger 1]
+C2 = C2 7 (Cl u C4)
+=f ,]¥ di, 1Jut, 17)
+={f,179 (1,1)
+=i, 11
+c3 = €2 9 [-", 100]
+=fi, tJ] on L-#, 100)
+=i, 1]
+ch = C3 + ft, 11
+=fi, 1] +1, 1
+= (2, 2]
+C2 = C2 ¥ (Clu C4)
+=[1, 1} ¥ (£1, 11 u £2, 23)
+=i, lj ¥ ti, 23
+« C2 =[1, +2]
+C3 = C2 [-”, 100]
+={1, +~]Jnf-%, 100]
+
+247
+
+* C3 = [1, 1004
+c4 = C3 + C1, 1]
+=[1, 100) + (1, 13
+*« C4 = (2, 1013
+Note : Cl u C4 =[1, 101] < C2 =[1, +%]
+stop on that path.
+c5 = C21 (101, +e]
+=[1, +2] 0 [101, +]
+* C5 =[101, +]
+exit, stop.
+
+The final context on each are is marked by a star
+*, Note that the results are approximate ones,
+(e.g. C5).
+
+In this example the widening is a very rough ope-
+ration which introduces a great loss of information
+However it can be seen in the trace that tests
+behave like filters. Furthermore, for PASCAL like
+languages, one can first use the bounds given in
+the declaration of x before widening to infinite
+limits.
+
+9.3 Pintte Iterative and Decreasing Approximation
+of the Least Fiapoint Starting from an Upper
+Bound
+
+The ascending approximation sequence leads to an
+upper bound § -int™(7) of the least fixpoint
+UPI Pet
+
+cy of Tit : Cv = S$). Moreover Tre(s_) ] Sp. Since
+is order preserving, this implies that
+B.S TRe%S) Fo We,
+
+If S$ is not a fixpoint of Tt and the above de-
+scending sequence is finite (e.g. the lattice
+A-Cont satisfies the descending chain condition)
+its limit is a better approximation of Cv than Sn
+When the sequence is infinite or slowly converging,
+one can among other solutions approximate its li-
+mit.
+
+2.3.1 Decreasing Approximation Sequence
+
+At step n in the descending sequence, we have
+m™n-1 ~ MT diy -eed
+Int (s) > Int (s) > Cv
+
+In order to accelerate the convergence, we should
+for nike next step_£ find an approximation D such that
+Ta” (S,) Sp 2 Cy. But not knowing Cv, this cha-
+Tacterization is very weak since D could be chosen
+incorrectly that is to say less than Cv or non com
+parable with Cv. The fact that Cv is the greatest
+Jower bound of the set of X € A-Cont such that
+
+Tit (x) 2X gives a correctness criterion for the
+choice of D when cw is unknown, we must have
+
+Tes ) > p= Titi)
+
+On the contrary to 9.1.1, this characterization does
+not. provide an efficient construction of D.
+
+9.3.2 Trmeated Decreasing Sequence
+
+In front of these difficulties we will enforce con-
+vergence by choosing D such that
+
+jn 2 o| THt(s) > v= Tr" 3)
+
+=== [Page 12] ===
+(However, we will not artificially truncate the
+decreasing sequence by imposing an arbitrary upper
+bound on n ).
+
+A-One + ASCoMt be such that :
+
+{¥c «¢ A-Cote}
+{eS Tat(c)} => fe = D-Ihe(c) =
+
+Lee D-imt
+9.3.2.1
+= Trt(c)}
+
+9.3.2.2 ¥o € € <Oohe, every infinite sequence Cy
+D- j-int (C), a D=int! Nc), ~.. is not strict:
+ly decreasing.
+
+The truncated decreasing sequence 85
+is recursively defined by :
+
+tos
+9.3.2.3 55 Sa
+
+_ ret '
+Shay 7 4E (s), # tat(s')) and (si #
+
+else
+
+—— gt
+
+fi
+Let us now prove that the truncated decreasing se-
+quence is a finite strictly decreasing chain which
+dems are greater than Cv the least fixpoint of
+Tht.
+
+Let p be the least natural number (eventually
+infinite) such that S' = S$" Trivially from
+9.1] pvp
+
+sh = 5, = The(s.)
+
+ve
+
+w
+
+If p > O then 85 7 THE(SA), therefore $! > Tit (st).
+Then applying § 9.3.2.1 we have :
+
+Sie pti (sj) =
+
+5 Bitsy) 2
+
+0
+But 9.3.2.3 implies S4 # Sty (ss), hence
+Sh > St 2 Tit(s) 2
+
+For the induction step, let us suppose that for
+k< p, we have
+
+Spi) > Sy 2 Tres; _) FW
+Since Tit, is order preserving we have
+‘Tre(s)_,) 2 Twt(s1) = Trt’ (s)_) = Tay)
+
+By transitivity si? 2 Tht(s} ie) and since 9.3.2.3
+# TRECs} ) we have from 9.3.2.1
+
+1 k WZ =o y '
+Sy = p- D-THL(S) ) Shar 2 THe (Ss!)
+
+implies Sy
+
+Since 9.3.2.3 implies St # B-TH(s}) we have
+
+1 QJet Tt yl &
+
+Si > Spy, = atts, = cv
+
+By recurrence on k the result is true for ks p.
+Moreover 9.3.2.2 implies that p is finite. Q.F.D.
+
+9.8.3 Generaltzatton of Kleene's Descending Se-
+quence
+
+When A-Cont satisfies the descending chain condi-
+
+tion, one can choose D-Tht to be Int, in which case
+the final result 8! = THtP(s ) isa a_fixpoint grea-
+ter or equal to the least fixpoint cr of Tat.
+
+248
+
+The Limit of _the descending sequence S! = T, ry
+s! D- B-ineP (7), or is an upper bound of the grea-
+tBst fixpoint of Tat .
+
+9.3.4 Narrowing in Truncated Decreasing Sequences
+
+By analogy with 9.1.3 we define now the narrowing
+operation in order to built a possible construction
+of D-imt by local modifications to Int
+
+9.3.4.1 A +: A-Cont x A-Cont + A-Cont
+
+9.3.4.2 ¥(C, C') © A-Cont?,
+{c2 ct} => {C=C act 2c}
+
+9.3.4.3 Every infinite Sequence Srp seey Sig eee
+a
+of the form 8 = Cos Ac wees
+gs, = 8). A Cos vee fot arbdtrar}” abstract
+céntexEs C, ,&, weey Clg «2. i8 not
+
+: n
+strictly dgeredsing.
+
+The approximated | interpretation
+D-int : Arcs® x A-Cont > A-Cont is defined by :
+
+9.3.4.4 D-int = (q, Cv). if q « W-ares then
+Cv(q) A Int(q, | Cv)
+else
+Int(q, Cv)
+fi ~
+
+and
+
+D-ift = X¢v. (Aq. Drint(q, Cv)
+
+This definition of b-int trivially satisfies the
+requirement 9 9.3.2.1 since ¥ev ¢ A“Comt with pro-
+perty Cv > Tit (cv) implies Cv(q) = Int(q, Cv),
+¥qe Arcs. TE q ¢« W-ares then 9.3.4.2 3 implies that
+Cv(q) 2 Cv(q) & Int(q, Cv) = Drint(q, Cv) »
+
+Int(q, Cv). Otherwise, if q ¢ W-arcs Cv(q) 2
+Tnt(q, Cv) = Drint(q, Cv), Hence Cy > Doint(cv) &
+
+Trt (Cv).
+
+The proof of termination (requirement 9.3.2.2) is
+very similar to the one outlined for A-iift in sec-
+tion 9.1.3.
+
+9.4 Example : Bounds of Integer Vartables
+Let us come back to example 9.2. The system of
+equations was
+
+GQ) cial, 1)
+
+(2) C2 = Clu C4
+
+(3) €3 = C2 n [-%, 100]
+(4) C45 C3 + ft, 1)
+(5) C5 = C2 £101, +”)
+
+The ascending approximation sequence led to the
+approximate solution
+
+* cl =[1, 1]
+
+c2 = C1, +]
+c3 = C1, 100}
+* Ch =f2, 101]
+
+C5 = (101, +]
+Let us define the narrowing A of intervals by :
+- { , ] is the null element of A.
+
+- fi, 9] 4 ck, £1] =
+iif i = - © then k else min(i, k) fi,
+if j = + then & else max(j, 2) fi]
+
+=== [Page 13] ===
+Thus narrowing just discards infinite bounds and
+makes no improvement on finite bounds, it satisfies
+the requirements of 9.3.4. According to 9.3.4.4 the
+system of equations is modified by :
+
+(2) C2 = C2 A (Cl u C4)
+The descending approximation sequence is
+C2 = C2 A (Cl u C4)
+= Ll, +) A (Li, lJ u £2, 1017)
+=[1, +°] ATI, 101]
+* C2={f1, 101]
+c3 = C20 [-~, 100]
+* C3 =[1, 101] n [-~”, 100] = [1, 100]
+stop on that path.
+C5 = C2 n 101, +0]
+* C5 ={f1, 101] 9 [101, +] =f101, 101]
+exit.
+
+On that example the approximate solution has been
+improved so that the least fixpoint is reached but
+this is not the case in general.
+
+9.5 Duak Approximation Methods
+
+The lattice A-Cont may be partitionned as follows :
+
+X and Tht(x)
+non comparable
+
+F2
+
+Bip and gfp are the least and greatest fixpoints of
+Tat. The ascending (AKS) and descending (DKS)
+Kleene's sequences converge toward %fp and gfp
+respectively. These limits are reached when Int
+
+is continuous. When AKS is infinite we have pro-
+posed to use an ascending approximation sequence
+(AAS) to approximate fp. Its limit may be some
+fixpoint fp, or some S$ such that § 3 THt(S_) and
+s, > Ufp. m nos
+
+249
+
+When X = Y we have noted X @----- >e Y.
+
+The truncated descending sequence TDS is fundamen-
+tally different from AAS, since it ensures that the
+successive approximations starting from S_ remain
+in the partition {x |X >= Tat(x)}, so that™their
+limit 85, is greater than Lip
+
+It is clear that the ascending approximation se~
+quence AAS when starting from 1 leads to an upper
+bound of the least fixpoint %fp of Tat, and the
+truncated descending sequence TDS when starting
+from T leads to an upper bound of the greatest fix-
+point gfp.Hence the AAS and TDS methods are not
+dual, therefore when considering their duals DAS
+and TAS we get a means to surround both extreme
+fixpoints of Tat
+
+=== [Page 14] ===
+Any of the AAS, TDS, DAS, TAS methods may yields
+a fixpoint fp which is not the fixpoint &fp or
+gfip of interest. None of these methods can im-
+prove fp to reach &£fp or gfp, therefore a "fix-
+point improvement method" is necessary. It is our
+feeling that such a method could be designed only
+when considering that A-Cont possesses a richer
+structure (i.e. for particular applications).
+
+Furthermore, in the AAS, TDS, DAS, TAS sequences
+the term of rank n is computed only as a function
+of the term of rank n-1, hence these are "sepa-
+rate steps" methods. One can as well imagine to
+use "bound steps" methods, where the term of rank
+n is computed as a function of the terms of
+rank n- 1, n-2, ..., n-k. In this last case the
+Kleene's sequences may be used to compute the first
+k terms. After k steps more informations about the
+program would be available to heuristicly accele-
+rate the convergence so that the definition of
+Avint and D-int could be more refined.
+
+Finally, going deeply into the comparism with nu-
+merical analysis methods, it is clear that some
+measure is necessary to control the accuracy of the
+result. Its definition would certainly also neces~
+sitate some additional properties of the abstract
+contexts.
+
+10. Conclusion
+
+It is our feeling that most program analysis tech-
+niques may be understood as abstract interpreta
+tions of programs. Let us point out global data
+flow analysis in optimizing compilers (Kildall[73],
+Morel and Renvoise[76] , Schwartz[75], Ullman[75],
+Wegbreitl75], ...), type verification (Naur[65],
+«.+), type discovery (Cousot[76'], Sintzoffl72],
+Tenenbaunl 74], ...), program testing (Henderson
+(753, ...) symbolic evaluation of programs (Hewitt
+et al.{73], Karr[76], ...), program performance
+analysis (Wegbreitl76], ...), formalization of
+program semantics (Hoare and Lauer[ 74], Ligler{75],
+Manna and Shamirl 75], ...), verification of pro-
+gram correctness (Floyd[67], Parkl69], Sintzoffl 75],
+ws.) discovery of inductive invariants (Katz and
+MannaL 76], ...), proofs of program termination
+(Sites. 74], ...), program transformation (Sintzoff
+L760), ceedy cee
+
+There is a fundamental unity between all these ap-
+parently unrelated program analysis techniques : a
+new interpretation is given to the program text
+which allows to built an often implicit system of
+equations. The problem is either to verify that a
+solution provided by the user is correct, or to
+discover or approximate such a solution.
+
+The mathematical model we studied in this paper
+
+is certainly the weakest which is necessary to
+unify these techniques, and therefore should be of
+very general scope. It can be considerably enriched
+for particular applications so that more powerful
+results may be obtained.
+
+250
+
+Acknout edg ements
+
+We wish to thank M. Sintzoff for stimulating dis-
+cussions. We were very lucky to have F, Blane do
+the typing for us.
+
+ll. References
+Birkhoff [6]. Lattice theory. Amer. Math. Soc. Col.
+Pub., XXV, Rev. ed.
+
+Cousotl76]. Static determination of dynamic proper-
+ties of programs. Programming Symp. Paris.
+Springer-Verlag Lecture Notes in Comp. Sc. to
+appear (April).
+
+Cousot(76']. Static determination of dynamic pro-
+perties of generalized type unions. Submitted
+for publication. (Sept.)
+
+Floyd[67]. Assigning meanings to programs. Proc.
+Symp. in Appl. Math. Vol. 19. Mathematical
+Aspects of Computer Science, (J. Schwartz, ed.)
+AMS, Providence, R.I., 19-32.
+
+Henderson[75]. Finite state modelling in program
+development. Proc. Int. Conf. on Reliabie
+Soft., Los Angeles, 221-227.
+
+Hewitt et al.|73). Actor induction and meta-evalu-
+ation. Conf. Rec. of the First ACM Symp. on
+Principles of Programming Languages, Boston,
+153-168, (Oct.).
+
+Hoare[67}. An axiomatic basis for computer pro-
+gramming. Comm. ACM 12, 10 (Oct.), 576-580.
+
+Hoare and Lauer[74}. Consistent and Complementary
+formal theories of the semantics of program-
+ming languages. Acta Inf. 3, 135-153.
+
+Kam and Ullman[,75]. Monotone data flow analysis
+frameworks. TR.169, C.S. Lab., Princeton Univ.
+
+Karr( 76}. Affine relationships among variables of
+a program. Acta Inf. 6, 133-151.
+
+Katz and Manna[76]. Logical analysis of programs.
+Comm. ACM 19, 4(April), 188-206.
+
+Kildalil73}.A unified approach to global program
+optimization. Conf. Rec. of the First ACM
+Symp. on Principles of Programming Languages,
+Boston, 194-206, (Oct.).
+
+Kleene[52]. Introduction to metamathematics.
+Nostrand, New York.
+
+Ligler!75]. Surface properties of programming lan-
+guage constructs, Int. Symp. on Proving and
+Improving Programs, (G. Huet and G. Kahn, eds.),
+IRIA, France.
+
+Van
+
+Mac NeillelL37]. Partially ordered sets. Trans.
+Amer. Math. Soc., 42, 416-460.
+
+Manna and Shamir[ 75]. A new approach to recursive
+programs. Tech. Rep. CS-75-539, Comp. Sc.
+Dep., Stanford U.
+
+Morel and Renvoisel 76]. Une méthode globale d'éli-
+mination des redondances partielles. Program
+ming Symp. Paris. Springer-Verlag Lecture
+Notes in Comp. Sc. to appear.(April).
+
+Naurl65]. Checking of operand types in ALGOL com-
+pilers, BIT 5, 151-163.
+
+=== [Page 15] ===
+Park[ 69}. Fixpoint induction and proofs of program
+properties. Machine Intelligence 5, (B. Meltzer
+and D. Michie, eds.), Edinburgh U. Press, 59-
+78.
+
+Schwartz[ 75]. Automatic data structure choice ina
+language of very high level. Comm. ACM 18, 12
+(Dec.), 722-728.
+
+Scott(71}]. The lattice of flow diagrams. Symp. on
+Semantics of Programming Languages. Springer-
+Verlag Lecture Notes in Math. (E. Engeler,
+ed.), Vol. 188,
+
+Scott and Strachey[71]. Towards a mathematical se-
+mantics for computer languages. Tech. Mon.
+PRG-6, Oxford U. Comp. Lab.
+
+Sintzoffi[72]. Calculating properties of programs
+by valuations on specific models. Proc. ACM
+conf, on Proving Assertions About Programs.
+SIGPLAN Notices 7, 1, 203-207.
+
+Sintzoff£[75]. Vérifications d'assertions pour les
+fonctions utilisables comme valeurs affectant
+des variables extérieures. Int. Symp. on Pro-
+ving and Improving Programs, (G. Huet and
+G. Kahn, eds.). IRIA. France.
+
+Sintzoff[ 76]. Eliminating blind alleys from back-
+track programs, Proc. of the third Int. Coll.
+on Automata, Languages and Programming, Edin-
+burgh, (July).
+
+Sites[74]. Proving that computer programs terminate
+cleanly. Ph.D. Th., Comp. Sc. Dep., Stanford
+U., (May).
+
+Tarjanf 75]. Solving path problems on directed
+graphs. Tech. Rep. CS-75-528, Comp. Sc. Dep.,
+Stanford U.
+
+(L2):
+
+Tarjanl 76]. Iterative algorithms for global flow
+analysis. Tech. Rep. CS-76-547, Comp. Sc. Dep.,
+Stanford U.
+
+theorem
+of Math.
+
+Tarski[55}. A lattice theoretical fixpoint
+and its applications. Pacific journal
+5, 285- 309.
+
+Tenenbaum{ 747. Type determination for very
+level languages. NSO-3, Courant Inst.
+Sc., New York U., (Oct.).
+
+Ullman[ 75]. Data flow analysis. Tech. Rep. 179,
+Dep. of Elec. Eng., Comp. Sc. Lab., Princeton
+U., (March).
+
+Wegbreitl75]. Property extraction in well-founded
+property sets. IEEE trans. on Soft. Eng.,
+Vol. SE-1, No. 3, (Sept.)
+
+high
+of Math.
+
+Wegbreit| 76}. Verifying program performance, J. ACM,
+23, 4, (Oct.), 691-699.
+
+12. Appendix
+
+We note <L, u, <, T, L> a complete u-semilattice
+
+L, with partial ordering <, supremum T and infi-
+
+mum |. These definitions are given in Birkhoff[611.
+
+Note : L is a complete lattice.
+(proof in Birkhoff [61], p. 49).
+
+We take f is isotone, f is order-preserving
+or £ is monotone to be synonymous and mean:
+
+251
+
+(HI):
+
+(AT) :
+
+(Li):
+
+(H2):
+
+(H3.1)
+
+(H3.2)
+
+(H3):
+
+(L3):
+
+{¥tx, y)eL?, {x < y} = {£(x) < E(y)}}
+<=> {¥(x, y)e L?, (f(xuy)} 2 f(x) u f(y)}}
+
+Let F be an order-preserving function from
+the complete semi-lattice <L, u, <, T, 1>
+in itself.
+
+Let F be an order-preserving function from
+the complete semi-lattice <L, u, <, T, 41>
+in itself.
+
+The fixpoints of F form a non-empty complete
+lattice with supremum g, infimum £ such that:
+
+g = ulx| (x e L) A (x < F(x))}
+Le= atx | (x ¢ L) A (F(x) < x)}
+
+(This result is proved in Tarskil 551, pp.286-
+287). Note that the fixpoints of F need not
+form a sublattice of L.
+
+We note g and & the greatest and least
+fixpoints of F.
+
+Let @ and 8 be such that :
+(12.1) ar be
+
+(92.2) yrDok
+
+(H2.3) a is order preserving
+(H2.4) y is order preserving
+(H2.5) Ye « L, x = a(y(x))
+(H2.6) ¥x « L, x < y(a(x))
+
+(HI), CHT), (H2) and {¥x © L,
+Fla(x)) = a(F(x))}
+(HI), CHT), (H2) and {¥ec T, _
+yCF(X)) = F(yC))}
+
+{H3.1} <=> {H3.2}
+
+Proof :
+Vee DT, _ _
+F(a(y(x)) = a(F(y(x)) by x = y(x) in H3.1
+
+F(R) = a(FCy(=)) from H2.5
+
+YERG)) = ¥CaCE(yG yy from H2.4
+
+y¥CF(x)) > FCYGx)) H2.6 and transitivi
+ty.
+
+Yee L _
+
+y(F(a(x)) 2 FCy(a(x)) x = a(x) in H3.2
+
+ya(x)) = x H2.6
+
+F(y(a(x)) 2 F(x) F order preserving
+in (H1).
+
+yas) = FO) transitivity
+
+aly(FlaCxy) = a(F(x)) 42.3
+
+F(a(x)) = a(F(x)) H2.5
+Q.E.D.
+Since H3,.1 and H3.2 are proved by L2 to be
+
+equivalent, we choose
+
+(H3.1) or (H3.2)
+
+Let Fi:
+from the semilattice <L, u, <, 7,
+self, 2 and g respectively the least and
+greatest fixpoints of F, then:
+
+L > L be an order-preserving function
+tein it~
+
+Yx e L, {g u F(x) > x} <=> fg > x}
+
+(The dual of this result is nroved in Park
+[69]. pp. 66). By duality
+
+Vx ce L, {29 Fla) < x} <=> {2 < x}
+
+=== [Page 16] ===
+(T1):
+
+(12):
+
+(HA):
+
+(H4) :
+
+(L4):
+
+HI, HI, H2, H3 imply that the greatest fix-
+points g and g of F and F are related by :
+
+fo(g) © gh and {g < y(g)}
+
+Proof :
+The existence of g and g is stated by (L1).
+
+U a(g) = a(g) trivially
+
+a(F(g)) = a(g) since g = F(g) _
+
+U F(a(g)) = a(g) H3.1, U isotone, = tran-
+__ sitive
+g = a(g) L3
+yg) = y(aCg)) H2.4
+y@) 28 H2.6, 2 transitive.
+Q.E.D.
+
+Replacing <g, 8, U; =, 2, F, F, a, y, H3.
+H2.4, H2.6> respectively by <2, 2, n, <, = ,
+F, y, @, H3.2, H2.3, H2.5> in the above proof,
+we get the "dual" theorem :
+
+Hi, Wy H2, H3 imply that the least fixpoints
+
+2 and 2 of F and F are related by:
+{y@) = 2} and {TF o(2)}
+
+According to Scott{7l]a subset X c L is cal-
+led directed if every finite subset of X has
+an upper bound (in the sense of <) belonging
+to X. (An obvious example of a directed sub-
+set is a non-empty ascending chain). A fune-
+tion f : D> D is called continuous if when-
+ever X cL is directed, then f(u{x| x « X}) =
+uffi(x) | x < KH.
+
+Let F be a continuous function from the com-
+plete semi-lattice <L, u, <, T, 1> in itself.
+
+Let F be a continuous function from the com-
+plete semi-Lattice <L, u, <, T, 1> in itself.
+
+x and Pty F(F"(x)).
+
+We note F°(x)
+
+H4(H4) implies that F (F) has a least fix-
+
+_ +0
+point 2(%) which is the limit u F*(1) of
+
+i=0
+the Kleene's sequence 1 © F(1) § . 2 F(t)
+
+<
+
+(The proof is easy to adapt from Kleene[52]'s
+proof of the first recursion theorem pp. 348-
+349).
+
+§
+
+252

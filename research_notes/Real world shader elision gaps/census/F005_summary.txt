@@ -1,0 +1,33 @@
+# F005 (wgpu 0418863) vs F001 (feature 001 only). Elided runtime accesses; BASE = 83a90e0.
+webgpu-samples  accesses=  92 BASE=   1 F001=   2 F005=   6
+wgpu            accesses=  79 BASE=   2 F001=   2 F005=   3
+vello           accesses= 440 BASE=  68 F001=  94 F005=  98
+bevy            accesses=  93 BASE=   4 F001=   4 F005=   4
+rerun           accesses=  11 BASE=   3 F001=   3 F005=   6
+misc            accesses=  14 BASE=   0 F001=   0 F005=   1
+naga tests      accesses= 587 BASE= 435 F001= 435 F005= 436
+REAL-WORLD (729)  BASE=78 F001=105 F005=118
+changed vs F001: 14 (LOST=0)
+  GAINED webgpu-samples: opaque.wgsl:43 [fixed_array[6]] return vec4(colors[instance % 6u], 1.0); :: (arg[instance] Modulo lit(U32(6)))
+  GAINED webgpu-samples: translucent.wgsl:89 [fixed_array[6]] linkedList.data[fragIndex].color = vec4(colors[(instance + 3u) % 6u],  :: ((arg[instance] Add lit(U32(3))) Modulo lit(U32(6)))
+  GAINED webgpu-samples: blur.wgsl:50 [fixed_array[128]] tile[r][4 * LocalInvocationID.x + u32(c)] = textureSampleLevel( :: ((lit(U32(4)) Multiply arg[LocalInvocationId].0) Add as<Uint
+  GAINED webgpu-samples: wireframe.wgsl:87 [vector3] vsOut.barycenticCoord[vertNdx] = 1.0; :: (arg[VertexIndex] Modulo lit(U32(3)))
+  GAINED wgpu: shader.wgsl:108 [fixed_array[10]] let light = u_lights[i]; :: load(local(i))
+  GAINED vello: binning.wgsl:315 [fixed_array[8]] atomicOr(&sh_bitmaps[my_slice][sh_bin_ix], my_mask); :: (arg[LocalInvocationId].0 Divide lit(U32(32)))
+  GAINED vello: binning.wgsl:351 [fixed_array[8]] let out_mask = atomicLoad(&sh_bitmaps[my_slice][sh_bin_ix]); :: (arg[LocalInvocationId].0 Divide lit(U32(32)))
+  GAINED vello: binning.wgsl:357 [fixed_array[4]] let count_packed = sh_count[count_ix / 2u][sh_bin_ix]; :: (((arg[LocalInvocationId].0 Divide lit(U32(32))) Subtract li
+  GAINED vello: clip_leaf.wgsl:265 [fixed_array[510]] let other = sh_bic[local_id.x + (1u << i)]; :: (arg[LocalInvocationId].0 Add (lit(U32(1)) ShiftLeft load(lo
+  GAINED rerun: rerun_crates_viewer_support_re_renderer_shader_gaussian_splat.wgsl:391 [fixed_array[6]] let corner = corners[vertex_idx % 6u]; :: (arg[VertexIndex] Modulo lit(U32(6)))
+  GAINED rerun: rerun_crates_viewer_support_re_renderer_shader_voxel_grid.wgsl:306 [fixed_array[36]] let grid_position = (vec3f(in_instance.index) + CUBE_VERTICES[cube_ver :: (arg[VertexIndex] Modulo lit(U32(36)))
+  GAINED rerun: rerun_crates_viewer_support_re_renderer_shader_voxel_grid.wgsl:308 [fixed_array[6]] let normal_world_space = normalize((batch.world_from_grid * vec4f(CUBE :: ((arg[VertexIndex] Modulo lit(U32(36))) Divide lit(U32(6)))
+  GAINED misc: background.vertex.wgsl:33 [fixed_array[6]] let pos = positions[vertex_idx % 6u]; :: (arg[VertexIndex] Modulo lit(U32(6)))
+  GAINED naga tests: shadow.wgsl:110 [fixed_array[10]] let light = u_lights[i]; :: load(local(i))
+
+## Review (2026-09-29): 14 gains, 0 lost, all in range
+- 12 identical to the prototype review of 2026-09-27 (`% 6u`/`% 36u` on length-6/36 arrays, `% 3u` on vec3,
+  `lid / 32u` <= 7 on length 8, `4*lid.x + u32(c)` <= 127 on length 128, `u_lights[i]` with i < min(n, 10),
+  `local_id.x + (1u << i)` with i < 8 on length 510).
+- NEW vello binning.wgsl:357 `sh_count[count_ix / 2u]`: my_slice = local_id.x / 32u in [0,7] (binning.wgsl:303,
+  @workgroup_size(256)); guard `my_slice > 0u` refines the value to [1,7]; count_ix = my_slice - 1u in [0,6];
+  / 2u in [0,3] < N_SUBSLICE = 4 (binning.wgsl:224). Needs the value refinement; without it the subtraction
+  could underflow and nothing is proven.

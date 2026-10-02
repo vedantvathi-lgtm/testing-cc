@@ -1,0 +1,23 @@
+fix(naga): never treat an unmodelled branch condition as infeasible
+
+`refine()` returned `None` ("this edge is infeasible") whenever it could not
+model a condition: an operand without an exact constant bound, a
+non-comparison operator, or an untracked local. The `If` handler then
+dropped that edge's effects. When this happened on only one edge the
+elision was unsound:
+
+- WGSL: `if (a < b) & (b > 0) {} else { i = 100u; }` — boolean `&` is not a
+  comparison, so the false edge was "infeasible" and `t[i]` lost its check.
+- GLSL / SPIR-V input: `if (a < b && b > 0) { i = 100u; }` — the conjunction
+  reaches refinement as `LogicalAnd`; the true edge was "infeasible".
+
+When it happened on both edges the rest of the function was treated as
+unreachable, silently disabling elision after `if a < b`.
+
+`None` now means only that the refined range is empty. Anything the
+analysis cannot model leaves the facts unchanged.
+
+Tests: 10 new regression tests in bounds_check_stress.rs (WGSL, GLSL,
+SPIR-V round-trip), observed failing before the fix. The spv-shadow
+analysis snapshot gains 9 proofs, all constant indices 0..=2 into
+length-4 arrays.

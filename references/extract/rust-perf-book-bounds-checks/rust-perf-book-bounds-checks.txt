@@ -1,0 +1,39 @@
+ 
+
+ Bounds Checks - The Rust Performance Book 
+
+ Keyboard shortcuts 
+
+ Press ← or → to navigate between chapters 
+ Press S or / to search in the book 
+ Press ? to show this help 
+ Press Esc to hide this help 
+
+ Auto 
+ Light 
+ Rust 
+ Coal 
+ Navy 
+ Ayu 
+
+ The Rust Performance Book 
+
+ Bounds Checks 
+ By default, accesses to container types such as slices and vectors involve
+bounds checks in Rust. These can affect performance, e.g. within hot loops,
+though less often than you might expect. 
+ There are several safe ways to change code so that the compiler knows about
+container lengths and can optimize away bounds checks. 
+
+ Replace direct element accesses in a loop by using iteration. 
+ Instead of indexing into a Vec within a loop, make a slice of the Vec 
+before the loop and then index into the slice within the loop. 
+ Add assertions on the ranges of index variables.
+ Example 1 ,
+ Example 2 . 
+
+ Getting these to work can be tricky. The Bounds Check Cookbook goes into more
+detail on this topic. 
+ As a last resort, there are the unsafe methods get_unchecked and
+ get_unchecked_mut . 
+

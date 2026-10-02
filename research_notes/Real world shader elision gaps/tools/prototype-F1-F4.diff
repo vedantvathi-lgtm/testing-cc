@@ -1,0 +1,266 @@
+--- /tmp/claude-1000/-home-bb-Projects-Dave-Sonar-WGPU--master/2d0bb526-b354-4893-b8ca-9b04d2002a5e/scratchpad/bounds_check_elision.orig.rs	2026-09-27 20:34:13.674435604 +0530
++++ /tmp/claude-1000/-home-bb-Projects-Dave-Sonar-WGPU--master/2d0bb526-b354-4893-b8ca-9b04d2002a5e/scratchpad/wgpu-export/naga/src/proc/bounds_check_elision.rs	2026-09-27 20:40:47.319170277 +0530
+@@ -111,6 +111,20 @@
+         }
+     }
+ 
++    fn min_i64(self) -> i64 {
++        match self {
++            Self::U32 { min, .. } => i64::from(min),
++            Self::I32 { min, .. } => i64::from(min),
++        }
++    }
++
++    fn max_i64(self) -> i64 {
++        match self {
++            Self::U32 { max, .. } => i64::from(max),
++            Self::I32 { max, .. } => i64::from(max),
++        }
++    }
++
+     fn fits(self, length: u32) -> bool {
+         match self {
+             Self::U32 { max, .. } => max < length,
+@@ -149,6 +163,13 @@
+     }
+ }
+ 
++fn proto(flag: &str) -> bool {
++    match option_env!("BCE_PROTO") {
++        Some(v) => v.split(',').any(|f| f == flag || f == "ALL"),
++        None => false,
++    }
++}
++
+ #[derive(Clone)]
+ struct Flow {
+     ranges: Ranges,
+@@ -424,6 +445,13 @@
+             Expression::FunctionArgument(index) => self.argument_range(index),
+             Expression::AccessIndex { base, index } => self.builtin_component_range(base, index),
+             Expression::Load { .. } => None,
++            Expression::Binary { op, left, right } if proto("F3") => {
++                let l = self.range_or_full(left, values)?;
++                let r = self.range_or_full(right, values)?;
++                let known_l = self.expression_range(left, values).is_some();
++                let known_r = self.expression_range(right, values).is_some();
++                proto_binary(op, l, r, known_l, known_r)
++            }
+             Expression::Binary { op, left, right } => {
+                 let left = self.expression_range(left, values)?;
+                 let right = self.expression_range(right, values)?;
+@@ -434,10 +462,61 @@
+                     _ => None,
+                 }
+             }
++            Expression::Math { fun, arg, arg1, arg2, .. } if proto("F3") => {
++                use crate::MathFunction as M;
++                let a = self.range_or_full(arg, values)?;
++                let min2 = |x: IntRange, y: IntRange| match (x, y) {
++                    (IntRange::U32 { min: a, max: b }, IntRange::U32 { min: c, max: d }) => Some(IntRange::U32 { min: a.min(c), max: b.min(d) }),
++                    (IntRange::I32 { min: a, max: b }, IntRange::I32 { min: c, max: d }) => Some(IntRange::I32 { min: a.min(c), max: b.min(d) }),
++                    _ => None,
++                };
++                let max2 = |x: IntRange, y: IntRange| match (x, y) {
++                    (IntRange::U32 { min: a, max: b }, IntRange::U32 { min: c, max: d }) => Some(IntRange::U32 { min: a.max(c), max: b.max(d) }),
++                    (IntRange::I32 { min: a, max: b }, IntRange::I32 { min: c, max: d }) => Some(IntRange::I32 { min: a.max(c), max: b.max(d) }),
++                    _ => None,
++                };
++                match fun {
++                    M::Min => min2(a, self.range_or_full(arg1?, values)?),
++                    M::Max => max2(a, self.range_or_full(arg1?, values)?),
++                    M::Clamp => {
++                        let lo = self.range_or_full(arg1?, values)?;
++                        let hi = self.range_or_full(arg2?, values)?;
++                        min2(max2(a, lo)?, hi)
++                    }
++                    _ => None,
++                }
++            }
++            Expression::Select { accept, reject, .. } if proto("F3") => self
++                .expression_range(accept, values)?
++                .join(self.expression_range(reject, values)?),
++            Expression::As { expr, kind, convert } if proto("F3") && convert.is_none_or(|w| w == 4) => {
++                match (self.expression_range(expr, values)?, kind) {
++                    (r @ IntRange::U32 { .. }, ScalarKind::Uint) | (r @ IntRange::I32 { .. }, ScalarKind::Sint) => Some(r),
++                    (IntRange::U32 { min, max }, ScalarKind::Sint) => Some(IntRange::I32 {
++                        min: i32::try_from(min).ok()?,
++                        max: i32::try_from(max).ok()?,
++                    }),
++                    (IntRange::I32 { min, max }, ScalarKind::Uint) => Some(IntRange::U32 {
++                        min: u32::try_from(min).ok()?,
++                        max: u32::try_from(max).ok()?,
++                    }),
++                    _ => None,
++                }
++            }
+             _ => None,
+         }
+     }
+ 
++    /// Known range, or the full range of the expression's 32-bit integer type.
++    fn range_or_full(&self, handle: Handle<Expression>, values: &Values) -> Option<IntRange> {
++        self.expression_range(handle, values).or_else(|| {
++            match *self.info[handle].ty.inner_with(&self.module.types) {
++                TypeInner::Scalar(scalar) if scalar.width == 4 => IntRange::full(scalar.kind),
++                _ => None,
++            }
++        })
++    }
++
+     fn prove_access(&mut self, handle: Handle<Expression>, values: &Values) {
+         let Expression::Access { base, index } = self.function.expressions[handle] else {
+             return;
+@@ -483,22 +562,64 @@
+             }
+             _ => {}
+         }
+-        let op = if truth { op } else { negate_comparison(op)? };
+-        let (local, op, bound) = if let Some(local) = loaded_local(left, self.function) {
+-            (local, op, self.expression_range(right, values)?.exact()?)
++        // F1: `None` must mean "this edge is infeasible", never "cannot refine".
++        // Anything we cannot model leaves the facts unchanged.
++        let is_comparison = matches!(
++            op,
++            BinaryOperator::Less
++                | BinaryOperator::LessEqual
++                | BinaryOperator::Greater
++                | BinaryOperator::GreaterEqual
++                | BinaryOperator::Equal
++                | BinaryOperator::NotEqual
++        );
++        if !is_comparison {
++            return Some(ranges);
++        }
++        let Some(op) = (if truth { Some(op) } else { negate_comparison(op) }) else {
++            return Some(ranges);
++        };
++        // F2: for `x OP e` with e in [lo, hi], the sound single bound is
++        // hi for </<=, lo for >/>=; ==/!= still need an exact e (== handled below).
++        let pick = |op: BinaryOperator, e: IntRange| -> Option<i64> {
++            if let Some(exact) = e.exact() {
++                return Some(exact);
++            }
++            if !proto("F2") {
++                return None;
++            }
++            match op {
++                BinaryOperator::Less | BinaryOperator::LessEqual => Some(e.max_i64()),
++                BinaryOperator::Greater | BinaryOperator::GreaterEqual => Some(e.min_i64()),
++                _ => None,
++            }
++        };
++        let target = if let Some(local) = loaded_local(left, self.function) {
++            self.expression_range(right, values)
++                .and_then(|e| pick(op, e))
++                .map(|bound| (local, op, bound))
+         } else if let Some(local) = loaded_local(right, self.function) {
+-            (
+-                local,
+-                swap_comparison(op)?,
+-                self.expression_range(left, values)?.exact()?,
+-            )
++            match swap_comparison(op) {
++                Some(op) => self
++                    .expression_range(left, values)
++                    .and_then(|e| pick(op, e))
++                    .map(|bound| (local, op, bound)),
++                None => None,
++            }
+         } else {
++            None
++        };
++        let Some((local, op, bound)) = target else {
+             return Some(ranges);
+         };
+-        let current = ranges
++        let Some(current) = ranges
+             .get(&local)
+             .copied()
+-            .or_else(|| self.local_full_range(local))?;
++            .or_else(|| self.local_full_range(local))
++        else {
++            return Some(ranges);
++        };
++        // A genuinely empty refined range is the only infeasible-edge signal.
+         ranges.insert(local, refine_range(current, op, bound)?);
+         Some(ranges)
+     }
+@@ -618,6 +739,8 @@
+         BinaryOperator::Equal => range.lower(bound)?.upper(bound),
+         BinaryOperator::NotEqual => match range.exact() {
+             Some(value) if value == bound => None,
++            _ if proto("F4") && bound == range.max_i64() => range.upper(bound - 1),
++            _ if proto("F4") && bound == range.min_i64() => range.lower(bound + 1),
+             _ => Some(range),
+         },
+         _ => None,
+@@ -1368,3 +1491,68 @@
+         i_max(r)
+     }
+ }
++
++/// F3 prototype: interval rules for more binary operators. `known_*` says whether the
++/// operand had a real (non-default full) range; add/sub/mul keep the original
++/// requirement that both operands are known.
++fn proto_binary(op: BinaryOperator, l: IntRange, r: IntRange, known_l: bool, known_r: bool) -> Option<IntRange> {
++    use IntRange::{I32, U32};
++    match op {
++        BinaryOperator::Add if known_l && known_r => l.add(r),
++        BinaryOperator::Subtract if known_l && known_r => l.sub(r),
++        BinaryOperator::Multiply if known_l && known_r => l.mul(r),
++        BinaryOperator::Divide => match (l, r) {
++            (U32 { min: a, max: b }, U32 { min: c, max: d }) if c > 0 => Some(U32 { min: a / d, max: b / c }),
++            (I32 { min: a, max: b }, I32 { min: c, max: d }) if a >= 0 && c > 0 => Some(I32 { min: a / d, max: b / c }),
++            _ => None,
++        },
++        BinaryOperator::Modulo => {
++            let k = r.exact()?;
++            if k <= 0 {
++                return None;
++            }
++            match l {
++                U32 { min: a, max: b } => {
++                    let k = u32::try_from(k).ok()?;
++                    if a / k == b / k { Some(U32 { min: a % k, max: b % k }) } else { Some(U32 { min: 0, max: k - 1 }) }
++                }
++                I32 { min: a, max: b } if a >= 0 => {
++                    let k = i32::try_from(k).ok()?;
++                    if a / k == b / k { Some(I32 { min: a % k, max: b % k }) } else { Some(I32 { min: 0, max: k - 1 }) }
++                }
++                _ => None,
++            }
++        }
++        BinaryOperator::ShiftRight => {
++            let (c, d) = match r { U32 { min, max } if max < 32 => (min, max), _ => return None };
++            match l {
++                U32 { min: a, max: b } => Some(U32 { min: a >> d, max: b >> c }),
++                I32 { min: a, max: b } if a >= 0 => Some(I32 { min: a >> d, max: b >> c }),
++                _ => None,
++            }
++        }
++        BinaryOperator::ShiftLeft if known_l => {
++            let (c, d) = match r { U32 { min, max } if max < 32 => (min, max), _ => return None };
++            match l {
++                U32 { min: a, max: b } => {
++                    let hi = u64::from(b) << d;
++                    (hi <= u64::from(u32::MAX)).then(|| U32 { min: a << c, max: hi as u32 })
++                }
++                I32 { min: a, max: b } if a >= 0 => {
++                    let hi = i64::from(b) << d;
++                    (hi <= i64::from(i32::MAX)).then(|| I32 { min: a << c, max: hi as i32 })
++                }
++                _ => None,
++            }
++        }
++        BinaryOperator::And => match (l, r) {
++            (U32 { max: b, .. }, U32 { max: d, .. }) => Some(U32 { min: 0, max: b.min(d) }),
++            (I32 { min: a, max: b }, I32 { min: c, max: d }) if a >= 0 || c >= 0 => {
++                let hi = match (a >= 0, c >= 0) { (true, true) => b.min(d), (true, false) => b, _ => d };
++                Some(I32 { min: 0, max: hi })
++            }
++            _ => None,
++        },
++        _ => None,
++    }
++}

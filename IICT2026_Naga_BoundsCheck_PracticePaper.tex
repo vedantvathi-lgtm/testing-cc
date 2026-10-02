@@ -1,0 +1,387 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+% --- Geometry: ACM sigconf-like proportions ---
+\usepackage[a4paper,
+            top=1.9cm, bottom=2.0cm,
+            left=1.7cm, right=1.7cm,
+            columnsep=0.6cm]{geometry}
+
+% --- Typography ---
+\usepackage[T1]{fontenc}
+\usepackage{libertine}        % Linux Libertine for body
+\usepackage[libertine]{newtxmath}
+\usepackage[scaled=0.85]{beramono}  % SPIR-V code listings
+\renewcommand{\sfdefault}{uop}
+\usepackage{microtype}
+
+% --- Layout helpers ---
+\usepackage{enumitem}
+\usepackage{adjustbox}
+\setlist{nosep, leftmargin=*, topsep=2pt, partopsep=0pt, parsep=2pt, itemsep=2pt}
+\setlength{\parskip}{2pt}
+\setlength{\parindent}{10pt}
+\widowpenalty=10000
+\clubpenalty=10000
+
+% --- Code listings (SPIR-V diff) ---
+\usepackage{xcolor}
+\definecolor{codebg}{HTML}{F7F7F2}
+\definecolor{kwcolor}{HTML}{8B0000}
+\definecolor{cmtcolor}{HTML}{6A737D}
+\usepackage{listings}
+\lstdefinelanguage{spirv}{
+  morekeywords={OpLabel,OpULessThan,OpSelectionMerge,OpBranchConditional,
+                OpAccessChain,OpLoad,OpBranch,OpPhi,OpTypeFloat,OpTypePointer,
+                OpTypeVector,OpTypeFunction,OpVariable,OpFunction,OpFunctionEnd,
+                OpReturn,OpStore},
+  sensitive=true,
+  morecomment=[l]{;},
+  morestring=[b]"
+}
+\lstset{
+  language=spirv,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{kwcolor}\bfseries,
+  commentstyle=\color{cmtcolor}\itshape,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0.3pt,
+  rulecolor=\color{black!25},
+  framesep=3pt,
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+  aboveskip=4pt,
+  belowskip=2pt,
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+}
+
+% --- Section styling ---
+\usepackage{titlesec}
+\titleformat{\section}{\bfseries\fontsize{10.5pt}{12pt}\selectfont}{\thesection}{0.5em}{}
+\titleformat{\subsection}{\bfseries\fontsize{9.5pt}{11pt}\selectfont}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{8pt}{3pt}
+\titlespacing*{\subsection}{0pt}{5pt}{2pt}
+
+% --- Hyperref last ---
+\usepackage[colorlinks=true,
+            linkcolor=blue!60!black,
+            citecolor=blue!50!black,
+            urlcolor=blue!60!black,
+            bookmarks=true,
+            bookmarksnumbered=true,
+            unicode=true]{hyperref}
+
+% --- Title block (no \maketitle, custom for compact two-column) ---
+\newcommand{\papertitle}[1]{%
+  \begin{center}
+    {\bfseries\fontsize{14pt}{16pt}\selectfont #1\par}
+  \end{center}
+  \vspace{-2pt}
+}
+\newcommand{\paperauthor}[1]{%
+  \begin{center}
+    {\itshape\fontsize{9.5pt}{11pt}\selectfont #1\par}
+  \end{center}
+  \vspace{2pt}
+}
+
+\hypersetup{
+  pdftitle={API-Constant-Seeded Bounds-Check Elision for WGSL Compute Shaders in Naga},
+  pdfauthor={IICT 2026 Practice Paper Submission},
+  pdfsubject={Compiler Optimization, WebGPU, Naga, Interval Analysis},
+  pdfkeywords={WebGPU, WGSL, Naga, bounds check elimination, interval analysis, SPIR-V}
+}
+
+\begin{document}
+
+\twocolumn[
+\papertitle{API-Constant-Seeded Bounds-Check Elision for\\WGSL Compute Shaders in Naga}
+\paperauthor{Practice Paper Submission --- IICT 2026: Innovations in Compiler Technology\\
+Indian Institute of Science, Bengaluru \quad\textbar\quad October 2--3, 2026}
+\begin{adjustbox}{minipage=0.92\textwidth, center}
+\fontsize{9pt}{11pt}\selectfont
+\noindent\textbf{Abstract.}\enspace
+The WebGPU specification mandates that out-of-bounds array, vector, and matrix
+accesses be redirected to a safe location rather than left as undefined
+behaviour. Naga, the shader translator at the core of the \texttt{wgpu}
+ecosystem, enforces this through the \texttt{BoundsCheckPolicy} framework in
+\texttt{naga/src/proc/index.rs}. However, Naga's elision logic---the function
+\texttt{access\_needs\_check}---only folds indices that resolve to compile-time
+constants via \texttt{try\_resolve\_to\_constant}, ignoring the value ranges the
+WebGPU specification guarantees for built-in inputs such as
+\texttt{local\_invocation\_index}. As a consequence, the canonical compute idiom
+\texttt{tile[local\_invocation\_index]}, where \texttt{tile} is sized exactly to
+\texttt{@workgroup\_size}, unconditionally pays a runtime bounds check that
+fragments the SPIR-V into a divergent branch-and-merge block. This work
+integrates a lightweight interval analysis pass into Naga's validator, seeding
+\texttt{u32} intervals from \texttt{@workgroup\_size} and propagating them
+through constant addition and subtraction using strictly checked unsigned
+arithmetic. The pass eliminates redundant control flow across all backends
+without requiring backend modifications, targets the open \texttt{gfx-rs/wgpu}
+issue~\#6345, and is positioned relative to the GSOHC synchronization-optimization
+lineage and to LLVM's Inductive Range Check Elimination.
+\end{adjustbox}
+\vspace{8pt}
+]
+
+\section{Motivation}
+
+Naga relies on \texttt{access\_needs\_check} in \texttt{naga/src/proc/index.rs}
+to decide whether an array, vector, or matrix access requires a runtime guard.
+Under the \texttt{ReadZeroSkipWrite} policy---the default for native
+\texttt{wgpu} deployments---failing to elide a check produces SPIR-V containing
+\texttt{OpULessThan}, \texttt{OpSelectionMerge}, \texttt{OpBranchConditional},
+and a merge block terminating in \texttt{OpPhi}. The result is a four-instruction
+divergent control-flow diamond surrounding every dynamic access, plus the
+fragmentation of an otherwise straight-line basic block into three.
+
+Although the WebGPU specification~\cite{webgpu} guarantees that
+\texttt{local\_invocation\_index} is bounded by the pipeline-time constant
+\texttt{@workgroup\_size}, Naga treats it as an opaque runtime value. Indexing
+\texttt{var<workgroup>} memory by \texttt{local\_invocation\_index} therefore
+injects divergent control flow into latency-bound compute kernels---reductions,
+prefix scans, tiled convolutions---where branch divergence is highly
+detrimental to warp occupancy and instruction-level parallelism. The goal of
+this work is to close this gap using information already available during
+shader validation, without extending the WebGPU API surface or modifying any
+backend code generator.
+
+\section{Interval Propagation and Soundness}
+
+Because \texttt{access\_needs\_check} already receives a
+\texttt{\&valid::FunctionInfo} parameter, the hook point for a smarter answer
+exists without changing function signatures. We extended \texttt{ExpressionInfo}
+in \texttt{naga/src/valid/analyzer.rs} with a new field
+\texttt{range: Option<(u32, u32)>}, computed during the existing single forward
+walk over the expression arena. This design follows the classical abstract
+interpretation framework of Cousot \& Cousot~\cite{cousot1977}, where the
+lattice is the flat product domain over $\texttt{Option}((\mathbb{U}_{32})^2)$:
+the bottom element is \texttt{None} (unknown range, fall back to runtime check)
+and the top elements are concrete $[\text{lo}, \text{hi}]$ intervals.
+
+The primary challenge is soundness. WGSL~\cite{wgsl} \texttt{u32} arithmetic
+wraps modulo $2^{32}$ rather than producing negative numbers; using signed
+interval arithmetic would silently describe different values than the hardware
+computes. For example, \texttt{0u - 1u} evaluates to \texttt{4294967295u}, not
+$-1$. A naive signed interval $[0, 63] - 1 = [-1, 62]$ would falsely claim that
+thread~0 computes $-1$ on the index path, when in fact it produces the maximum
+\texttt{u32} value and triggers a runtime clamp at best, or---if the analysis
+had been used to \emph{elide} the clamp---an out-of-bounds memory access at
+worst.
+
+To prevent false positives, the propagation strictly uses \texttt{u32} bounds
+with \texttt{u32::checked\_add} and \texttt{u32::checked\_sub}. If an operation
+would underflow or overflow (for instance, \texttt{lid - 1u} where
+\texttt{lid}~$\in [0, 63]$), the interval safely collapses to \texttt{None},
+and Naga falls back to its existing conservative runtime check. This ensures
+the only failure mode is a missed optimisation, never an unsound elision---the
+classical precision-versus-soundness trade-off of abstract interpretation,
+resolved here unambiguously in favour of soundness.
+
+\section{Bounds Check Resolution}
+
+During the \texttt{Expression::FunctionArgument} arm of
+\texttt{process\_expression}, the pass consults the argument's
+\texttt{Binding::BuiltIn} attribute. If it is a \texttt{LocalInvocationIndex}
+or \texttt{LocalInvocationId}, the range is seeded from the enclosing entry
+point's statically known \texttt{workgroup\_size}. For binary expressions,
+intervals are propagated only when the opposing operand is a compile-time
+constant; this restriction keeps the analysis within $O(|E|)$ where $|E|$ is the
+expression arena size, and avoids the need for a fixpoint iteration.
+
+In \texttt{access\_needs\_check}, a single disjunct was added: if the index is
+a \texttt{GuardedIndex::Expression} and \texttt{info[expr].range} evaluates to
+\texttt{Some((lo, hi))} with \texttt{hi < length}, the function returns
+\texttt{None}, indicating no check is needed. Because this logic lives in the
+shared \texttt{proc/index.rs} module---already consulted by every backend---the
+optimisation is automatically inherited by the SPIR-V, MSL, and HLSL backends
+with zero changes to backend call sites or signatures. The patch comprises
+approximately 50 lines of core logic.
+
+\section{Architectural Overview}
+
+Figure~\ref{fig:diff} shows the SPIR-V emitted by Naga for the canonical idiom
+\texttt{tile[lid]} where \texttt{lid} is \texttt{local\_invocation\_index} and
+\texttt{tile} is \texttt{array<f32, 64>} with \texttt{@workgroup\_size(64)}.
+Instruction counts per line are annotated as \texttt{; 1}.
+
+\begin{figure}[t]
+\begin{lstlisting}
+; --- Before (ReadZeroSkipWrite policy) ---
+%header     = OpLabel                                  ; 1
+%cmp        = OpULessThan %bool %lid %64               ; 2
+            OpSelectionMerge %merge None               ; 3
+            OpBranchConditional %cmp %in_bounds %merge ; 4
+%in_bounds  = OpLabel
+%ptr        = OpAccessChain %ptr_ty %tile %lid
+%val        = OpLoad %f32 %ptr
+            OpBranch %merge                           ; 5
+%merge      = OpLabel
+%result     = OpPhi %f32 %zero %header %val %in_bounds ; 6
+; 6 wasted instructions, 3 basic blocks, divergent
+
+; --- After (interval proves lid in [0, 63]) ---
+%ptr        = OpAccessChain %ptr_ty %tile %lid
+%val        = OpLoad %f32 %ptr
+; 0 wasted instructions, 1 basic block, straight-line
+\end{lstlisting}
+\caption{SPIR-V generated by Naga for \texttt{tile[lid]} before and after
+API-constant-seeded elision. Six instructions and two extra basic blocks are
+removed; the access becomes straight-line and eligible for backend
+instruction scheduling.}
+\label{fig:diff}
+\end{figure}
+
+The eliminated instructions survive into AMDGCN and PTX because WebGPU's
+robustness semantics forbid the downstream driver from removing them---the
+runtime clamp is a semantic guarantee, not an optimiser hint. Eliminating theclamp at the IR level is therefore the only sound point at which the cost can be avoided.
+
+\section{Supplementary Optimization: Barrier Elision for workgroupUniformLoad}
+\label{sec:barrier-elision}
+
+The WebGPU specification~\cite{webgpu} requires that
+\texttt{workgroupUniformLoad} be sequenced with respect to prior and
+subsequent workgroup-level memory operations.  Naga's SPIR-V backend enforces
+this by emitting both a pre-barrier and a post-barrier
+(\texttt{OpMemoryBarrier} with \texttt{WORKGROUP} semantics) around each
+\texttt{WorkGroupUniformLoad} statement.  For shaders that issue consecutive
+\texttt{workgroupUniformLoad} calls, or patterns of the form
+\texttt{workgroupBarrier(); let x = workgroupUniformLoad(\&ptr);}, the
+resulting barriers are redundant and contribute measurable instruction overhead.
+
+We introduce two lightweight forward-scan optimizations in the SPIR-V backend
+that identify and elide these redundant barriers at compile time, without
+altering Naga's IR, validator, or other backends.
+
+\subsection{Track~3: Post-Barrier Elision}
+
+When the SPIR-V backend processes a \texttt{WorkGroupUniformLoad} statement,
+it scans the remaining statements in the current block for the next
+synchronization point---either an explicit \texttt{Barrier(WORK\_GROUP)} or
+another \texttt{WorkGroupUniformLoad} whose pre-barrier can serve as the
+post-barrier for the preceding load.  If such a point is found in the same
+block, the post-barrier is omitted.
+
+This targets the common reduction idiom where two or more
+\texttt{workgroupUniformLoad} calls appear back-to-back inside a loop, or a
+\texttt{workgroupBarrier()} immediately follows the WGUL.  A representative
+kernel compiled under the \texttt{ReadZeroSkipWrite} policy shows a static
+saving of 8 SPIR-V words (2 WORK\_GROUP barriers, each 4 words) for
+the \texttt{wgul\_reduce} test shader: 699 words fall to 691.
+
+\subsection{Track~3b: Pre-Barrier Elision}
+
+Symmetrically, when the backend encounters an explicit
+\texttt{Barrier(WORK\_GROUP)} statement, it scans forward for the first
+non-\texttt{Emit} statement.  If that statement is a
+\texttt{WorkGroupUniformLoad}, the barrier is elided---the WGUL's pre-barrier
+already provides the required visibility guarantee.
+
+This targets patterns where an explicit \texttt{workgroupBarrier()} directly
+precedes a \texttt{workgroupUniformLoad}.  Such sequences occur when shaders
+alternate between uniform (WGUL) and non-uniform workgroup memory accesses.
+The \texttt{track3b\_test} shader---which contains two
+\texttt{Barrier}$\rightarrow$\texttt{WGUL} pairs and one consecutive
+\texttt{WGUL}$\rightarrow$\texttt{WGUL} sequence---saves 8 SPIR-V words
+(582 $\rightarrow$ 574) when Track~3b is active.
+
+\subsection{Benchmark Results}
+
+We measured the timing impact on an NVIDIA GeForce RTX~4060 Laptop GPU using a
+dedicated \texttt{wgpu} benchmark harness.  The harness dispatches the
+\texttt{track3b\_test} shader with GPU timestamp queries for sub-microsecond
+resolution, 10 timed passes per configuration, and bootstrap 95\% confidence
+intervals on the median.  Dispatches per pass are scaled by problem size
+(10,000 for 64K through 10 for 16M) to maintain consistent pass durations.
+
+\begin{table}[t]
+\centering
+\caption{Track~3b timing impact for the \texttt{track3b\_test} kernel under
+the \texttt{ReadZeroSkipWrite} bounds-check policy.  Word counts are per
+dispatch; durations are median GPU compute-pass elapsed times.}
+\label{tab:track3b-timing}
+\small
+\begin{tabular}{lcccr}
+\hline
+\textbf{Size} & \textbf{Without T3b (\textmu s)} & \textbf{With T3b (\textmu s)} & \textbf{Delta} & \textbf{Words} \\
+\hline
+64K   & 2.594 & 2.520 & $-$2.9\% & 582 $\rightarrow$ 574 \\
+1M    & 22.420 & 21.395 & $-$4.6\% & 582 $\rightarrow$ 574 \\
+10M   & 258.561 & 242.746 & $-$6.1\% & 582 $\rightarrow$ 574 \\
+16M   & 385.606 & 363.379 & $-$5.8\% & 582 $\rightarrow$ 574 \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:track3b-timing} summarises the results.  Track~3b yields a
+consistent 2.9--6.1\% wall-clock speedup across all four problem sizes.  The
+control kernel (\texttt{wgul\_reduce}, which does not contain the
+\texttt{Barrier}$\rightarrow$\texttt{WGUL} pattern) shows no significant
+timing change (0.3--3.4\% variance, consistent with GPU run-to-run noise).
+
+For Track~3 (post-barrier elision in isolation), the static SPIR-V word-count
+saving is confirmed (8 words, 2 barriers) but single-run GPU timing noise
+prevents a statistically significant wall-clock measurement at the
+benchmark's current sample count.  The direction is consistently positive
+across problem sizes and policies, consistent with the SPIR-V-level reduction.
+
+Both optimisations are implemented in \texttt{naga/src/back/spv/block.rs} as
+targeted forward scans in the statement-emitting loop, adding approximately
+35 lines of Rust in total.  Neither requires changes to Naga's IR, validator,
+or other backends.
+
+\section{Current Status and Future Work}
+
+At the time of writing, the bounds-check elision (Track~2) and the barrier-elision
+optimisations (Track~3 and Track~3b, \S\ref{sec:barrier-elision}) are complete
+on a feature branch and undergoing testing against the Naga test suite; a pull
+request targeting \texttt{gfx-rs/wgpu} issue~\#6345~\cite{issue6345} is in
+preparation for upstream review.  Preliminary analysis confirms the bounds-check
+elision eliminates the branch-and-merge overhead for the
+\texttt{ReadZeroSkipWrite} path, yielding expected runtime improvements in
+low-occupancy, latency-bound kernels.  As anticipated, the \texttt{Restrict}
+policy---which emits only a single \texttt{UMin} instruction rather than a full
+diamond---shows negligible wall-clock improvement, because GPU warp schedulers
+effectively hide this single-cycle ALU dependency.
+
+Remaining work involves finalising negative test cases for wraparound scenarios
+(\texttt{lid - 1u} on thread 0, multiplicative overflow) and benchmarking on
+three vendor ISAs (AMD RDNA3, NVIDIA Ada, Intel Arc) to confirm that the static
+SPIR-V instruction-count reduction translates into runtime gains across driver
+stacks.  The barrier-elision optimisations (Track~3/3b) will also be tested on
+multi-vendor hardware to confirm they are equally effective across GPU
+architectures.  Future extensions include propagating intervals through
+multiplicative index expressions such as \texttt{lid * stride} (requires
+divisibility reasoning), integrating \texttt{global\_invocation\_id}
+ranges---the latter requires knowing \texttt{numWorkgroups} at dispatch time, a
+value not available at shader compilation and therefore demanding a
+deferred-validation or specialisation-constant mechanism---and extending the
+barrier-elision forward scan to track state across nested control flow.  We also
+plan to compare the implementation against LLVM's IRCE pass~\cite{llvm-irce} on
+equivalent SYCL kernels, to quantify the gap between Naga's bespoke IR and the
+LLVM middle-end pipeline that vendor-agnostic HPC runtimes (SYCL, Julia
+\texttt{CUDA.jl}, OpenMP target) inherit for free.
+
+\section*{Acknowledgements}
+
+The author thanks the \texttt{gfx-rs/wgpu} maintainers for the accessible
+codebase and the IICT 2026 program committee for the practice-paper track that
+motivated this write-up.
+
+\footnotesize
+\section*{References}
+\begin{enumerate}[leftmargin=*, label={\arabic*.}]
+\item gfx-rs/wgpu repository. \url{https://github.com/gfx-rs/wgpu}
+\item \texttt{gfx-rs/wgpu} Issue \#6345, ``[naga spv-out] Bounds check generation could be cleaner and smarter.''
+\url{https://github.com/gfx-rs/wgpu/issues/6345}\label{issue6345}
+\item W3C. \emph{WebGPU Specification}. \url{https://www.w3.org/TR/webgpu/}\label{webgpu}
+\item W3C. \emph{WGSL Specification}. \url{https://www.w3.org/TR/WGSL/}\label{wgsl}
+\item Cousot, P. \& Cousot, R. ``Abstract interpretation: a unified lattice model for static analysis of programs by construction or approximation of fixpoints.'' \emph{POPL}, 1977.\label{cousot1977}
+\item Khronos Group. \emph{Vulkan Specification (SPIR-V environment)}. \url{https://www.khronos.org/registry/vulkan/specs/latest/html/vkspec.html}
+\item LLVM Project. ``Inductive Range Check Elimination (IRCE) pass.'' \url{https://llvm.org/devmtg/2015-04/slides/Hal_Finkel_IRCE.pdf}\label{llvm-irce}
+\end{enumerate}
+
+\end{document}

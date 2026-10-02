@@ -1,0 +1,239 @@
+ How much does Rust's bounds checking actually cost? | Readyset Skip to content Products dropdown Solutions dropdown Resources dropdown Try locally menu ← Back to blog Engineering How much does Rust's bounds checking actually cost? Rust prevents out-of-bounds memory accesses and buffer overruns via runtime bounds checks - what’s the cost of those bounds checks for a real-world, production application? Readyset 2022-11-30 · 12 min read Engineering 
+ Recently, a pair of critical vulnerabilities were reported in the OpenSSL project. Surprising absolutely nobody, the root cause of both vulnerabilities turned out to be a buffer overrun, which could be triggered by an attacker with a malicious payload to cause a crash and denial of service. Predictably, many Rust advocates (of which I am one) pointed out that this is exactly the kind of vulnerability that can be statically prevented by Rust, and is a clear example of where “Rewrite it in Rust” can have real benefits. 
+ Setting aside the feasibility or advisability of a ground-up rewrite of a project as large, complex, and long-lived as OpenSSL, it’s worth talking about exactly how Rust is able to prevent these kinds of buffer overflow vulnerabilities. Specifically, since Rust isn’t a fully dependently typed language where we can prove the lengths of our buffers at compile time , it resorts to runtime bounds checks to ensure that indexing always remains safe. In practice, this means that every time you index into a slice , the Rust compiler will emit a sequence of instructions that checks if your index is within the bounds of that slice, and panics if it isn’t. 
+ There are unsafe ways of opting out of bounds checking when indexing ( slice::get_unchecked and slice::get_unchecked_mut ). These are definitely used at least some of the time , but not all the time - and not even when it could be statically determined that the index is in-bounds. This is a good thing for safety, because these are exactly the kinds of edge case properties that are easy to accidentally break in a way that automated tests don’t cover. 
+ To C programmers, this can sound like a downside of Rust - there are many places in real-world code where you do in fact statically know that your index is in-bounds, or places where you do multiple indexing operations into the same slice such that a single bounds check on the maximum index could cover all indexing operations. Overall, it’s probably not a Zero Cost Abstraction , at least under Bjarne Stroustrup’s original definition: 
+
+ What you do use, you couldn’t hand code any better. 
+
+ What is the actual cost of all this extra bounds checking, though? There’s a little bit of prior art here - for example this repository , which contains benchmarks which index into slices in tight loops using both the safe bounds-checked version and the unsafe, non-bounds-checked version. The conclusion there was that at least in this scenario bounds checking is usually only a cost when its presence prevents optimizations such as autovectorization (which can be a huge optimization in practice), but otherwise it’s basically a wash. On the other hand, I wasn’t able to find an extensive analysis of the cost of pervasive bounds checking on a real, large, production Rust codebase with high performance sensitivity. I happen to work on one of those , so I figured it might be interesting to take a look at the cost of bounds checks in the hot path. 
+ For this experiment, I’m considering “the hot path” to be a hot (cached in memory) read of a single query, including both the cost of the cache read itself and the SQL protocol translation layer. 
+ How often do bounds checks happen? 
+ Before taking a look at the runtime cost of the bounds checks, I wanted to get an idea of just how frequently we’re doing these runtime bounds checks in the hot path. After stumbling around trying to figure out how to instrument this using either perf or dtrace , I found this StackOverflow question , explaining how to record the number of times a particular line of code is executed using gdb: just set a breakpoint on the line, ignore the next million or so times the breakpoint is hit, and then run the program. Then, info breakpoints will show the number of times the breakpoint was hit! 
+ Using that technique, it’s quite easy to see how many times we’re doing bounds checks - I can just load up the release readyset-mysql binary in rust-gdb: 
+ rust-gdb --args target/release/readyset-mysql \
+ --standalone \
+ -u root -p password \
+ -a 0.0.0.0:3307 \
+ --deployment test \
+ --upstream-db-url mysql://root:password@127.1
+
+ then run the binary so that I can get everything set up before starting my instrumentation: 
+ (gdb) run
+MySQL [test]> create table t (id int, name text);
+
+MySQL [test]> insert into t values (1, 'a');
+
+MySQL [test]> select * from t where id = 1;
++------+------+
+| id | name |
++------+------+
+| 1 | a |
++------+------+
+
+ Thanks to Readyset’s query caching, once we’ve materialized the id = 1 key, all subsequent reads of that key will be served from an in-memory hash map, so we should only be measuring the “hot path” code that we’re concerned about here. We can drop back into the GDB shell by sending the readyset-mysql binary a Ctrl+C to allow us to set up our breakpoints. We want to measure every time a slice is indexed (either immutably or mutably), which correspond to this line and this line in the rust standard library source code, respectively: 
+ (gdb) break slice/index.rs:242
+Breakpoint 1 at 0x555555554008: slice/index.rs:242. (1016 locations)
+(gdb) break slice/index.rs:248
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555405f.
+Note: breakpoint 1 also set at pc 0x55555555402b.
+Note: breakpoint 1 also set at pc 0x55555555405f.
+Breakpoint 2 at 0x555555554016: slice/index.rs:248. (452 locations)
+
+ In each case, we can see that a breakpoint set at that line of code corresponds to quite a few locations within the program, since the indexing operation is monomorphized for each type of slice that exists in our binary. 
+ Next, we ignore the breakpoint: 
+ (gdb) ignore 1 1000000
+Will ignore next 1000000 crossings of breakpoint 1.
+(gdb) ignore 2 1000000
+Will ignore next 1000000 crossings of breakpoint 2. 
+
+ Now that our breakpoints are set up, we can continue execution: 
+ (gdb) continue
+
+ and execute our (now warm) query one more time: 
+ MySQL [test]> select * from t where id = 1;
++------+------+
+| id | name |
++------+------+
+| 1 | a |
++------+------+
+
+ Now that we’ve run the query with our instrumentation enabled, we can determine how often we executed these two different kinds of bounds-checking indexing operations by dropping into GDB with Ctrl+C again and running the info breakpoints command: 
+ (gdb) info breakpoints
+Num Type Disp Enb Address What
+1 breakpoint keep y <MULTIPLE>
+ breakpoint already hit 527 times
+ ignore next 999473 hits
+
+# ... lots of lines omitted ...
+
+2 breakpoint keep y <MULTIPLE>
+ breakpoint already hit 700 times
+ ignore next 999300 hits
+
+# ... lots of lines omitted ...
+
+ So for a single warm read of a single key with a single row, Readyset does a grand total of 1,227 bounds-checking indexing operations. All told, that’s actually far less than I would’ve guessed - even though we’re just doing warm reads, this is a large and complex application which includes a full implementation of the MySQL binary protocol, an asynchronous networking stack , and a highly concurrent parallel key-value store. 
+ How much do the bounds checks cost? 
+ Even with only that many bounds checks, they might still have a cost that’s noticeable - the only way of finding out is by benchmarking! This is using this benchmarking harness , which sets up a database with a few million rows and performs reads of the same key in a loop. 
+ news_app/ranges_and_joins/cached
+ time: [28.583 ms 29.001 ms 29.526 ms]
+ thrpt: [277.45 Kelem/s 282.48 Kelem/s 286.61 Kelem/s]
+news_app/simple_select/cached
+ time: [18.665 ms 18.944 ms 19.280 ms]
+ thrpt: [424.89 Kelem/s 432.42 Kelem/s 438.90 Kelem/s]
+
+ We can see that the baseline performance metric we’re trying to improve over is a median 28.583ms and 277.45K queries per second for the first query, and 18.665 ms and 424.89K queries per second for the second query. 
+ Manually removing bounds checks 
+ Now, let’s try going through all of Readyset’s code within this hot path and replacing all indexing operations which bounds-check with either slice::get_unchecked or slice::get_unchecked_mut . All told, we replaced 37 instances of indexing operations with their unsafe counterparts (note that this is only in Readyset’s code, and doesn’t cover bounds checks in library code). When we run the same workload again, we see that the number of bounds-checking indexing operations has in fact been reduced: 
+ (gdb) info breakpoints
+Num Type Disp Enb Address What
+1 breakpoint keep y <MULTIPLE>
+ breakpoint already hit 293 times
+ ignore next 999707 hits
+
+# ... lots of lines omitted ...
+
+2 breakpoint keep y <MULTIPLE>
+ breakpoint already hit 283 times
+ ignore next 999718 hits
+
+# ... lots of lines omitted ...
+
+ from a total of 1,227 bounds checks to a total of 576 bounds checks. That’s a fair amount - but let’s see if it affects the benchmark results at all: 
+ news_app/ranges_and_joins/cached
+ time: [33.271 ms 33.836 ms 34.418 ms]
+ thrpt: [238.01 Kelem/s 242.11 Kelem/s 246.22 Kelem/s]
+news_app/simple_select/cached
+ time: [22.509 ms 22.925 ms 23.394 ms]
+ thrpt: [350.17 Kelem/s 357.35 Kelem/s 363.94 Kelem/s]
+
+ We went from a median 28.583 milliseconds to 33.271 milliseconds for the first query, and 18.665 milliseconds to 22.509 milliseconds for the second query. That’s a pretty small change - I’d say that either it’s entirely explainable by measurement noise, or performance has actually regressed by a few percent as a result of our change! Without digging in further, it’s tough to know exactly what’s going on here - it could be that the bounds checks unlock some optimization in LLVM, or that there are some branch prediction shenanigans going on, or indeed that this change is entirely attributable to noise. Regardless, those 651 bounds checking operations we removed certainly weren’t any sort of performance bottleneck! 
+ Removing all the bounds checks 
+ I’m not satisfied, though - what if those remaining 576 bounds checks (presumably all appearing in library code) have some sort of major performance bottleneck too? Going through and removing bounds checks in all our dependencies doesn’t sound like a fun time though. What if, instead, we could make all indexing operations in Rust effectively the same as their unsafe counterparts? (please don’t actually use this). 
+ Bounds-checking indexing in Rust isn’t implemented directly in the standard library (remember that “intrinsic indexing” comment from before?). Instead, it’s implemented as a compiler intrinsic . Essentially, those intrinsic indexing operations are translated to an “index expression” in rustc’s high-level intermediate representation (HIR), which turns into a bounds check followed by the actual pointer offset calculation during lowering to mid-level IR (MIR). The code for the index expression lowering is here , and the bounds check itself gets generated here . We can remove all bounds checks in our program by removing the code to emit these bounds checks: 
+ diff --git a/compiler/rustc_mir_build/src/build/expr/as_place.rs b/compiler/rustc_mir_build/src/build/expr/as_place.rs
+index 0c06aad4e44..7e27b30bb96 100644
+--- a/compiler/rustc_mir_build/src/build/expr/as_place.rs
++++ b/compiler/rustc_mir_build/src/build/expr/as_place.rs
+@@ -7,7 +7,6 @@
+ use rustc_middle::hir::place::Projection as HirProjection;
+ use rustc_middle::hir::place::ProjectionKind as HirProjectionKind;
+ use rustc_middle::middle::region;
+-use rustc_middle::mir::AssertKind::BoundsCheck;
+ use rustc_middle::mir::*;
+ use rustc_middle::thir::*;
+ use rustc_middle::ty::AdtDef;
+@@ -673,8 +672,6 @@ fn lower_index_expression(
+ // The "retagging" transformation (for Stacked Borrows) relies on this.
+ let idx = unpack!(block = self.as_temp(block, temp_lifetime, index, Mutability::Not,));
+
+- block = self.bounds_check(block, base_place.clone(), idx, expr_span, source_info);
+-
+ if is_outermost_index {
+ self.read_fake_borrows(block, fake_borrow_temps, source_info)
+ } else {
+@@ -691,42 +688,6 @@ fn lower_index_expression(
+ block.and(base_place.index(idx))
+ }
+
+- fn bounds_check(
+- &mut self,
+- block: BasicBlock,
+- slice: PlaceBuilder<'tcx>,
+- index: Local,
+- expr_span: Span,
+- source_info: SourceInfo,
+- ) -> BasicBlock {
+- let usize_ty = self.tcx.types.usize;
+- let bool_ty = self.tcx.types.bool;
+- // bounds check:
+- let len = self.temp(usize_ty, expr_span);
+- let lt = self.temp(bool_ty, expr_span);
+-
+- // len = len(slice)
+- self.cfg.push_assign(
+- block,
+- source_info,
+- len,
+- Rvalue::Len(slice.into_place(self.tcx, self.typeck_results)),
+- );
+- // lt = idx < len
+- self.cfg.push_assign(
+- block,
+- source_info,
+- lt,
+- Rvalue::BinaryOp(
+- BinOp::Lt,
+- Box::new((Operand::Copy(Place::from(index)), Operand::Copy(len))),
+- ),
+- );
+- let msg = BoundsCheck { len: Operand::Move(len), index: Operand::Copy(Place::from(index)) };
+- // assert!(lt, "...")
+- self.assert(block, Operand::Move(lt), true, msg, expr_span)
+- }
+-
+ fn add_fake_borrows_of_base(
+ &mut self,
+ base_place: &PlaceBuilder<'tcx>,
+
+ and compile our very own custom rustc, optimized for maximum nasal demons . To check that everything worked, let’s trigger some undefined behavior: 
+ fn main () {
+ println! ( "{}" , (&[ 1 ])[ 1 ]);
+}
+
+ If we compile and run that program using stable rust, we get the following result: 
+ ❯ cargo +stable run
+ Compiling bounds-check-panic v0.0.1
+ Finished dev [unoptimized + debuginfo] target(s) in 0.26s
+ Running `target/debug/bounds-check-panic`
+thread 'main' panicked at 'index out of bounds: the len is 1 but the index is 1', src/main.rs:2:20
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+ But if we compile it using our unsafe rustc, we get: 
+ ❯ cargo +cursed run
+ Compiling bounds-check-panic v0.0.1
+ Finished dev [unoptimized + debuginfo] target(s) in 0.15s
+ Running `target/debug/bounds-check-panic`
+0
+
+ and the same result if we build with optimizations: 
+ ❯ cargo +cursed run --release
+ Compiling bounds-check-panic v0.0.1
+ Finished release [optimized] target(s) in 0.20s
+ Running `target/release/bounds-check-panic`
+0
+
+ Printing 0 for that is… certainly a particular flavor of undefined behavior. 
+ Now, we can build a new UB-tastic version of the readyset binary to re-run our benchmarks. The results: 
+ news_app/ranges_and_joins/cached
+ time: [30.858 ms 31.884 ms 32.987 ms]
+ thrpt: [248.34 Kelem/s 256.93 Kelem/s 265.47 Kelem/s]
+news_app/simple_select/cached
+ time: [18.777 ms 19.068 ms 19.425 ms]
+ thrpt: [421.73 Kelem/s 429.62 Kelem/s 436.27 Kelem/s]
+
+ Again, the changes are well within the noise threshold - the second benchmark looks perhaps slightly better than the version where we manually changed indexing to be unsafe, but it’s only slightly worse than our baseline. Overall, this still feels explainable by just measurement noise. 
+ Conclusion 
+ At the end of the day, it seems like at least for this kind of large-scale, complex application, the cost of pervasive runtime bounds checking is negligible. It’s tough to say precisely why this is, but my intuition is that CPU branch prediction is simply good enough in practice that the cost of the extra couple of instructions and a branch effectively ends up being zero - and compilers like LLVM are good enough at local optimizations to optimize most bounds checks away entirely. Not to mention, it’s likely that quite a few (if not the majority) of the bounds checks we removed are actually necessary , in that they’re validating some kind of user input or other edge conditions where we want to panic on an out of bounds access. 
+
+ About Readyset 
+ Readyset is a SQL caching engine that helps you build performant, real-time applications without any code changes or switching databases. We’re a team of database lovers working together to build the future data layer of the web! If replacing the standard rust compiler with your own unsafe version for a benchmark is your cup of tea, we’d love to meet you. Check out if we're currently hiring here . 
+ Start caching queries today with our open-source product on Github or get a fully-managed version with Readyset Cloud today . Want to see Readyset in action? Book a demo and see how Readyset can accelerate your database. Book a demo Related articles Continue reading more about engineering . Engineering From parser combinators to hand-written TDOP: On adopting sqlparser-rs at Readyset How Readyset replaced its homegrown SQL parser with sqlparser-rs, improving performance, reducing maintenance overhead, and tackling a years long backlog of parsing edge cases along the way. Michael Victor Zink 2026-05-21 · 19 min read Engineering How Readyset Rewrites Your SQL: Inside the Query Transformation Pipeline Why Query Rewriting Matters for Dataflow
+
+Most databases work the same way: a query arrives, the engine builds an execution plan, scans tables, joins rows, filters, aggregates, and returns the result. Every time the query runs, the work repeats from scratch. This pull-based model has served relational databases for decades, but it carries an inherent cost: read latency is proportional to the complexity of the query and the size of the data it touches.
+
+Readyset takes a fundamentally different ap Vassili Zarouba 2026-04-28 · 17 min read Engineering /brutal-review and the new 80/20 rule (Mistakes and em-dashes are my own.)
+
+We have a Claude Code command in our monorepo which is a good example of what I’m calling the "80/20 token rule": if it takes 20M LLM tokens to write a feature, you should spend 80M on ensuring quality: safety measures, testing, and of course code review. If software quality was an open problem before, then agentic engineering has blown it even more wide opener.
+
+At a high level, here's what it does:
+
+ 1. Read the patch to review and all related code.
+ 2. Ha Michael Victor Zink 2026-02-03 · 22 min read Still scaling the hard way? Modern applications demand instant performance, even under unpredictable load. Readyset helps you eliminate slow queries, stabilize latency, and scale confidently. Contact Sales Start for free Revolutionize your database performance with Readyset Serve requests at sub-millisecond latencies with the modern database scaling and query caching system for MySQL and PostgreSQL. Product Readyset Cloud Readyset Private Readyset Community QueryPilot rdst CLI Pricing Resources Blog Case Studies Company Documentation Legal Privacy Policy Terms of Service Join our newsletter Stay updated with the latest news, insights, and developments from Readyset — straight to your inbox. Subscribe Cookie preferences © 2026 Readyset. All rights reserved. 

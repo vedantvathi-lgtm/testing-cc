@@ -1,0 +1,7 @@
+#version 450
+layout(local_size_x = 256) in;
+shared uint s[128];
+void main() {
+    uint lid = gl_LocalInvocationIndex;
+    if (lid < 128u && lid > 3u) { s[lid] = 1u; }
+}

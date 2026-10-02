@@ -1,0 +1,14 @@
+WGSL & case: OpULessThan elision_off=1 elision_on=0
+@group(0) @binding(0) var<uniform> n: vec2<i32>;
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() {
+    let a = n.x;
+    let b = n.y;
+    var i = 0u;
+    if (a < b) & (b > 0) {
+    } else {
+        i = 100u;
+    }
+    t[i] = 1.0;
+}

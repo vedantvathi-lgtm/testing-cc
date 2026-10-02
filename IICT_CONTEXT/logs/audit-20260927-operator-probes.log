@@ -1,0 +1,71 @@
+andmask.wgsl enabled=1 disabled=1
+div.wgsl enabled=1 disabled=1
+guard_if.wgsl enabled=2 disabled=2
+minb.wgsl enabled=1 disabled=1
+mod.wgsl enabled=1 disabled=1
+shr.wgsl enabled=1 disabled=1
+step2.wgsl enabled=0 disabled=1
+guard_var enabled=1 disabled=2
+guard_let enabled=2 disabled=2
+guard_gid_var enabled=1 disabled=2
+== andmask.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(64)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    let x = lid & 7u; t[x] = 1.0;
+}
+== div.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(16)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    t[lid / 2u] = 1.0;
+}
+== guard_gid_var.wgsl
+@group(0) @binding(0) var<storage, read_write> b: array<f32>;
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(8)
+fn main(@builtin(global_invocation_id) g: vec3<u32>) {
+    var i = g.x; if (i < 8u) { t[i] = 1.0; }
+}
+== guard_if.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(64)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    if (lid < 8u) { t[lid] = 1.0; }
+}
+== guard_let.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(64)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    let j = lid; if (j < 8u) { t[j] = 1.0; }
+}
+== guard_var.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(64)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    var i = lid; if (i < 8u) { t[i] = 1.0; }
+}
+== minb.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(64)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    t[min(lid, 7u)] = 1.0;
+}
+== mod.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(64)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    t[lid % 8u] = 1.0;
+}
+== shr.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(16)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    t[lid >> 1u] = 1.0;
+}
+== step2.wgsl
+var<workgroup> t: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main(@builtin(local_invocation_index) lid: u32) {
+    var i = 0u; loop { if (i >= 8u) { break; } t[i] = 1.0; i = i + 2u; }
+}

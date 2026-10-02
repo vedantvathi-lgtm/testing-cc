@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { margin: 0; padding: 0; box-sizing: border-box }
+html, body { background: #fff; color: #2F2F2F; font-family: "Liberation Sans", Arial, sans-serif; font-size: 40px; line-height: 1.3 }
+.mono, code, .codebox { font-family: "Inconsolata LGC Nerd Font Mono", Consolas, monospace }
+b, .blue { color: #0033A0 } .orange { color: #E15E32 } .teal { color: #61C4D3 } .muted { color: #6B6B78 }
+h2 { font-size: 66px; color: #0033A0; font-weight: bold; line-height: 1.1; margin-bottom: 26px }
+h2 .n { color: #61C4D3; margin-right: 18px }
+h3 { font-size: 44px; color: #61C4D3; font-weight: bold; margin: 16px 0 10px 0 }
+ul { list-style: none } li { position: relative; padding-left: 34px; margin-bottom: 12px }
+li:before { content: "\2022"; position: absolute; left: 4px; color: #2F2F2F }
+.codebox { background: #F8F8F8; padding: 18px 24px; font-size: 36px; line-height: 1.42; white-space: pre }
+.hl { background: #FBEAA5; display: inline-block; width: 100% }
+.box { border: 3px solid #1C446A; padding: 16px 20px; text-align: center; background: #fff }
+.cap { font-size: 32px; color: #6B6B78; line-height: 1.3 }
+#piece { display: inline-block; padding: 0 }
+html { zoom: 2 }
+</style></head><body><div id="piece" style="width:1440px">
+<h2><span class="n">3</span>Why trust a removed check?</h2>
+<ul>
+ <li><b>Tests:</b> 95 hand-written shaders where a check must stay or must go; interval arithmetic checked against exhaustive enumeration.</li>
+ <li><b>On GPU:</b> 8 of 8 differential runs give byte-identical output with and without elision.</li>
+ <li><b>Audit:</b> we found 3 unsound loop/branch shapes and fixed each with a regression test. No measured binary changed.</li>
+ <li><b class="orange">Not yet covered:</b> shapes beyond these tests, and <code>discard</code> on Metal/D3D12. Next: random-program differential testing.</li>
+</ul></div></body></html>

@@ -1,0 +1,10 @@
+## T008 control suite
+results/expect-control-20260928T160805Z.json  pass=0  fail=2  error=1  uncompilable=0  no_markers=0
+compiler: bce/sound-branch-refinement@83a90e0 +uncommitted naga/src
+  [FAIL] c1_elided_marker_on_oob.wgsl  OpULessThan={'enabled': 1, 'disabled': 1}
+      line   6 expect ELIDED   proven=[False] -> FAIL
+  [FAIL] c2_retained_marker_on_spec_guarantee.wgsl  OpULessThan={'enabled': 0, 'disabled': 1}
+      line   5 expect RETAINED proven=[True] -> FAIL
+  [ERROR] c3_marker_without_access.wgsl  OpULessThan={'enabled': 0, 'disabled': 1}
+      line   5 expect ELIDED   proven=[] -> ERROR
+exit=1

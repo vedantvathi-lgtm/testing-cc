@@ -1,0 +1,24 @@
+## T007 main suite (rerun after fixture + revision fix)
+results/expect-main-20260928T160805Z.json  pass=7  fail=0  error=0  uncompilable=0  no_markers=0
+compiler: bce/sound-branch-refinement@83a90e0 +uncommitted naga/src
+  [PASS] eq_exit_loop.wgsl  OpULessThan={'enabled': 2, 'disabled': 3}
+      line  11 expect RETAINED proven=[False] -> PASS
+      line  13 expect RETAINED proven=[False] -> PASS
+      line  16 expect ELIDED   proven=[True] -> PASS
+  [PASS] lid_spec_direct.wgsl  OpULessThan={'enabled': 0, 'disabled': 3}
+      line   5 expect ELIDED   proven=[True] -> PASS
+      line   7 expect ELIDED   proven=[True] -> PASS
+      line   8 expect ELIDED   proven=[True] -> PASS
+  [PASS] loop_iv_guarded.wgsl  OpULessThan={'enabled': 1, 'disabled': 4}
+      line   7 expect ELIDED   proven=[True] -> PASS
+      line   9 expect ELIDED   proven=[True] -> PASS
+      line  11 expect ELIDED   proven=[True] -> PASS
+  [PASS] mutation_after_guard.wgsl  OpULessThan={'enabled': 2, 'disabled': 2}
+      line   8 expect RETAINED proven=[False] -> PASS
+  [PASS] runtime_sized_storage.wgsl  OpULessThan={'enabled': 2, 'disabled': 2}
+      line   7 expect MANUAL   proven=[False] -> MANUAL
+  [PASS] signed_guarded.wgsl  OpULessThan={'enabled': 0, 'disabled': 1}
+      line   8 expect ELIDED   proven=[True] -> PASS
+  [PASS] unguarded_oob.wgsl  OpULessThan={'enabled': 1, 'disabled': 1}
+      line   5 expect RETAINED proven=[False] -> PASS
+exit=0

@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { margin: 0; padding: 0; box-sizing: border-box }
+html, body { background: #fff; color: #2F2F2F; font-family: "Liberation Sans", Arial, sans-serif; font-size: 40px; line-height: 1.3 }
+.mono, code, .codebox { font-family: "Inconsolata LGC Nerd Font Mono", Consolas, monospace }
+b, .blue { color: #0033A0 } .orange { color: #E15E32 } .teal { color: #61C4D3 } .muted { color: #6B6B78 }
+h2 { font-size: 66px; color: #0033A0; font-weight: bold; line-height: 1.1; margin-bottom: 26px }
+h2 .n { color: #61C4D3; margin-right: 18px }
+h3 { font-size: 44px; color: #61C4D3; font-weight: bold; margin: 16px 0 10px 0 }
+ul { list-style: none } li { position: relative; padding-left: 34px; margin-bottom: 12px }
+li:before { content: "\2022"; position: absolute; left: 4px; color: #2F2F2F }
+.codebox { background: #F8F8F8; padding: 18px 24px; font-size: 36px; line-height: 1.42; white-space: pre }
+.hl { background: #FBEAA5; display: inline-block; width: 100% }
+.box { border: 3px solid #1C446A; padding: 16px 20px; text-align: center; background: #fff }
+.cap { font-size: 32px; color: #6B6B78; line-height: 1.3 }
+#piece { display: inline-block; padding: 0 }
+html { zoom: 2 }
+li:before{content:none}</style></head><body><div id="piece" style="width:3027px">
+<h2>How it works: one proof, and a tree reduction loses all four clamps</h2>
+<div style="display:grid;grid-template-columns:1080px 1fr 900px;gap:60px">
+ <div><h3>The loop (reduce_tree)</h3><div class="codebox"><span class="muted">@workgroup_size(256)</span>
+<span class="muted">var&lt;workgroup&gt; s: array&lt;u32, 256&gt;;</span>
+
+for (var stride = 128u; stride &gt; 0u;
+     stride = stride &gt;&gt; 1u) {
+  if (lid &lt; stride) {
+<span class="hl">    s[lid] = s[lid] + s[lid + stride];</span>
+  }
+  workgroupBarrier();
+}</div></div>
+ <div><h3>What the analysis derives</h3>
+  <ol style="list-style:none;font-size:40px;line-height:1.35">
+   <li style="padding-left:56px"><span class="teal" style="position:absolute;left:0;font-weight:bold">1</span><code>lid</code> ∈ [0, 255]: the workgroup size</li>
+   <li style="padding-left:56px"><span class="teal" style="position:absolute;left:0;font-weight:bold">2</span><code>stride</code> ∈ [1, 128]: its only update is <code>&gt;&gt; 1</code></li>
+   <li style="padding-left:56px"><span class="teal" style="position:absolute;left:0;font-weight:bold">3</span><code>lid &lt; stride</code> ⇒ <code>lid</code> ∈ [0, 127]</li>
+   <li style="padding-left:56px"><span class="teal" style="position:absolute;left:0;font-weight:bold">4</span><code>lid + stride</code> ∈ [1, 255] fits <code>s</code>, <b>so no clamp is needed</b></li>
+  </ol></div>
+ <div><h3>Emitted SPIR-V (Restrict)</h3><div class="codebox" style="font-size:34px"><span style="text-decoration:line-through;color:#E15E32">UMin %lid %uint_255</span>
+<span style="text-decoration:line-through;color:#E15E32">UMin %lid %uint_255</span>
+<span style="text-decoration:line-through;color:#E15E32">UMin %lid_plus_stride %uint_255</span>
+<span style="text-decoration:line-through;color:#E15E32">UMin %lid %uint_255</span></div>
+  <div style="font-size:40px;margin-top:18px"><b>4 → 0 clamps.</b> The binary is byte-identical (sha256) to the build with all checks off.</div></div>
+</div>
+<div class="cap" style="margin-top:20px">Shown with wgpu’s Vulkan settings; SPIR-V ids renamed for reading. Artifact: runs-v4, wgpu fork 19ffb4e.</div>
+</div></body></html>

@@ -1,0 +1,41 @@
+   Compiling naga v29.0.0 (/home/bb/Projects/Dave-Sonar-WGPU--master/wgpu/naga)
+    Checking naga-test v29.0.0 (/home/bb/Projects/Dave-Sonar-WGPU--master/wgpu/naga-test)
+warning: wildcard matches only a single variant and will also match any future added variants
+    --> naga/src/proc/bounds_check_elision.rs:1367:13
+     |
+1367 |             _ => unreachable!("u32 helper used on i32"),
+     |             ^ help: try: `IntRange::I32 { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#match_wildcard_for_single_variants
+note: the lint level is defined here
+    --> naga/src/lib.rs:86:5
+     |
+  86 |     clippy::match_wildcard_for_single_variants,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: wildcard matches only a single variant and will also match any future added variants
+    --> naga/src/proc/bounds_check_elision.rs:1373:13
+     |
+1373 |             _ => unreachable!("u32 helper used on i32"),
+     |             ^ help: try: `IntRange::I32 { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#match_wildcard_for_single_variants
+
+warning: wildcard matches only a single variant and will also match any future added variants
+    --> naga/src/proc/bounds_check_elision.rs:1385:13
+     |
+1385 |             _ => unreachable!("i32 helper used on u32"),
+     |             ^ help: try: `IntRange::U32 { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#match_wildcard_for_single_variants
+
+warning: wildcard matches only a single variant and will also match any future added variants
+    --> naga/src/proc/bounds_check_elision.rs:1391:13
+     |
+1391 |             _ => unreachable!("i32 helper used on u32"),
+     |             ^ help: try: `IntRange::U32 { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#match_wildcard_for_single_variants
+
+warning: `naga` (lib test) generated 4 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.79s

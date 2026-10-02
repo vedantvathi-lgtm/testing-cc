@@ -1,0 +1,11 @@
+DEVIATION: expected background OCR (nohup bash -c, pid 6136) to rasterize 16 pages;
+observed silent death (empty log, no process, no output) — same failure mode as the
+2026-09-13 session's detached setsid/nohup jobs; evidence: this log + missing
+references/extract/cousot-popl77/; consequence: none (work is idempotent);
+next: rerun in foreground with generous timeout, then verify page count.
+RESOLVED (same session): root cause of OCR page errors = missing eng.traineddata
+(system has only afr/osd; dpkg absent so no package audit possible). Fixed user-space:
+tessdata_fast eng.traineddata (4,113,088 B) downloaded to ~/.tessdata/ (TESSDATA_PREFIX,
+no sudo). Rerun: 57,149 chars, 0 page errors; content verified (title page + §6
+concretization text). Also fixed references/extract_pdf.py to set TESSDATA_PREFIX
+default. Note: eng.traineddata content hash: 7d4322bd2a774972…

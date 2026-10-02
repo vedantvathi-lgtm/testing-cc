@@ -1,0 +1,42 @@
+T1 GATE FAILURE RECORD — 2026-09-13
+====================================
+Branch called: DEVIATION → DISASTER-class consequences (environment), NOT a code defect.
+
+GATE: cargo --version && rustc --version
+OBSERVED: bash: cargo: command not found; no rustc/cargo/rustup anywhere on PATH
+or in standard install locations.
+
+EVIDENCE (commands run this session):
+- `which -a rustc cargo rustup` → none found (full PATH echoed in session log; note
+  `/home/bb/.cargo/bin` IS on PATH but the directory is empty).
+- `ls -la ~/.cargo/` → EMPTY directory (mtime Sep 1 16:17 — same window as the
+  ~/Archive/*.tar.zst backup creation).
+- `ls -d ~/.rustup` → does not exist.
+- `find / -maxdepth 3 -name rustc -type f` (bounded) → nothing.
+- No snap/nix/asdf/mise/conda Rust toolchain present.
+- Corroborating cleanup evidence: `wgpu/target/` and framework `target/` dirs absent;
+  newest build artifact = `wgpu/Cargo.lock` (mtime Jul 5 16:11).
+- Network IS available (GitHub reachable earlier this session) → reinstall is possible.
+
+CONSEQUENCE CHAIN (exact):
+1. T1 (cargo test/clippy/fmt) — CANNOT RUN.
+2. T2 (GPU rerun via paired-vulkan-v3) — CANNOT BUILD; blocked behind T1's gate
+   (the harness path-depends on wgpu/naga and is cargo-built).
+3. T3/T5 similarly cargo-dependent → blocked. T4 Part A cargo-dependent → blocked.
+4. T4 Part B structural backend compilation is also cargo-built → blocked.
+5. Only T6 (paper v3 prose) and T8 Part C (consolidation doc) could technically
+   proceed WITHOUT a toolchain — but per T0 rule 9(d) and the user's explicit
+   instruction (T1 then T2, back-to-back), the session STOPS here instead of
+   freelance-running out-of-order tasks.
+
+NOT A FAILURE OF: the wgpu implementation, the `8757d7d` tree, the harness code,
+or any prior claim. The "272 tests green" claim from Aug 28 remains RECORDED and
+untested-today; this session neither strengthens nor weakens it.
+
+NEXT ACTION (for the user, one command):
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+then: `source ~/.cargo/env`, verify `cargo --version`, remove the BLOCKED banner from
+IICT_CONTEXT/TASKS/T1-CERTIFY-TREE.md, and re-invoke "Run T1 then T2".
+
+Disk note for the reinstall: 22 GB free; rustup stable ≈ 1.5–2 GB installed
+(toolchain + docs minimal profile recommended: `--profile minimal`).

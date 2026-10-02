@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { margin: 0; padding: 0; box-sizing: border-box }
+html, body { background: #fff; color: #2F2F2F; font-family: "Liberation Sans", Arial, sans-serif; font-size: 40px; line-height: 1.3 }
+.mono, code, .codebox { font-family: "Inconsolata LGC Nerd Font Mono", Consolas, monospace }
+b, .blue { color: #0033A0 } .orange { color: #E15E32 } .teal { color: #61C4D3 } .muted { color: #6B6B78 }
+h2 { font-size: 66px; color: #0033A0; font-weight: bold; line-height: 1.1; margin-bottom: 26px }
+h2 .n { color: #61C4D3; margin-right: 18px }
+h3 { font-size: 44px; color: #61C4D3; font-weight: bold; margin: 16px 0 10px 0 }
+ul { list-style: none } li { position: relative; padding-left: 34px; margin-bottom: 12px }
+li:before { content: "\2022"; position: absolute; left: 4px; color: #2F2F2F }
+.codebox { background: #F8F8F8; padding: 18px 24px; font-size: 36px; line-height: 1.42; white-space: pre }
+.hl { background: #FBEAA5; display: inline-block; width: 100% }
+.box { border: 3px solid #1C446A; padding: 16px 20px; text-align: center; background: #fff }
+.cap { font-size: 32px; color: #6B6B78; line-height: 1.3 }
+#piece { display: inline-block; padding: 0 }
+html { zoom: 2 }
+</style></head><body><div id="piece" style="width:1440px">
+<h2><span class="n">4</span>Check cost, and what elision wins back</h2>
+<div class="cap" style="margin-bottom:14px"><b style="color:#2F2F2F">Outline</b>: slowdown from all bounds checks (checks on vs. off). <b style="color:#2F2F2F">Fill</b>: the part elision removes.</div>
+<div style="display:flex;align-items:center;height:96px">
+ <div style="width:330px"><div style="font-size:33px;font-weight:bold">vello, 32 scenes</div><div style="font-size:29px;color:#E15E32">Intel iGPU</div></div>
+ <div style="position:relative;width:227px;height:52px;border:3px solid #BEBECB;background:#fff">
+  <div style="position:absolute;left:0;top:0;height:46px;width:223px;background:#E15E32"></div></div>
+ <div style="margin-left:18px;font-size:32px;color:#E15E32;font-weight:bold;white-space:nowrap">6.8% of 6.8%<span style="color:#6B6B78;font-weight:normal">&nbsp; (100%)</span></div></div><div style="display:flex;align-items:center;height:96px">
+ <div style="width:330px"><div style="font-size:33px;font-weight:bold">vello, 34 scenes</div><div style="font-size:29px;color:#0033A0">NVIDIA</div></div>
+ <div style="position:relative;width:47px;height:52px;border:3px solid #BEBECB;background:#fff">
+  <div style="position:absolute;left:0;top:0;height:46px;width:26px;background:#0033A0"></div></div>
+ <div style="margin-left:18px;font-size:32px;color:#0033A0;font-weight:bold;white-space:nowrap">0.8% of 1.3%<span style="color:#6B6B78;font-weight:normal">&nbsp; (62%)</span></div></div><div style="height:18px"></div><div style="display:flex;align-items:center;height:96px">
+ <div style="width:330px"><div style="font-size:33px;font-weight:bold">synthetic scan</div><div style="font-size:29px;color:#0033A0">NVIDIA</div></div>
+ <div style="position:relative;width:522px;height:52px;border:3px solid #BEBECB;background:#fff">
+  <div style="position:absolute;left:0;top:0;height:46px;width:518px;background:#0033A0"></div></div>
+ <div style="margin-left:18px;font-size:32px;color:#0033A0;font-weight:bold;white-space:nowrap">15.8% of 15.8%<span style="color:#6B6B78;font-weight:normal">&nbsp; (100%)</span></div></div><div style="display:flex;align-items:center;height:96px">
+ <div style="width:330px"><div style="font-size:33px;font-weight:bold">synthetic scan</div><div style="font-size:29px;color:#E15E32">Intel iGPU</div></div>
+ <div style="position:relative;width:385px;height:52px;border:3px solid #BEBECB;background:#fff">
+  <div style="position:absolute;left:0;top:0;height:46px;width:381px;background:#E15E32"></div></div>
+ <div style="margin-left:18px;font-size:32px;color:#E15E32;font-weight:bold;white-space:nowrap">11.6% of 11.6%<span style="color:#6B6B78;font-weight:normal">&nbsp; (100%)</span></div></div><div style="height:18px"></div><div style="display:flex;align-items:center;height:96px">
+ <div style="width:330px"><div style="font-size:33px;font-weight:bold">image blur</div><div style="font-size:29px;color:#E15E32">Intel iGPU</div></div>
+ <div style="position:relative;width:232px;height:52px;border:3px solid #BEBECB;background:#fff">
+  <div style="position:absolute;left:0;top:0;height:46px;width:11px;background:#E15E32"></div></div>
+ <div style="margin-left:18px;font-size:32px;color:#E15E32;font-weight:bold;white-space:nowrap">0.3% of 7.0%<span style="color:#6B6B78;font-weight:normal">&nbsp; (5%)</span></div></div><div style="display:flex;align-items:center;height:96px">
+ <div style="width:330px"><div style="font-size:33px;font-weight:bold">image blur</div><div style="font-size:29px;color:#0033A0">NVIDIA</div></div>
+ <div style="position:relative;width:13px;height:52px;border:3px solid #BEBECB;background:#fff">
+  <div style="position:absolute;left:0;top:0;height:46px;width:4px;background:#0033A0"></div></div>
+ <div style="margin-left:18px;font-size:32px;color:#0033A0;font-weight:bold;white-space:nowrap">0.1% of 0.3%<span style="color:#6B6B78;font-weight:normal"></span></div></div>
+<div style="margin-top:22px"><b>Where checks are expensive and provable, elision wins back all of their cost, on both GPUs.</b>
+ On NVIDIA, vello’s checks are nearly free. Blur’s checks cost 7% on Intel but are mostly not provable (section 5).</div>
+<div class="cap" style="margin-top:14px">Exploratory: raw medians, not pre-registered. Every synthetic kernel with a measurable check cost recovers 95–100% (5 on NVIDIA, 3 on Intel). Why checks cost more on Intel is not yet known.</div></div></body></html>

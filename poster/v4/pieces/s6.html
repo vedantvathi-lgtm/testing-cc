@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { margin: 0; padding: 0; box-sizing: border-box }
+html, body { background: #fff; color: #2F2F2F; font-family: "Liberation Sans", Arial, sans-serif; font-size: 40px; line-height: 1.3 }
+.mono, code, .codebox { font-family: "Inconsolata LGC Nerd Font Mono", Consolas, monospace }
+b, .blue { color: #0033A0 } .orange { color: #E15E32 } .teal { color: #61C4D3 } .muted { color: #6B6B78 }
+h2 { font-size: 66px; color: #0033A0; font-weight: bold; line-height: 1.1; margin-bottom: 26px }
+h2 .n { color: #61C4D3; margin-right: 18px }
+h3 { font-size: 44px; color: #61C4D3; font-weight: bold; margin: 16px 0 10px 0 }
+ul { list-style: none } li { position: relative; padding-left: 34px; margin-bottom: 12px }
+li:before { content: "\2022"; position: absolute; left: 4px; color: #2F2F2F }
+.codebox { background: #F8F8F8; padding: 18px 24px; font-size: 36px; line-height: 1.42; white-space: pre }
+.hl { background: #FBEAA5; display: inline-block; width: 100% }
+.box { border: 3px solid #1C446A; padding: 16px 20px; text-align: center; background: #fff }
+.cap { font-size: 32px; color: #6B6B78; line-height: 1.3 }
+#piece { display: inline-block; padding: 0 }
+html { zoom: 2 }
+</style></head><body><div id="piece" style="width:1440px">
+<h2><span class="n">6</span>Compared with Tint (Chrome)</h2>
+<table style="width:100%;border-collapse:collapse;font-size:36px">
+ <tr style="color:#0033A0;font-weight:bold;border-bottom:3px solid #1C446A"><td style="padding:8px 6px"></td><td>this work</td><td>Tint</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px">facts from any <code>if</code> guard</td><td class="blue">yes</td><td class="orange">loop exits only</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px">relation a ≥ b for a − b</td><td class="blue">yes</td><td class="orange">no</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px">shrinking / geometric loops</td><td class="blue">yes</td><td class="orange">±1 steps only</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px">runtime-sized arrays</td><td class="orange">no</td><td class="orange">no</td></tr>
+ <tr><td style="padding:8px 6px">shipped</td><td class="orange">no (fork)</td><td class="blue">default-on</td></tr>
+</table>
+<div class="cap" style="margin-top:14px">From reading Tint’s IntegerRangeAnalysis source, not measured. Classic CPU work: ABCD, Go <code>prove</code>, LLVM IRCE.</div></div></body></html>

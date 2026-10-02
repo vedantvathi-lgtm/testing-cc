@@ -1,0 +1,489 @@
+% ============================================================================
+%  Bounds Check Elision in GPU Compute Shaders
+%  Single-column Google Docs style document
+%  Compile: tectonic iict2026_bounds_check_elision.tex
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+% --- Clean, readable layout ---
+\usepackage[a4paper,
+            top=2.5cm, bottom=2.5cm,
+            left=2.5cm, right=2.5cm]{geometry}
+
+% --- Typography ---
+\usepackage[T1]{fontenc}
+\usepackage{libertine}
+\usepackage[libertine]{newtxmath}
+\usepackage[scaled=0.85]{beramono}
+\usepackage{microtype}
+
+% --- Graphics & tables ---
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{caption}
+
+% --- Code listings (SPIR-V) ---
+\usepackage{xcolor}
+\definecolor{codebg}{HTML}{F5F5F5}
+\definecolor{kwcolor}{HTML}{8B0000}
+\definecolor{cmtcolor}{HTML}{6A737D}
+\usepackage{listings}
+\lstdefinelanguage{spirv}{
+  morekeywords={OpLabel,OpULessThan,OpSelectionMerge,OpBranchConditional,
+                OpAccessChain,OpLoad,OpBranch,OpPhi,OpTypeFloat,OpTypePointer,
+                OpTypeVector,OpTypeFunction,OpVariable,OpFunction,OpFunctionEnd,
+                OpReturn,OpStore,OpIAdd,OpFAdd,OpISub,OpIMul,OpIEqual,
+                OpControlBarrier,OpMemoryBarrier,OpExtInst,OpTypeVoid,
+                OpTypeInt,OpTypeBool,OpTypeArray,OpConstant,OpConstantNull,
+                OpDecorate,OpName,OpCapability,OpEntryPoint,OpExecutionMode,
+                OpMemoryModel},
+  sensitive=true,
+  morecomment=[l]{;},
+  morestring=[b]"
+}
+\lstset{
+  language=spirv,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{kwcolor}\bfseries,
+  commentstyle=\color{cmtcolor}\itshape,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0.3pt,
+  framesep=4pt,
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+  aboveskip=8pt,
+  belowskip=6pt,
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+}
+
+% --- Hyperlinks ---
+\usepackage[colorlinks=true,
+            linkcolor=blue!60!black,
+            citecolor=blue!50!black,
+            urlcolor=blue!60!black]{hyperref}
+
+% --- Title formatting ---
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries}{\thesection}{0.5em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{18pt}{6pt}
+\titlespacing*{\subsection}{0pt}{12pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+
+% --- Paragraph style ---
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+% ============================================================================
+% Title
+% ============================================================================
+\begin{center}
+  {\LARGE\bfseries Static Analysis for Bounds Check Elision in the Naga WGSL Compiler\par}
+\end{center}
+\vspace{4pt}
+{\large Bhuvan B\par}
+{\normalsize\href{mailto:bhuvanb1408@gmail.com}{\texttt{bhuvanb1408@gmail.com}}\par}
+\vspace{8pt}
+\hrule
+\vspace{8pt}
+\noindent\textbf{Abstract.}
+The WebGPU standard and its shading language WGSL mandate compile-time bounds
+checking for all GPU memory accesses, a design choice that distinguishes them
+from traditional GPU programming models (CUDA, OpenCL, GLSL). The Naga
+compiler, used in wgpu and Mozilla Firefox, provides three conservative
+bounds check policies (\texttt{ReadZeroSkipWrite}, \texttt{Restrict},
+\texttt{Unchecked}) with different safety and performance characteristics.
+
+This work presents a static analysis pass that elides unnecessary bounds
+checks by exploiting specification-level guarantees and common loop patterns.
+The builtin index safety analysis verifies that accesses indexed by
+\texttt{local\_invocation\_index} are provably safe when the array length
+meets or exceeds the total workgroup size, leveraging a guarantee inherent
+to the WGSL specification. The loop induction variable analysis recognizes
+\texttt{if i < N \{ \} else \{ break; \}} patterns inside WGSL loops to
+identify further safe accesses. Both analyses produce SPIR-V output
+byte-identical to the \texttt{Unchecked} policy for elided cases, achieving
+zero runtime overhead while preserving full safety for all other accesses. 
+  
+
+
+% ============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+With web browsers and compute on web becoming  increasingly popular , graphics and compute shaders are deployed through web applications. From WebGL to current WebGPU standards, scientific, financial computations, mechanical simulations and medical applications are being deployed to be compatible with web and mobile GPU compute. 
+The WebGPU standard and its shading
+language WGSL were designed with safety as a first-class concern, in contrast
+to other GPU programming models (CUDA, OpenCL, legacy GLSL) that treat
+out-of-bounds (OOB) memory access as undefined behavior~\cite{webgpu_spec,wgsl_spec}.
+
+The need for availability of resources irrespective of results from a shader result mandates that OOB failures that break and crash live memory are priority concerns.
+The Naga shader compiler~\cite{naga_repo} translates WGSL to SPIR-V and
+provides configurable bounds check policies that insert runtime guards on
+every array and buffer access. While these policies prevent OOB memory
+corruption, they introduce instruction overhead that may be eliminated when
+the compiler can statically prove an index is within bounds.
+
+This paper and ongoing research envisions to solve this thorough optimizations that do not give correctness penalty. Correct work includes:
+\begin{itemize}
+  \item Two static analyses for bounds check elision in the Naga compiler:
+  a builtin index safety analysis that exploits the WGSL specification's
+  guarantee on \texttt{local\_invocation\_index}, and a loop induction
+  variable analysis targeting WGSL loop patterns. 
+  \item Currently targeting vulkan. Future work will include expanding to other backends.
+
+\end{itemize}
+
+% ============================================================================
+\section{Background About Findings}
+\label{sec:background}
+
+\subsection{Bounds Check Policies in Naga}
+
+Naga defines three \texttt{BoundsCheckPolicy} variants~\cite{naga_bounds_check}:
+
+\begin{description}
+  \item[\texttt{ReadZeroSkipWrite}] Injected bounds checks return~0 for OOB
+  reads and silently discard OOB writes. This is the safest and most expensive
+  policy.
+  \item[\texttt{Restrict}] Indices are clamped to $[0, \text{length}-1]$
+  before access. OOB reads return the last element; OOB writes overwrite the
+  last element.
+  \item[\texttt{Unchecked}] No bounds checks are inserted. OOB access produces
+  undefined behavior identical to CUDA and raw Vulkan. Used in native workloads, not  opted in browser-specific applications.
+\end{description}
+
+Figure~\ref{fig:pipeline} shows where these policies are applied in the
+compilation pipeline.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=1.0\textwidth]{/tmp/naga_pipeline.pdf}
+\caption{Naga compilation pipeline with bounds check injection.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{SPIR-V Instruction Model}
+
+SPIR-V generation: A WGSL shader once compiled generated SPIR-V code that runs on Vulkan for a linux system. The bounds check happens for every array access at any index i on a length N var<workgroup>  as illustrated  below:  
+
+\begin{lstlisting}
+; Bounds check: i < N?
+%cmp = OpULessThan %bool %i %N
+      OpSelectionMerge %merge None
+      OpBranchConditional %cmp %safe %merge
+%safe = OpLabel
+%val  = OpAccessChain %ptr %arr %i     ; safe path
+%res  = OpLoad %float %val
+      OpBranch %merge
+%merge = OpLabel
+%phi  = OpPhi %float %zero %entry %res %safe
+\end{lstlisting}
+
+When the index is provably safe, these 5 instructions inside the
+loop body are elided entirely, producing the same code as
+\texttt{Unchecked}. Figure~\ref{fig:spv_combined}
+shows output from a minimal WGSL shader compiled with and without elision.
+
+% ============================================================================
+\section{Design}
+\label{sec:design}
+
+\subsection{Builtin Index Safety Analysis}
+\label{sec:interval}
+
+This analysis is  narrow, it recognizes a single,
+specification-guaranteed pattern rather than tracking general integer ranges. This was chosen  as a correctness and guarantee pattern as per WGSL spec that is confirmed to be true always.
+The WGSL specification guarantees that the built-in
+\texttt{local\_invocation\_index} takes values in
+$[0, \texttt{workgroup\_size.x} \times \texttt{workgroup\_size.y} \times
+\texttt{workgroup\_size.z})$ for every invocation of a given entry
+point~\cite{wgsl_spec}. This means that if a \texttt{var<workgroup>} array is
+indexed directly by \texttt{local\_invocation\_index}, and the array's
+declared length is greater than or equal to the entry point's total workgroup
+size, the access can never be out of bounds, independent of any data-flow
+analysis  about the index  itself.
+
+This is implemented as a single forward pass over
+\texttt{ModuleInfo::process\_function} (\texttt{naga/src/valid/analyzer.rs}),
+executed once per function after expression and uniformity analysis, and
+before bounds checks are injected by the SPIR-V backend:
+\\
+Step 1 : Scan the function's arguments for one bound to
+  \texttt{@builtin(local\_invocation\_index)}, recording its argument index if
+  found.
+
+Step 2: If found, look up the entry point that owns this function by name and
+  compute \texttt{wg\_size} as the product of its \texttt{@workgroup\_size}
+  dimensions.
+
+Step 3: If \texttt{wg\_size} is known, make a single pass over every
+  \texttt{Access\{base, index\}} expression in the function. For every expression whose \texttt{index} expands to
+  \texttt{local\_invocation\_index} argument, resolve \texttt{base}'s array
+  type and retrieve its statically
+  known length.
+
+Step 4: If the length is known and is at least \texttt{wg\_size}, insert the
+  \texttt{index} expression's handle into
+  \texttt{safe\_indices: HashSet<Handle<Expression>\,>} on the function's
+  analysis info.
+
+Figure~\ref{fig:interval_alg} diagrams this pass. Two properties distinguish
+it from a general-purpose range analysis:
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.6\textwidth]{/tmp/builtin_index_safety.pdf}
+\caption{Builtin index safety analysis: the single forward pass.}
+\label{fig:interval_alg}
+\end{figure}
+
+\subsection{Loop Induction Variable Analysis}
+\label{sec:loop}
+
+Loop induction variable analysis is a standard compiler
+technique~\cite{muchnick1997}. Our adaptation targets the WGSL pattern
+\texttt{loop \{ if i < N \{ \} else \{ break; \} \}} where \texttt{i} is a
+local variable loaded via \texttt{Load \{ pointer: LocalVariable(v) \}}. This
+pattern is produced by \texttt{for} loops, \texttt{while} loops, and manual
+\texttt{loop}-with-\texttt{break} constructs.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.67\textwidth]{/tmp/loop_induction.pdf}
+\caption{Loop induction variable analysis: expression matching.}
+\label{fig:loop_alg}
+\end{figure}
+
+The analysis additionally handles the WGSL \texttt{break if} construct:
+\begin{itemize}
+  \item \texttt{break if i >= N}: body runs while \texttt{i < N}, bound = N.
+  \item \texttt{break if i > N}: body runs while \texttt{i <= N}, bound = N+1.
+\end{itemize}
+
+\subsection{Resulting Changes  in SPIR-V backend}
+
+The elision analysis is invoked in the validation pass of
+\texttt{function.rs} after type checking and before bounds check injection.
+The \texttt{elide\_bounds\_checks} function takes the function IR, module,
+and analysis info, and populates a
+\texttt{safe\_indices: HashSet<Handle<Expression>\,>} in the function info. The
+SPIR-V backend reads this set during code emission: if an access expression
+is in \texttt{safe\_indices}, no bounds check instructions are generated.
+
+% ============================================================================
+\section{Results}
+\label{sec:results}
+
+Figure~\ref{fig:spv_combined} shows real compiler
+output from a minimal WGSL shader under \texttt{ReadZeroSkipWrite} with and
+without elision. The elided version (\texttt{data[lid]}) issues a bare
+\texttt{OpAccessChain}/\texttt{OpLoad}, identical to \texttt{Unchecked}. The
+retained version (\texttt{data[lid+1u]}) inserts the full bounds-check
+diamond.
+
+Table~\ref{tab:words} shows the SPIR-V word counts for the minimal shader
+and the matmul benchmark. The matmul benchmark provides the cleanest signal:
+elided checked equals elided unchecked (399~=~399 words), confirming complete
+elision with zero overhead. The retained versions add 28 words for the bounds
+check, consistent across both shaders. Across all configurations, the elision
+analysis produces identical SPIR-V to \texttt{Unchecked} for provably-safe
+accesses.
+
+\begin{table}[htbp]
+\centering
+\caption{SPIR-V word counts across benchmark configurations.}
+\label{tab:words}
+\small
+\begin{tabular}{lrrr}
+\toprule
+Benchmark & Checked & Unchecked & Delta \\
+\midrule
+Minimal shader (elided)   & 176 & 176 & \textbf{+0~(identical)} \\
+Minimal shader (retained) & 213 & 185 & +28~(bounds check) \\
+Matmul elided             & 399 & 399 & \textbf{+0~(identical)} \\
+Matmul retained           & 432 & 404 & +28~(bounds check) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:gpu_timing} shows the GPU timing results for the matmul
+benchmark. The elided configuration shows zero timing difference versus
+\texttt{Unchecked}, confirming that removing bounds checks introduces no
+runtime penalty. The retained configuration shows a measurable overhead of
+7,568 to 8,192\,ns per dispatch at 262,144 evaluations (256~threads $\times$
+1024~iterations), or approximately 29 to 31~picoseconds per bounds check.
+
+\begin{table}[htbp]
+\centering
+\caption{GPU timing: paired delta vs.\ \texttt{Unchecked}.}
+\label{tab:gpu_timing}
+\small
+\begin{tabular}{lr}
+\toprule
+Configuration & Delta vs.\ Unchecked \\
+\midrule
+Elided (checked $-$ unchecked) & 0.0~ns \\
+Retained (checked $-$ unchecked) & 7,696 to 8,192~ns \\
+\midrule
+Bounds check overhead & 7,568--8,192~ns \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These results confirm the elision analysis successfully removes both the
+SPIR-V instructions and their runtime cost for provably-safe array accesses.
+The elided output is byte-identical to \texttt{Unchecked} with zero timing
+overhead, while the retained bounds check has a consistent 28-word and
+~8\,$\mu$s per dispatch cost.
+
+\clearpage
+\begin{figure}[h!]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+%_arr_float_uint_64 = OpTypeArray %float %uint_64          ; 64 elements
+%_ptr_Workgroup__arr_float_uint_64 = OpTypePointer Workgroup %_arr_float_uint_64
+       %data = OpVariable %_ptr_Workgroup__arr_float_uint_64 Workgroup
+     %uint_0 = OpConstant %uint 0
+       %bool = OpTypeBool
+     %uint_2 = OpConstant %uint 2
+   %uint_264 = OpConstant %uint 264
+%_ptr_Workgroup_float = OpTypePointer Workgroup %float
+       %main = OpFunction %void None %14
+          %9 = OpLabel
+         %12 = OpLoad %uint %lid
+               OpBranch %16
+         %16 = OpLabel
+         %19 = OpIEqual %bool %12 %uint_0
+               OpSelectionMerge %21 None
+               OpBranchConditional %19 %22 %21
+         %22 = OpLabel
+               OpStore %data %17           ; zero-init array
+               OpBranch %21
+         %21 = OpLabel
+               OpControlBarrier %uint_2 %uint_2 %uint_264
+               OpBranch %25
+         %25 = OpLabel
+         %27 = OpAccessChain %_ptr_Workgroup_float %data %12   ; bare load (NO check)
+         %28 = OpLoad %float %27
+         %29 = OpFAdd %float %28 %float_1
+         %30 = OpAccessChain %_ptr_Workgroup_float %data %12   ; bare store (NO check)
+               OpStore %30 %29
+               OpReturn
+               OpFunctionEnd
+\end{lstlisting}
+\vspace{2pt}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+%_arr_float_uint_64 = OpTypeArray %float %uint_64          ; 64 elements
+%_ptr_Workgroup__arr_float_uint_64 = OpTypePointer Workgroup %_arr_float_uint_64
+       %data = OpVariable %_ptr_Workgroup__arr_float_uint_64 Workgroup
+     %uint_1 = OpConstant %uint 1
+     %uint_0 = OpConstant %uint 0
+       %bool = OpTypeBool
+     %uint_2 = OpConstant %uint 2
+   %uint_264 = OpConstant %uint 264
+%_ptr_Workgroup_float = OpTypePointer Workgroup %float
+         %31 = OpConstantNull %float                     ; zero for Phi
+       %main = OpFunction %void None %14
+          %9 = OpLabel
+         %12 = OpLoad %uint %lid
+               OpBranch %17
+         %17 = OpLabel
+         %20 = OpIEqual %bool %12 %uint_0
+               OpSelectionMerge %22 None
+               OpBranchConditional %20 %23 %22
+         %23 = OpLabel
+               OpStore %data %18           ; zero-init
+               OpBranch %22
+         %22 = OpLabel
+               OpControlBarrier %uint_2 %uint_2 %uint_264
+               OpBranch %26
+         %26 = OpLabel
+         %27 = OpIAdd %uint %12 %uint_1                  ; index = lid + 1
+         %29 = OpULessThan %bool %27 %uint_64            ; check: idx < 64?
+               OpSelectionMerge %32 None
+               OpBranchConditional %29 %33 %32
+         %33 = OpLabel
+         %30 = OpAccessChain %_ptr_Workgroup_float %data %27  ; safe path
+         %34 = OpLoad %float %30
+               OpBranch %32
+         %32 = OpLabel
+         %35 = OpPhi %float %31 %26 %34 %33              ; select safe or zero
+         %36 = OpFAdd %float %35 %float_1
+         %37 = OpAccessChain %_ptr_Workgroup_float %data %12
+               OpStore %37 %36
+               OpReturn
+               OpFunctionEnd
+\end{lstlisting}
+\caption{SPIR-V disassembly comparison: (a) elided \texttt{data[lid]} with
+bounds check removed (176 words); (b) retained \texttt{data[lid+1u]} with
+full bounds check (213 words).}
+\label{fig:spv_combined}
+\end{figure}
+
+\clearpage
+% ============================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+The elision analyses presented in this work demonstrate that this cost is not
+inherent to safe shader compilation. By exploiting specification guarantees
+(Section~\ref{sec:interval}) and recognizing common loop patterns
+(Section~\ref{sec:loop}), the compiler can identify a meaningful class of
+provably-safe accesses and emit code identical to
+\texttt{Unchecked}: spec-compliant safety at zero runtime cost for the
+elided case.
+
+% ============================================================================
+\section{Current Progress of Work}
+\label{sec:future}
+
+At the time of writing, the work described in this paper is under development
+and is undergoing testing and inclusion of further optimizations for bounds
+checking and loop analysis. The current implementation includes the builtin
+index safety analysis (Section~\ref{sec:interval}), with further development
+planned for the loop induction variable analysis to add support for complex
+index expressions (\texttt{arr[i+j]}, \texttt{arr[i*2]}) and equality-based
+loop exits (\texttt{if i == N \{ break; \}}).
+
+Additional planned work includes parallelizing the workgroup zero
+initialization in Naga for non-native Vulkan detection, enabling more
+bounds check elisions for workgroup arrays that undergo initialization
+phases before computation.
+
+% ============================================================================
+% References
+% ============================================================================
+\footnotesize
+\begin{thebibliography}{9}
+
+\bibitem{webgpu_spec}
+W3C, \textit{WebGPU Specification},
+\url{https://www.w3.org/TR/webgpu/}, 2026.
+
+\bibitem{wgsl_spec}
+W3C, \textit{WebGPU Shading Language Specification},
+\url{https://www.w3.org/TR/WGSL/}, 2026.
+
+\bibitem{naga_repo}
+\texttt{gfx-rs/naga}, \url{https://github.com/gfx-rs/naga}, 2026.
+
+\bibitem{naga_bounds_check}
+naga BoundsCheckPolicy documentation,
+\url{https://docs.rs/naga/latest/naga/proc/enum.BoundsCheckPolicy.html}.
+
+\bibitem{muchnick1997}
+S.~S.~Muchnick,
+\textit{Advanced Compiler Design and Implementation},
+Morgan Kaufmann, 1997.
+
+\end{thebibliography}
+
+\end{document}

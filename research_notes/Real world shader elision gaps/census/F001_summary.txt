@@ -1,0 +1,47 @@
+# F001 = branch bce/sound-branch-refinement (refine fix) vs BASE = 83a90e0. Elided runtime accesses. Rows matched by (file basename, line, index tree).
+corpus                 accesses   BASE   F001
+webgpu-samples               92      1      2
+wgpu                         79      2      2
+vello                       440     68     94
+bevy (partial)               93      4      4
+rerun                        11      3      3
+misc                         14      0      0
+naga tests (project)        587    435    435
+REAL-WORLD TOTAL            729     78    105
+
+changed proofs: 27 (LOST=0)
+  GAINED webgpu-samples: blur.wgsl:75 [fixed_array[4]] acc = acc + (1.0 / f32(params.filterDim)) * tile[r][i]; :: idx=load(local(r))
+  GAINED vello: binning.wgsl:324 [fixed_array[8]] element_count += countOneBits(atomicLoad(&sh_bitmaps[i * 2u][local_id.x])); :: idx=(load(local(i)) Multiply lit(U32(2)))
+  GAINED vello: binning.wgsl:324 [fixed_array[256]] element_count += countOneBits(atomicLoad(&sh_bitmaps[i * 2u][local_id.x])); :: idx=arg[LocalInvocationId].0
+  GAINED vello: binning.wgsl:326 [fixed_array[8]] element_count += countOneBits(atomicLoad(&sh_bitmaps[i * 2u + 1u][local_id. :: idx=((load(local(i)) Multiply lit(U32(2))) Add lit(U32(1)))
+  GAINED vello: binning.wgsl:326 [fixed_array[256]] element_count += countOneBits(atomicLoad(&sh_bitmaps[i * 2u + 1u][local_id. :: idx=arg[LocalInvocationId].0
+  GAINED vello: binning.wgsl:329 [fixed_array[4]] sh_count[i][local_id.x] = element_count_packed; :: idx=load(local(i))
+  GAINED vello: binning.wgsl:329 [fixed_array[256]] sh_count[i][local_id.x] = element_count_packed; :: idx=arg[LocalInvocationId].0
+  GAINED vello: binning.wgsl:338 [fixed_array[256]] sh_chunk_offset[local_id.x] = chunk_offset; :: idx=arg[LocalInvocationId].0
+  GAINED vello: binning.wgsl:370 [fixed_array[8]] atomicStore(&sh_bitmaps[i][local_id.x], 0u); :: idx=load(local(i))
+  GAINED vello: binning.wgsl:370 [fixed_array[256]] atomicStore(&sh_bitmaps[i][local_id.x], 0u); :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:507 [fixed_array[256]] sh_part_offsets[local_id.x] = bin_header.chunk_offset; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:511 [fixed_array[256]] sh_part_count[local_id.x] = count; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:518 [fixed_array[256]] sh_part_count[local_id.x] = part_start_ix + count; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:534 [fixed_array[256]] sh_drawobj_ix[local_id.x] = info_bin_data[offset + ix]; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:546 [fixed_array[256]] drawobj_ix = sh_drawobj_ix[local_id.x]; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:556 [fixed_array[256]] sh_tile_stride[local_id.x] = stride; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:563 [fixed_array[256]] sh_tile_width[local_id.x] = u32(x1 - x0); :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:564 [fixed_array[256]] sh_tile_x0y0[local_id.x] = u32(x0) | u32(y0 << 16u); :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:568 [fixed_array[256]] sh_tile_base[local_id.x] = base; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:573 [fixed_array[256]] sh_tile_count[local_id.x] = tile_count; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:580 [fixed_array[256]] sh_tile_count[local_id.x] = tile_count; :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:635 [fixed_array[256]] var bitmap = atomicLoad(&sh_bitmaps[0u][local_id.x]); :: idx=arg[LocalInvocationId].0
+  GAINED vello: coarse.wgsl:643 [fixed_array[256]] bitmap = atomicLoad(&sh_bitmaps[slice_ix][local_id.x]); :: idx=arg[LocalInvocationId].0
+  GAINED vello: draw_leaf.wgsl:310 [fixed_array[256]] sh_scratch[local_id.x] = agg; :: idx=arg[LocalInvocationId].0
+  GAINED vello: draw_leaf.wgsl:318 [fixed_array[256]] sh_scratch[local_id.x] = agg; :: idx=arg[LocalInvocationId].0
+  GAINED vello: fine.wgsl:912 [fixed_array[4]] area[i] += a * dy; :: idx=load(local(i))
+  GAINED vello: fine.wgsl:917 [fixed_array[4]] area[i] += y_edge; :: idx=load(local(i))
+
+## T016 review (2026-09-28): all 27 GAINED accesses checked in range; LOST = 0
+- local_id.x on fixed_array[256]: binning.wgsl:228, coarse.wgsl:437, draw_leaf.wgsl:272 all @workgroup_size(256) → lid.x ≤ 255.
+- sh_bitmaps[i*2u], [i*2u+1u] (len N_SLICE = WG_SIZE/32 = 8): loop i < N_SUBSLICE = 4 (binning.wgsl:220) → ≤ 7.
+- sh_count[i] (len N_SUBSLICE = 4): i < 4. sh_bitmaps[i] (len 8): i < N_SLICE = 8.
+- fine.wgsl area[i] (len PIXELS_PER_THREAD = 4, fine.wgsl:870/882): i < PIXELS_PER_THREAD.
+- webgpu-samples blur.wgsl tile[r] (outer len 4): `for (var r = 0; r < 4; r++)`.
+Snapshot naga/tests/out/analysis/spv-shadow.info.ron: 9 new proofs, all constant indices 0..2 into length-4 arrays (reviewed with a scratch dump; before=1 after=10 proven).

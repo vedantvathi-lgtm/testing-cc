@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"><style>
+#bb { position: absolute; left: 0; top: 0; width: 3027px; background: #fff; border: 4px solid #C9D2E3; border-radius: 28px; overflow: hidden }
+#acc { position: absolute; left: 0; top: 0; width: 22px; background: #2E9FB0 }
+.t { position: absolute; left: 110px; width: 2250px }
+#msg { top: 52px; font-size: 92px; line-height: 1.16; font-weight: 700 }
+#msg2 { font-size: 66px; line-height: 1.32 }
+#fine { font-size: 40px; line-height: 1.32; color: #5E6673 }
+#qr { position: absolute; left: 2497px; top: 56px; width: 430px; height: 430px; background: #F4F6F9; border-radius: 16px }
+#ql { position: absolute; left: 2452px; top: 504px; width: 520px; text-align: center; font-size: 38px; line-height: 1.32; color: #1C446A }
+</style></head><body>
+<div id="bb"><div id="acc"></div>
+<div class="t" id="msg">Proving array indices in bounds removes <span style="color:#0033A0">102 of the 186</span> bounds clamps in vello’s GPU shaders.</div>
+<div class="t" id="msg2">On an Intel iGPU that wins back the full cost of the checks: <b style="color:#B5461F">+7.0%</b>. On NVIDIA the checks cost only 1.3% in total, so the gain is small: <b style="color:#2457C5">+0.6%</b>.</div>
+<div class="t" id="fine">+7.0% / +0.6%: pre-registered suite geomeans over 32 vello scenes each (95% CI +3.7 to +10.4% and +0.2 to +1.0%). Total check cost (all checks vs. none) is exploratory.</div>
+<div id="qr"></div><div id="ql">code, data and the source<br>of every number</div></div>
+<script>
+document.fonts.ready.then(() => {
+  const g = id => document.getElementById(id), msg = g('msg'), m2 = g('msg2'), fi = g('fine');
+  m2.style.top = (msg.offsetTop + msg.offsetHeight + 32) + 'px'; fi.style.top = (m2.offsetTop + m2.offsetHeight + 28) + 'px';
+  const h = Math.max(fi.offsetTop + fi.offsetHeight + 50, g('ql').offsetTop + g('ql').offsetHeight + 44);
+  g('bb').style.height = h + 'px'; g('acc').style.height = h + 'px'; document.title = 'H=' + h;
+});
+</script></body></html>

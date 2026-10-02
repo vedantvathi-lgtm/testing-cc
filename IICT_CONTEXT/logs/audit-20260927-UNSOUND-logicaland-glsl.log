@@ -1,0 +1,14 @@
+control_no_if              ir_has_LogicalAnd=false elision=true  access_proofs=[("t", true)]
+SPIR-V OpULessThan for and_assign_100: elision_off=1 elision_on=0
+--- repro GLSL ---
+#version 450
+layout(local_size_x = 1) in;
+layout(std430, set = 0, binding = 0) buffer B { int o[4]; };
+shared float t[8];
+void main() {
+  int a = o[0]; int b = o[1];
+  uint i = 0u;
+  if (a < b && b > 0) { i = 100u; }
+  t[i] = 1.0;
+}
+

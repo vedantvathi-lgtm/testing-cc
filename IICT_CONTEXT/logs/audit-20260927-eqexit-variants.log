@@ -1,0 +1,44 @@
+# 2026-09-27 eq-exit shape variants; tool: bce-expectation-dump (RZSW) @ wgpu 83a90e0; counts = OpULessThan via spirv-dis
+# NOTE e_for_lt: the loop condition i<8u is itself one OpULessThan in both arms
+== a_eq_top_barrier.wgsl
+var<workgroup> tile: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() {
+    var i = 0u;
+    loop { if (i == 8u) { break; } tile[i] = 1.0; workgroupBarrier(); i = i + 1u; }
+}
+-> enabled=1 disabled=1
+== b_eq_top_nobarrier.wgsl
+var<workgroup> tile: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() {
+    var i = 0u;
+    loop { if (i == 8u) { break; } tile[i] = 1.0; i = i + 1u; }
+}
+-> enabled=1 disabled=1
+== c_lt_top_nobarrier.wgsl
+var<workgroup> tile: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() {
+    var i = 0u;
+    loop { if (i >= 8u) { break; } tile[i] = 1.0; i = i + 1u; }
+}
+-> enabled=0 disabled=1
+== d_eq_continuing.wgsl
+var<workgroup> tile: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() {
+    var i = 0u;
+    loop { tile[i] = 1.0; continuing { i = i + 1u; break if i == 8u; } }
+}
+-> enabled=0 disabled=1
+== e_for_lt.wgsl
+var<workgroup> tile: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() { for (var i = 0u; i < 8u; i++) { tile[i] = 1.0; } }
+-> enabled=1 disabled=2
+== f_for_ne.wgsl
+var<workgroup> tile: array<f32, 8>;
+@compute @workgroup_size(1)
+fn main() { for (var i = 0u; i != 8u; i++) { tile[i] = 1.0; } }
+-> enabled=1 disabled=1

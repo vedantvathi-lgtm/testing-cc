@@ -1,0 +1,43 @@
+adapter: NVIDIA GeForce RTX 4060 Laptop GPU | driver: NVIDIA 580.178.04
+wgpu fork HEAD: see git; OFF=8; repeats per arm=5
+
+== A Unchecked            (trusted)
+   naga out: OpULessThan=3 UMin=0 safe_accesses=0 words=462 sha256=f1ec0f0b356bc362
+   after wgpu re-lowering: hal index=Unchecked -> ULessThan=3 UMin=0 | hal index=Restrict -> ULessThan=3 UMin=6
+   out[0..8]  a[lid+off] (OOB read) = [999, 0, 0, 0, 0, 0, 0, 0]
+   out[8..16] a[lid]                = [100, 101, 102, 103, 104, 105, 106, 107]
+   out[16..24] b[lid]               = [200, 201, 202, 203, 204, 205, 206, 207]
+   deterministic across 5 runs: true
+
+== B RZSW, elision off    (trusted)
+   naga out: OpULessThan=9 UMin=0 safe_accesses=0 words=594 sha256=828db1768f9e403c
+   after wgpu re-lowering: hal index=Unchecked -> ULessThan=9 UMin=0 | hal index=Restrict -> ULessThan=9 UMin=6
+   out[0..8]  a[lid+off] (OOB read) = [0, 0, 0, 0, 0, 0, 0, 0]
+   out[8..16] a[lid]                = [100, 101, 102, 103, 104, 105, 106, 107]
+   out[16..24] b[lid]               = [200, 201, 202, 203, 204, 205, 206, 207]
+   deterministic across 5 runs: true
+
+== C Restrict, elision off(trusted)
+   naga out: OpULessThan=3 UMin=6 safe_accesses=0 words=508 sha256=bcd8013d92101f4e
+   after wgpu re-lowering: hal index=Unchecked -> ULessThan=3 UMin=6 | hal index=Restrict -> ULessThan=3 UMin=12
+   out[0..8]  a[lid+off] (OOB read) = [999, 999, 999, 999, 999, 999, 999, 999]
+   out[8..16] a[lid]                = [100, 101, 102, 103, 104, 105, 106, 999]
+   out[16..24] b[lid]               = [200, 201, 202, 203, 204, 205, 206, 207]
+   deterministic across 5 runs: true
+
+== D RZSW, elision on     (trusted)
+   naga out: OpULessThan=2 UMin=0 safe_accesses=7 words=454 sha256=f61640b2aa8a0366
+   after wgpu re-lowering: hal index=Unchecked -> ULessThan=2 UMin=0 | hal index=Restrict -> ULessThan=2 UMin=6
+   out[0..8]  a[lid+off] (OOB read) = [0, 0, 0, 0, 0, 0, 0, 0]
+   out[8..16] a[lid]                = [100, 101, 102, 103, 104, 105, 106, 107]
+   out[16..24] b[lid]               = [200, 201, 202, 203, 204, 205, 206, 207]
+   deterministic across 5 runs: true
+
+== E Unchecked SPIR-V, plain create_shader_module
+   naga out: OpULessThan=3 UMin=0 safe_accesses=0 words=462 sha256=f1ec0f0b356bc362
+   after wgpu re-lowering: hal index=Unchecked -> ULessThan=3 UMin=0 | hal index=Restrict -> ULessThan=3 UMin=6
+   out[0..8]  a[lid+off] (OOB read) = [999, 999, 999, 999, 999, 999, 999, 999]
+   out[8..16] a[lid]                = [100, 101, 102, 103, 104, 105, 106, 999]
+   out[16..24] b[lid]               = [200, 201, 202, 203, 204, 205, 206, 207]
+   deterministic across 5 runs: true
+

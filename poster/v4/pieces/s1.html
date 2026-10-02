@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { margin: 0; padding: 0; box-sizing: border-box }
+html, body { background: #fff; color: #2F2F2F; font-family: "Liberation Sans", Arial, sans-serif; font-size: 40px; line-height: 1.3 }
+.mono, code, .codebox { font-family: "Inconsolata LGC Nerd Font Mono", Consolas, monospace }
+b, .blue { color: #0033A0 } .orange { color: #E15E32 } .teal { color: #61C4D3 } .muted { color: #6B6B78 }
+h2 { font-size: 66px; color: #0033A0; font-weight: bold; line-height: 1.1; margin-bottom: 26px }
+h2 .n { color: #61C4D3; margin-right: 18px }
+h3 { font-size: 44px; color: #61C4D3; font-weight: bold; margin: 16px 0 10px 0 }
+ul { list-style: none } li { position: relative; padding-left: 34px; margin-bottom: 12px }
+li:before { content: "\2022"; position: absolute; left: 4px; color: #2F2F2F }
+.codebox { background: #F8F8F8; padding: 18px 24px; font-size: 36px; line-height: 1.42; white-space: pre }
+.hl { background: #FBEAA5; display: inline-block; width: 100% }
+.box { border: 3px solid #1C446A; padding: 16px 20px; text-align: center; background: #fff }
+.cap { font-size: 32px; color: #6B6B78; line-height: 1.3 }
+#piece { display: inline-block; padding: 0 }
+html { zoom: 2 }
+</style></head><body><div id="piece" style="width:1440px">
+<h2><span class="n">1</span>Today, wgpu clamps array indices</h2>
+<div>WGSL forbids out-of-bounds memory access. On Vulkan, Metal and D3D12, wgpu rewrites <code>s[i]</code> as <code class="orange">s[min(i, 255)]</code>.</div>
+<table style="width:100%;border-collapse:collapse;margin:22px 0;font-size:36px">
+ <tr style="color:#0033A0;font-weight:bold;border-bottom:3px solid #1C446A"><td style="padding:8px 6px"></td><td>arrays &amp; vectors</td><td>storage buffers</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px;font-weight:bold">Vulkan</td><td>clamp</td><td>hardware (robustBufferAccess2)</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px;font-weight:bold">Metal</td><td>clamp</td><td>clamp</td></tr>
+ <tr style="border-bottom:1px solid #BEBECB"><td style="padding:8px 6px;font-weight:bold">D3D12</td><td>clamp</td><td>clamp</td></tr>
+ <tr><td style="padding:8px 6px;font-weight:bold">GLES</td><td>none</td><td>none</td></tr>
+</table>
+<div><b>A browser must keep these checks.</b> Native apps can turn them off (vello does).</div></div></body></html>

@@ -1,0 +1,5 @@
+#version 450
+layout(local_size_x = 1) in;
+layout(std430, binding = 0) buffer X { uint xs[]; };
+shared uint t[7];
+void main() { uint i = xs[0]; if (i++ < 7u) { t[i] = 1u; } }

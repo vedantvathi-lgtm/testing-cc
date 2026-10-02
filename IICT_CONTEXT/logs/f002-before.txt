@@ -1,0 +1,17 @@
+# T004: OLD checker logic (only opcode fixed to 176), dump built earlier against wgpu naga
+## main suite
+/tmp/claude-1000/-home-bb-Projects-Dave-Sonar-WGPU--master/2d0bb526-b354-4893-b8ca-9b04d2002a5e/scratchpad/f002-old-main.json  pass=6 fail=0 uncompilable=0
+  [ok] eq_exit_loop.wgsl  MIXED  delta=1 markers={'ELIDED': 1, 'RETAINED': 2, 'MANUAL': 0}
+  [ok] lid_spec_direct.wgsl  ALL_ELIDED  delta=3 markers={'ELIDED': 3, 'RETAINED': 0, 'MANUAL': 0}
+  [ok] loop_iv_guarded.wgsl  ALL_ELIDED  delta=3 markers={'ELIDED': 3, 'RETAINED': 0, 'MANUAL': 0}
+  [ok] mutation_after_guard.wgsl  ALL_RETAINED  delta=0 markers={'ELIDED': 0, 'RETAINED': 1, 'MANUAL': 0}
+  [----] runtime_sized_storage.wgsl  NO_MARKERS  delta=0 markers={'ELIDED': 0, 'RETAINED': 0, 'MANUAL': 2}
+  [ok] signed_guarded.wgsl  ALL_ELIDED  delta=1 markers={'ELIDED': 1, 'RETAINED': 0, 'MANUAL': 0}
+  [ok] unguarded_oob.wgsl  ALL_RETAINED  delta=0 markers={'ELIDED': 0, 'RETAINED': 1, 'MANUAL': 0}
+exit=0
+## control suite (every fixture SHOULD fail)
+/tmp/claude-1000/-home-bb-Projects-Dave-Sonar-WGPU--master/2d0bb526-b354-4893-b8ca-9b04d2002a5e/scratchpad/f002-old-control.json  pass=1 fail=2 uncompilable=0
+  [FAIL] c1_elided_marker_on_oob.wgsl  ALL_ELIDED  delta=0 markers={'ELIDED': 1, 'RETAINED': 0, 'MANUAL': 0}
+  [FAIL] c2_retained_marker_on_spec_guarantee.wgsl  ALL_RETAINED  delta=1 markers={'ELIDED': 0, 'RETAINED': 1, 'MANUAL': 0}
+  [ok] c3_marker_without_access.wgsl  ALL_ELIDED  delta=1 markers={'ELIDED': 1, 'RETAINED': 0, 'MANUAL': 0}
+exit=1

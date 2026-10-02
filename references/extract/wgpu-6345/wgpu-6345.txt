@@ -1,0 +1,119 @@
+
+
+ [naga spv-out] Bounds check generation could be cleaner and smarter · Issue #6345 · gfx-rs/wgpu · GitHub 
+
+ Skip to content 
+
+ Navigation Menu Sign in Appearance settings Platform AI CODE CREATION GitHub Copilot Write better code with AI GitHub Copilot app Direct agents from issue to merge MCP Registry Integrate external tools DEVELOPER WORKFLOWS Actions Automate any workflow Codespaces Instant dev environments Issues Plan and track work Code Review Manage code changes Code Quality Enforce quality at merge APPLICATION SECURITY GitHub Advanced Security Find and fix vulnerabilities Code security Secure your code as you build Secret protection Stop leaks before they start EXPLORE Why GitHub Documentation Blog Changelog Marketplace View all features Solutions BY COMPANY SIZE Enterprises Small and medium teams Startups Nonprofits BY USE CASE App Modernization DevSecOps DevOps CI/CD View all use cases BY INDUSTRY Healthcare Financial services Manufacturing Government View all industries View all solutions Resources EXPLORE BY TOPIC AI Software Development DevOps Security View all topics EXPLORE BY TYPE Customer stories Events & webinars Ebooks & reports Business insights GitHub Skills SUPPORT & SERVICES Documentation Customer support Community forum Trust center Partners View all resources Open Source COMMUNITY GitHub Sponsors Fund open source developers PROGRAMS Security Lab Maintainer Community Accelerator GitHub Stars Archive Program REPOSITORIES Topics Trending Collections Enterprise ENTERPRISE SOLUTIONS Enterprise platform AI-powered developer platform AVAILABLE ADD-ONS GitHub Advanced Security Enterprise-grade security features Copilot for Business Enterprise-grade AI features Premium Support Enterprise-grade 24/7 support Pricing Search / Sign in Sign up Appearance settings 
+
+ You signed in with another tab or window. Reload to refresh your session. 
+ You signed out in another tab or window. Reload to refresh your session. 
+ You switched accounts on another tab or window. Reload to refresh your session. 
+
+ Dismiss alert 
+
+ {{ message }} 
+
+ Uh oh!
+
+ There was an error while loading. Please reload this page . 
+
+ gfx-rs
+
+ / 
+
+ wgpu 
+
+ Public 
+
+ Notifications
+ You must be signed in to change notification settings 
+
+ Fork
+ 1.4k 
+
+ Star
+ 17.9k 
+
+ Code 
+
+ Issues 
+ 1.2k 
+
+ Pull requests 
+ 101 
+
+ Discussions 
+
+ Actions 
+
+ Projects 
+
+ Wiki 
+
+ Security and quality 
+ 0 
+
+ Insights 
+
+ Additional navigation options 
+
+ Code
+
+ Issues
+
+ Pull requests
+
+ Discussions
+
+ Actions
+
+ Projects
+
+ Wiki
+
+ Security and quality
+
+ Insights
+
+ [naga spv-out] Bounds check generation could be cleaner and smarter   #6345 New issue Copy link New issue Copy link Open Open [naga spv-out] Bounds check generation could be cleaner and smarter #6345 Copy link Labels area: naga back-end Outputs of naga shader conversion Outputs of naga shader conversion kind: refactor Making existing function faster or nicer Making existing function faster or nicer lang: SPIR-V Vulkan's Shading Language Vulkan's Shading Language naga Shader Translator Shader Translator Description jimblandy opened on Sep 30, 2024 Issue body actions naga::back::spv::index::BoundsCheckResult doesn't really cover all the outcomes that it could, and as a result the code is less clear than it ought to be. 
+ When the backend encounters an indexing operation that needs a bounds check applied, logically there are four possible outcomes: 
+
+ The index is statically known to have value i ...
+
+ ... which is in bounds. 
+ ... which is out of bounds. 
+
+ The index's value is not statically known...
+
+ ... but here is a SPIR-V instruction whose value has been restricted to ensure it is safe to use. 
+ ... but here is a SPIR-V instruction whose value is a boolean that is true if the index is safe to use. 
+
+ At the moment, the "statically known to be out of bounds" case is absent from BoundsCheckResult and the code that produces it, which makes it look weird. If the code simply took each of the above cases in turn, I think it would be easier to follow, and produce (marginally) better code. Reactions are currently unavailable Metadata Metadata Assignees No one assigned Labels area: naga back-end Outputs of naga shader conversion Outputs of naga shader conversion kind: refactor Making existing function faster or nicer Making existing function faster or nicer lang: SPIR-V Vulkan's Shading Language Vulkan's Shading Language naga Shader Translator Shader Translator Type No type Projects WebGPU for Firefox Status Todo Show more project fields Milestone No milestone Relationships None yet Development No branches or pull requests Issue actions Open in GitHub Copilot app 
+
+ Footer 
+
+ © 2026 GitHub, Inc.
+
+ Footer navigation 
+
+ Terms 
+
+ Privacy 
+
+ Security 
+
+ Status 
+
+ Community 
+
+ Docs 
+
+ Contact 
+
+ Manage cookies
+
+ Do not share my personal information
+
+ You can’t perform that action at this time.
+

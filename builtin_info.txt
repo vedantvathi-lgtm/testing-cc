@@ -1,0 +1,931 @@
+            <li><a href="#local-invocation-index-builtin-value"><span class="secno">13.3.1.1.8</span> <span class="content"><code>local_invocation_index</code></span></a>
+            <li><a href="#num-workgroups-index-builtin-value"><span class="secno">13.3.1.1.9</span> <span class="content"><code>num_workgroups</code></span></a>
+            <li><a href="#position-builtin-value"><span class="secno">13.3.1.1.10</span> <span class="content"><code>position</code></span></a>
+            <li><a href="#primitive-index-builtin-value"><span class="secno">13.3.1.1.11</span> <span class="content"><code>primitive_index</code></span></a>
+            <li><a href="#sample-index-builtin-value"><span class="secno">13.3.1.1.12</span> <span class="content"><code>sample_index</code></span></a>
+            <li><a href="#sample-mask-builtin-value"><span class="secno">13.3.1.1.13</span> <span class="content"><code>sample_mask</code></span></a>
+            <li><a href="#vertex-index-builtin-value"><span class="secno">13.3.1.1.14</span> <span class="content"><code>vertex_index</code></span></a>
+            <li><a href="#workgroup-id-builtin-value"><span class="secno">13.3.1.1.15</span> <span class="content"><code>workgroup_id</code></span></a>
+            <li><a href="#workgroup-index-builtin-value"><span class="secno">13.3.1.1.16</span> <span class="content"><code>workgroup_index</code></span></a>
+            <li><a href="#subgroup-invocation-id-builtin-value"><span class="secno">13.3.1.1.17</span> <span class="content"><code>subgroup_invocation_id</code></span></a>
+            <li><a href="#subgroup-size-builtin-value"><span class="secno">13.3.1.1.18</span> <span class="content"><code>subgroup_size</code></span></a>
+            <li><a href="#subgroup-id-builtin-value"><span class="secno">13.3.1.1.19</span> <span class="content"><code>subgroup_id</code></span></a>
+            <li><a href="#num-subgroups-builtin-value"><span class="secno">13.3.1.1.20</span> <span class="content"><code>num_subgroups</code></span></a>
+           </ol>
+          <li><a href="#user-defined-inputs-outputs"><span class="secno">13.3.1.2</span> <span class="content">User-defined Inputs and Outputs</span></a>
+          <li><a href="#input-output-locations"><span class="secno">13.3.1.3</span> <span class="content">Input-output Locations</span></a>
+          <li><a href="#interpolation"><span class="secno">13.3.1.4</span> <span class="content">Interpolation</span></a>
+         </ol>
+        <li><a href="#resource-interface"><span class="secno">13.3.2</span> <span class="content">Resource Interface</span></a>
+        <li><a href="#resource-layout-compatibility"><span class="secno">13.3.3</span> <span class="content">Resource Layout Compatibility</span></a>
+        <li><a href="#buffer-binding-determines-runtime-sized-array-element-count"><span class="secno">13.3.4</span> <span class="content">Buffer Binding Determines Runtime-Sized Array Element Count</span></a>
+--
+     <p><a data-link-type="dfn" href="#built-in-values-local_invocation_index" id="ref-for-built-in-values-local_invocation_index"><code>'local_invocation_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-global_invocation_id" id="ref-for-built-in-values-global_invocation_id"><code>'global_invocation_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-global_invocation_index" id="ref-for-built-in-values-global_invocation_index"><code>'global_invocation_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_id" id="ref-for-built-in-values-workgroup_id"><code>'workgroup_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_index" id="ref-for-built-in-values-workgroup_index"><code>'workgroup_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_workgroups" id="ref-for-built-in-values-num_workgroups"><code>'num_workgroups'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_invocation_id" id="ref-for-built-in-values-subgroup_invocation_id"><code>'subgroup_invocation_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_size" id="ref-for-built-in-values-subgroup_size"><code>'subgroup_size'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-primitive_index" id="ref-for-built-in-values-primitive_index"><code>'primitive_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_id" id="ref-for-built-in-values-subgroup_id"><code>'subgroup_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_subgroups" id="ref-for-built-in-values-num_subgroups"><code>'num_subgroups'</code></a></p>
+--
+      <td><a data-link-type="dfn" href="#built-in-values-local_invocation_index" id="ref-for-built-in-values-local_invocation_index①">local_invocation_index</a>
+      
+      <td>compute
+      
+      <td>input
+      
+      <td>u32
+
+  
+     <tr>
+      <td><a data-link-type="dfn" href="#built-in-values-global_invocation_id" id="ref-for-built-in-values-global_invocation_id①">global_invocation_id</a>
+      
+      <td>compute
+      
+      <td>input
+      
+      <td>vec3&lt;u32>
+
+  
+     <tr>
+      <td><a data-link-type="dfn" href="#built-in-values-global_invocation_index" id="ref-for-built-in-values-global_invocation_index②">global_invocation_index</a>
+--
+   <c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>local_index</c-><c- p>:</c-> u32<c- p>,</c->
+   <c- nd>@builtin</c-><c- p>(</c->global_invocation_id<c- p>)</c-> <c- n>global_id</c-><c- p>:</c-> vec3<c- o>&lt;</c->u32<c- o>></c-><c- p>,</c->
+<c- p>)</c-> <c- p>{}</c->
+</pre>
+   </div>
+   <h6 class="heading settled" data-level="13.3.1.1.1" id="clip-distances-builtin-value"><span class="secno">13.3.1.1.1. </span><span class="content"><code>clip_distances</code></span><a class="self-link" href="#clip-distances-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-clip_distances">clip_distances</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#vertex-shader-stage" id="ref-for-vertex-shader-stage②">vertex</a>
+  
+     <tr>
+      <td style="width:10%">Type
+      
+--
+   <h6 class="heading settled" data-level="13.3.1.1.8" id="local-invocation-index-builtin-value"><span class="secno">13.3.1.1.8. </span><span class="content"><code>local_invocation_index</code></span><a class="self-link" href="#local-invocation-index-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-local_invocation_index">local_invocation_index</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#compute-shader-stage" id="ref-for-compute-shader-stage⑧">compute</a>
+  
+     <tr>
+      <td style="width:10%">Type
+      
+      <td>u32
+  
+     <tr>
+      <td style="width:10%">Direction
+      
+      <td>Input
+  
+     <tr>
+      <td style="width:10%">Description
+      
+      <td>
+--
+  <c- c1>// local_invocation_index is a non-uniform built-in value.</c->
+  <c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>lid</c-> <c- p>:</c-> u32
+<c- p>}</c->
+
+<c- nd>@compute</c-> <c- nd>@workgroup_size</c-><c- p>(</c-><c- mi>16</c-><c- p>,</c-><c- mi>1</c-><c- p>,</c-><c- mi>1</c-><c- p>)</c->
+<c- k>fn</c-> <c- n>main</c-><c- p>(</c-><c- n>inputs</c-> <c- p>:</c-> <c- n>Inputs</c-><c- p>)</c-> <c- p>{</c->
+  <c- c1>// This comparison is always uniform,</c->
+  <c- c1>// but the analysis cannot determine that.</c->
+  <c- k>if</c-> <c- n>inputs</c-><c- p>.</c-><c- n>wgid</c-><c- p>.</c-><c- n>x</c-> <c- o>==</c-> <c- mi>1</c-> <c- p>{</c->
+    <c- n>workgroupBarrier</c-><c- p>();</c->
+  <c- p>}</c->
+<c- p>}</c->
+</pre>
+   </div>
+   <div class="example2">
+    <figure>
+     <figcaption>Invalid uniformity graph</figcaption>
+     <object data="img/uniformity_3.mmd.svg" type="image/svg+xml"></object>
+    </figure>
+   </div>
+   <p>The easiest way to work around this limitation of the analysis is to split the
+composite up so that values that are known to be uniform are separate from
+--
+        <c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>lid</c-> <c- p>:</c-> u32<c- p>)</c-> <c- p>{</c->
+  <c- c1>// The uniformity analysis can now correctly determine this comparison is</c->
+  <c- c1>// always uniform.</c->
+  <c- k>if</c-> <c- n>wgid</c-><c- p>.</c-><c- n>x</c-> <c- o>==</c-> <c- mi>1</c-> <c- p>{</c->
+    <c- c1>// Valid barrier function call.</c->
+    <c- n>workgroupBarrier</c-><c- p>();</c->
+  <c- p>}</c->
+<c- p>}</c->
+</pre>
+   </div>
+   <div class="example3">
+    <figure>
+     <figcaption>Valid alternative uniformity graph</figcaption>
+     <object data="img/uniformity_3b.mmd.svg" type="image/svg+xml"></object>
+    </figure>
+   </div>
+   <h5 class="heading settled" data-level="15.2.10.4" id="uniformity-example4"><span class="secno">15.2.10.4. </span><span class="content">Uniformity in a Loop</span><a class="self-link" href="#uniformity-example4"></a></h5>
+   <p>In this example, there is an invalid <code>workgroupBarrier</code> function call in a
+loop.
+The non-uniform built-in value <code>local_invocation_index</code> is the ultimate cause
+despite the fact that it appears after the barrier in the loop.
+This occurs, because on later iterations some of the invocations in the
+workgroup will have exited the loop prematurely while others attempt to execute
+the barrier.
+The analysis models the inter-iteration dependencies as an edge, where the control
+at the start of the loop body (CF_loop_body) depends on the control flow at the
+end of the loop body (CF_after_if).</p>
+   <div class="example no-marker wgsl" id="example-fdbd092e">
+    <a class="self-link" href="#example-fdbd092e"></a>
+    <div class="marker">EXAMPLE: Loop uniformity WGSL</div>
+<pre class="highlight"><c- nd>@compute</c-> <c- nd>@workgroup_size</c-><c- p>(</c-><c- mi>16</c-><c- p>,</c-><c- mi>1</c-><c- p>,</c-><c- mi>1</c-><c- p>)</c->
+<c- k>fn</c-> <c- n>main</c-><c- p>(</c-><c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>lid</c-> <c- p>:</c-> u32<c- p>)</c-> <c- p>{</c->
+  <c- k>for</c-> <c- p>(</c-><c- a>var</c-> <c- n>i</c-> <c- o>=</c-> <c- mi>0u</c-><c- p>;</c-> <c- n>i</c-> <c- o>&lt;</c-> <c- mi>10</c-><c- p>;</c-> <c- n>i</c-><c- o>++</c-><c- p>)</c-> <c- p>{</c->
+    <c- n>workgroupBarrier</c-><c- p>();</c->
+    <c- k>if</c-> <c- p>(</c-><c- n>lid</c-> <c- o>+</c-> <c- n>i</c-><c- p>)</c-> <c- o>></c-> <c- mi>7</c-> <c- p>{</c->
+      <c- k>break</c-><c- p>;</c->
+    <c- p>}</c->
+  <c- p>}</c->
+<c- p>}</c->
+</pre>
+   </div>
+   <div class="example4">
+    <figure>
+     <figcaption>Uniformity graph</figcaption>
+     <object data="img/uniformity_4.mmd.svg" type="image/svg+xml"></object>
+    </figure>
+   </div>
+   <h5 class="heading settled" data-level="15.2.10.5" id="uniformity-example5"><span class="secno">15.2.10.5. </span><span class="content">User-defined Function Calls</span><a class="self-link" href="#uniformity-example5"></a></h5>
+   <p>This example is modification of the <a href="#uniformity-example1">first example</a>, but
+uses a user-defined function call.
+The analysis sets the <a data-link-type="dfn" href="#parameter-return-tag" id="ref-for-parameter-return-tag⑤">parameter return tag</a> of both parameters of <code>scale</code> as
+<a data-link-type="dfn" href="#parameterreturncontentsrequiredtobeuniform" id="ref-for-parameterreturncontentsrequiredtobeuniform③">ParameterReturnContentsRequiredToBeUniform</a>.
+--
+<code>subgroup_invocation_id</code> and <code>subgroup_id</code>) and <a data-link-type="dfn" href="#built-in-values-local_invocation_index" id="ref-for-built-in-values-local_invocation_index②">local_invocation_index</a>.
+To avoid non-portable code, shader authors should not assume a particular
+mapping between these two values.</p>
+   <p>When invocations in the same subgroup execute different control flow paths, we
+say subgroup execution has diverged.
+This is a special case of <a data-link-type="dfn" href="#uniform-control-flow" id="ref-for-uniform-control-flow①③">non-uniform control flow</a>.
+Divergence affects the semantics of subgroup operations.
+The invocations in a subgroup that concurrently execute a subgroup operation
+are <dfn class="dfn-paneled" data-dfn-for="subgroups" data-dfn-type="dfn" data-noexport id="subgroups-active">active</dfn> for that operation.
+Other invocations in the subgroup are <dfn class="dfn-paneled" data-dfn-for="subgroups" data-dfn-type="dfn" data-noexport id="subgroups-inactive">inactive</dfn>
+for that operation.
+When the subgroup size exceeds the number of invocations in a subgroup, the
+extra hypothetical invocations are considered inactive.
+<a data-link-type="dfn" href="#helper-invocation" id="ref-for-helper-invocation③">Helper invocations</a> may be active or inactive in an operation.
+That is, on some devices helper invocations may participate in subgroup operations,
+while on other devices they may not.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> There is considerable non-portability among underlying devices when
+operating in non-uniform control flow, and device compilers often aggressively
+optimize such code.
+The result is that the subgroup may contain a different set of active
+invocations than the shader author expects.</p>
+--
+   <li><a href="#built-in-values-local_invocation_index">local_invocation_index</a><span>, in § 13.3.1.1.8</span>
+   <li><a href="#attribute-location">location</a><span>, in § 12.11</span>
+   <li><a href="#syntax-location_attr">location_attr</a><span>, in § 12.11</span>
+   <li><a href="#logical-texel-address">logical texel address</a><span>, in § 6.5</span>
+   <li>
+    loop
+    <ul>
+     <li><a href="#statement-loop">dfn for statement</a><span>, in § 9.4.3</span>
+     <li><a href="#syntax_kw-loop">dfn for syntax_kw</a><span>, in § 16.1</span>
+    </ul>
+   <li><a href="#loop-body">loop body</a><span>, in § 9.4.3</span>
+   <li><a href="#syntax-loop_statement">loop_statement</a><span>, in § 9.4.3</span>
+   <li><a href="#mat2x2f">mat2x2f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x2h">mat2x2h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x3f">mat2x3f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x3h">mat2x3h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x4f">mat2x4f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x4h">mat2x4h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat3x2f">mat3x2f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat3x2h">mat3x2h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat3x3f">mat3x3f</a><span>, in § 6.2.7</span>
+--
+"built-in-values-local_invocation_index": {"dfnID":"built-in-values-local_invocation_index","dfnText":"local_invocation_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-local_invocation_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-local_invocation_index\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-local_invocation_index\u2461"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-local_invocation_index"},
+"built-in-values-num_subgroups": {"dfnID":"built-in-values-num_subgroups","dfnText":"num_subgroups","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-num_subgroups"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2462"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2463"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2464"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-num_subgroups"},
+"built-in-values-num_workgroups": {"dfnID":"built-in-values-num_workgroups","dfnText":"num_workgroups","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-num_workgroups"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-num_workgroups\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-num_workgroups\u2461"},{"id":"ref-for-built-in-values-num_workgroups\u2462"},{"id":"ref-for-built-in-values-num_workgroups\u2463"}],"title":"13.3.1.1.5. global_invocation_index"},{"refs":[{"id":"ref-for-built-in-values-num_workgroups\u2464"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#built-in-values-num_workgroups"},
+"built-in-values-position": {"dfnID":"built-in-values-position","dfnText":"position","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-position"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-position\u2460"}],"title":"11.4. Restrictions on Functions"},{"refs":[{"id":"ref-for-built-in-values-position\u2461"},{"id":"ref-for-built-in-values-position\u2462"}],"title":"12.10. invariant"},{"refs":[{"id":"ref-for-built-in-values-position\u2463"},{"id":"ref-for-built-in-values-position\u2464"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-position\u2465"}],"title":"13.3.1.1.10. position"},{"refs":[{"id":"ref-for-built-in-values-position\u2466"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"#built-in-values-position"},
+"built-in-values-primitive_index": {"dfnID":"built-in-values-primitive_index","dfnText":"primitive_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-primitive_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-primitive_index\u2460"},{"id":"ref-for-built-in-values-primitive_index\u2461"}],"title":"4.1.1. Enable Extensions"},{"refs":[{"id":"ref-for-built-in-values-primitive_index\u2462"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-primitive_index"},
+"built-in-values-sample_index": {"dfnID":"built-in-values-sample_index","dfnText":"sample_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-sample_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-sample_index\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-sample_index\u2461"}],"title":"13.3.1.1.12. sample_index"},{"refs":[{"id":"ref-for-built-in-values-sample_index\u2462"}],"title":"13.3.1.1.13. sample_mask"}],"url":"#built-in-values-sample_index"},
+"built-in-values-sample_mask": {"dfnID":"built-in-values-sample_mask","dfnText":"sample_mask","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-sample_mask"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-sample_mask\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-sample_mask"},
+"built-in-values-subgroup_id": {"dfnID":"built-in-values-subgroup_id","dfnText":"subgroup_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-subgroup_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2463"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-subgroup_id"},
+"built-in-values-subgroup_invocation_id": {"dfnID":"built-in-values-subgroup_invocation_id","dfnText":"subgroup_invocation_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-subgroup_invocation_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-subgroup_invocation_id\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-subgroup_invocation_id\u2461"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-subgroup_invocation_id"},
+"built-in-values-subgroup_size": {"dfnID":"built-in-values-subgroup_size","dfnText":"subgroup_size","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-subgroup_size"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2461"}],"title":"13.3.1.1.17. subgroup_invocation_id"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2463"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-subgroup_size"},
+"built-in-values-vertex_index": {"dfnID":"built-in-values-vertex_index","dfnText":"vertex_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-vertex_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-vertex_index\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-vertex_index"},
+"built-in-values-workgroup_id": {"dfnID":"built-in-values-workgroup_id","dfnText":"workgroup_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-workgroup_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2461"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#built-in-values-workgroup_id"},
+"built-in-values-workgroup_index": {"dfnID":"built-in-values-workgroup_index","dfnText":"workgroup_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-workgroup_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-workgroup_index\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-workgroup_index\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-workgroup_index"},
+"builtin-functions-that-compute-a-derivative": {"dfnID":"builtin-functions-that-compute-a-derivative","dfnText":"builtin functions that compute a derivative","external":false,"refSections":[{"refs":[{"id":"ref-for-builtin-functions-that-compute-a-derivative"}],"title":"2.3.2. Filterable Triggering Rules"},{"refs":[{"id":"ref-for-builtin-functions-that-compute-a-derivative\u2460"}],"title":"15.2. Uniformity"}],"url":"#builtin-functions-that-compute-a-derivative"},
+"byte-size": {"dfnID":"byte-size","dfnText":"byte-size","external":false,"refSections":[{"refs":[{"id":"ref-for-byte-size"},{"id":"ref-for-byte-size\u2460"},{"id":"ref-for-byte-size\u2461"},{"id":"ref-for-byte-size\u2462"}],"title":"2.4. Limits"},{"refs":[{"id":"ref-for-byte-size\u2463"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-byte-size\u2464"}],"title":"14.4. Memory Layout"}],"url":"#byte-size"},
+"c06fb4a5": {"dfnID":"c06fb4a5","dfnText":"\"depth\"","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputexturesampletype-depth"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#dom-gputexturesampletype-depth"},
+"c3c8301d": {"dfnID":"c3c8301d","dfnText":"texture view swizzle","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputextureviewdescriptor-swizzle"},{"id":"ref-for-dom-gputextureviewdescriptor-swizzle\u2460"}],"title":"17.7.4. textureLoad"}],"url":"https://gpuweb.github.io/gpuweb/#dom-gputextureviewdescriptor-swizzle"},
+"c69b32cb": {"dfnID":"c69b32cb","dfnText":"memory model memory operation","external":true,"refSections":[{"refs":[{"id":"ref-for-memory-model-memory-operation"}],"title":"14.5.1. Memory Operation"}],"url":"https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#memory-model-memory-operation"},
+"c83b76ce": {"dfnID":"c83b76ce","dfnText":"\"write-only\"","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpustoragetextureaccess-write-only"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#dom-gpustoragetextureaccess-write-only"},
+"c8491c30": {"dfnID":"c8491c30","dfnText":"rasterizationpoint-perspectivedivisor","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint-perspectivedivisor"}],"title":"13.3.1.1.10. position"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint-perspectivedivisor"},
+"call-site": {"dfnID":"call-site","dfnText":"call site","external":false,"refSections":[{"refs":[{"id":"ref-for-call-site"},{"id":"ref-for-call-site\u2460"}],"title":"2.3.2. Filterable Triggering Rules"},{"refs":[{"id":"ref-for-call-site\u2461"}],"title":"6.4.5. Originating Variable"},{"refs":[{"id":"ref-for-call-site\u2462"}],"title":"6.4.8. Forming Reference and Pointer Values"},{"refs":[{"id":"ref-for-call-site\u2463"}],"title":"8.12. Formal Parameter Expression"},{"refs":[{"id":"ref-for-call-site\u2464"}],"title":"9.4.10. Return Statement"},{"refs":[{"id":"ref-for-call-site\u2465"}],"title":"11.2. Function Calls"},{"refs":[{"id":"ref-for-call-site\u2466"},{"id":"ref-for-call-site\u2467"}],"title":"11.4.1.2. Aliasing"},{"refs":[{"id":"ref-for-call-site\u2468"},{"id":"ref-for-call-site\u2460\u24ea"}],"title":"15.2. Uniformity"},{"refs":[{"id":"ref-for-call-site\u2460\u2460"},{"id":"ref-for-call-site\u2460\u2461"}],"title":"15.2.3. Analyzing the Uniformity Requirements of a Function"}],"url":"#call-site"},
+--
+"compute-shader-stage": {"dfnID":"compute-shader-stage","dfnText":"compute shader stage","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-stage"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2462"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2463"}],"title":"12.16.3. compute"},{"refs":[{"id":"ref-for-compute-shader-stage\u2464"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2465"}],"title":"13.3.1.1.5. global_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2466"}],"title":"13.3.1.1.7. local_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2467"}],"title":"13.3.1.1.8. local_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2468"}],"title":"13.3.1.1.9. num_workgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u24ea"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2460"}],"title":"13.3.1.1.16. workgroup_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2461"},{"id":"ref-for-compute-shader-stage\u2460\u2462"}],"title":"13.3.1.1.17. subgroup_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2463"}],"title":"13.3.1.1.18. subgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2464"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2465"}],"title":"13.3.1.1.20. num_subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2466"},{"id":"ref-for-compute-shader-stage\u2460\u2467"}],"title":"14.3. Address Spaces"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2468"}],"title":"15.2.1. Terminology and Concepts"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u24ea"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2460"}],"title":"15.3. Compute Shaders and Workgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2461"}],"title":"15.5. Subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2462"}],"title":"15.6.1. Barriers"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2463"}],"title":"17.12. Subgroup Built-in Functions"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2464"}],"title":"17.13. Quad Operations"}],"url":"#compute-shader-stage"},
+"compute-shader-stage-workgroup": {"dfnID":"compute-shader-stage-workgroup","dfnText":"workgroup","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-stage-workgroup"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2460"}],"title":"6.2.8. Atomic Types"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2461"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2462"}],"title":"13.3.1.1.20. num_subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2463"}],"title":"14.3. Address Spaces"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2464"}],"title":"15.2.1. Terminology and Concepts"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2465"},{"id":"ref-for-compute-shader-stage-workgroup\u2466"}],"title":"15.5. Subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2467"}],"title":"15.6.1. Barriers"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2468"}],"title":"17.12. Subgroup Built-in Functions"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2460\u24ea"}],"title":"17.13. Quad Operations"}],"url":"#compute-shader-stage-workgroup"},
+"concretization": {"dfnID":"concretization","dfnText":"concretization","external":false,"refSections":[{"refs":[{"id":"ref-for-concretization"}],"title":"7. Variable and Value Declarations"}],"url":"#concretization"},
+"concretization-of-a-value": {"dfnID":"concretization-of-a-value","dfnText":"concretization of a value","external":false,"refSections":[{"refs":[{"id":"ref-for-concretization-of-a-value"}],"title":"7.2.2. override Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2460"}],"title":"7.2.3. let Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2461"},{"id":"ref-for-concretization-of-a-value\u2462"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2463"}],"title":"8.5.1.1. Vector Single Component Selection"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2464"}],"title":"8.5.2. Matrix Access Expression"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2465"}],"title":"8.5.3. Array Access Expression"}],"url":"#concretization-of-a-value"},
+"const-declaration": {"dfnID":"const-declaration","dfnText":"const-declaration","external":false,"refSections":[{"refs":[{"id":"ref-for-const-declaration"},{"id":"ref-for-const-declaration\u2460"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2461"}],"title":"7.1. Variables vs Values"},{"refs":[{"id":"ref-for-const-declaration\u2462"}],"title":"7.2. Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2463"},{"id":"ref-for-const-declaration\u2464"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-const-declaration\u2465"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-declaration\u2466"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2467"}],"title":"11.3. const Functions"},{"refs":[{"id":"ref-for-const-declaration\u2468"},{"id":"ref-for-const-declaration\u2460\u24ea"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#const-declaration"},
+"const-expressions": {"dfnID":"const-expressions","dfnText":"const-expressions","external":false,"refSections":[{"refs":[{"id":"ref-for-const-expressions"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-const-expressions\u2460"}],"title":"6.1. Type Checking"},{"refs":[{"id":"ref-for-const-expressions\u2461"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-const-expressions\u2462"},{"id":"ref-for-const-expressions\u2463"}],"title":"6.1.3. Overload Resolution"},{"refs":[{"id":"ref-for-const-expressions\u2464"}],"title":"6.2.5. Scalar Types"},{"refs":[{"id":"ref-for-const-expressions\u2465"}],"title":"6.2.9. Array Types"},{"refs":[{"id":"ref-for-const-expressions\u2466"},{"id":"ref-for-const-expressions\u2467"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-const-expressions\u2468"},{"id":"ref-for-const-expressions\u2460\u24ea"},{"id":"ref-for-const-expressions\u2460\u2460"},{"id":"ref-for-const-expressions\u2460\u2461"},{"id":"ref-for-const-expressions\u2460\u2462"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2463"}],"title":"7.2.1. const Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2464"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2465"},{"id":"ref-for-const-expressions\u2460\u2466"},{"id":"ref-for-const-expressions\u2460\u2467"}],"title":"8. Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2468"}],"title":"8.1. Early Evaluation Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2461\u24ea"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2460"},{"id":"ref-for-const-expressions\u2461\u2461"},{"id":"ref-for-const-expressions\u2461\u2462"}],"title":"8.5.1.1. Vector Single Component Selection"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2463"}],"title":"8.5.1.3. Component Reference from Vector Memory View"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2464"},{"id":"ref-for-const-expressions\u2461\u2465"},{"id":"ref-for-const-expressions\u2461\u2466"},{"id":"ref-for-const-expressions\u2461\u2467"}],"title":"8.5.2. Matrix Access Expression"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2468"},{"id":"ref-for-const-expressions\u2462\u24ea"},{"id":"ref-for-const-expressions\u2462\u2460"},{"id":"ref-for-const-expressions\u2462\u2461"},{"id":"ref-for-const-expressions\u2462\u2462"}],"title":"8.5.3. Array Access Expression"},{"refs":[{"id":"ref-for-const-expressions\u2462\u2463"},{"id":"ref-for-const-expressions\u2462\u2464"},{"id":"ref-for-const-expressions\u2462\u2465"},{"id":"ref-for-const-expressions\u2462\u2466"},{"id":"ref-for-const-expressions\u2462\u2467"},{"id":"ref-for-const-expressions\u2462\u2468"}],"title":"8.7. Arithmetic Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u24ea"},{"id":"ref-for-const-expressions\u2463\u2460"},{"id":"ref-for-const-expressions\u2463\u2461"},{"id":"ref-for-const-expressions\u2463\u2462"}],"title":"8.9. Bit Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2463"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2464"}],"title":"9.4.2. Switch Statement"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2465"}],"title":"10.1. Const Assertion Statement"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2466"},{"id":"ref-for-const-expressions\u2463\u2467"}],"title":"11.3. const Functions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2468"}],"title":"12.1. align"},{"refs":[{"id":"ref-for-const-expressions\u2464\u24ea"}],"title":"12.2. binding"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2460"}],"title":"12.3. blend_src"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2461"}],"title":"12.5. const"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2462"}],"title":"12.7. group"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2463"}],"title":"12.8. id"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2464"}],"title":"12.11. location"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2465"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2466"},{"id":"ref-for-const-expressions\u2464\u2467"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2468"},{"id":"ref-for-const-expressions\u2465\u24ea"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2460"},{"id":"ref-for-const-expressions\u2465\u2461"},{"id":"ref-for-const-expressions\u2465\u2462"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2463"}],"title":"15.7.3. Floating Point Rounding and Overflow"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2464"}],"title":"15.7.6. Floating Point Conversion"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2465"}],"title":"17.5.10. clamp"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2466"}],"title":"17.5.25. extractBits (signed)"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2467"}],"title":"17.5.26. extractBits (unsigned)"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2468"}],"title":"17.5.35. insertBits"},{"refs":[{"id":"ref-for-const-expressions\u2466\u24ea"}],"title":"17.5.37. ldexp"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2460"}],"title":"17.5.47. quantizeToF16"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2461"}],"title":"17.5.57. smoothstep"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2462"},{"id":"ref-for-const-expressions\u2466\u2463"}],"title":"17.7.2. textureGather"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2464"}],"title":"17.7.3. textureGatherCompare"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2465"}],"title":"17.7.8. textureSample"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2466"}],"title":"17.7.9. textureSampleBias"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2467"}],"title":"17.7.10. textureSampleCompare"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2468"}],"title":"17.7.11. textureSampleCompareLevel"},{"refs":[{"id":"ref-for-const-expressions\u2467\u24ea"}],"title":"17.7.12. textureSampleGrad"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2460"}],"title":"17.7.13. textureSampleLevel"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2461"}],"title":"17.9.9. pack2x16float"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2462"}],"title":"17.12.6. subgroupBroadcast"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2463"}],"title":"17.12.12. subgroupShuffle"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2464"}],"title":"17.12.12.1. subgroupShuffleDown"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2465"}],"title":"17.12.12.2. subgroupShuffleUp"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2466"}],"title":"17.12.12.3. subgroupShuffleXor"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2467"}],"title":"17.13.1. quadBroadcast"}],"url":"#const-expressions"},
+"const-functions": {"dfnID":"const-functions","dfnText":"const-functions","external":false,"refSections":[{"refs":[{"id":"ref-for-const-functions"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-const-functions\u2460"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-functions\u2461"}],"title":"12.5. const"}],"url":"#const-functions"},
+"constructible": {"dfnID":"constructible","dfnText":"constructible","external":false,"refSections":[{"refs":[{"id":"ref-for-constructible"}],"title":"6.2.12. Constructible Types"},{"refs":[{"id":"ref-for-constructible\u2460"},{"id":"ref-for-constructible\u2461"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-constructible\u2462"}],"title":"6.3. Enumeration Types"},{"refs":[{"id":"ref-for-constructible\u2463"},{"id":"ref-for-constructible\u2464"},{"id":"ref-for-constructible\u2465"},{"id":"ref-for-constructible\u2466"},{"id":"ref-for-constructible\u2467"},{"id":"ref-for-constructible\u2468"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u24ea"}],"title":"7.2.1. const Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2460"}],"title":"7.2.3. let Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2461"},{"id":"ref-for-constructible\u2460\u2462"},{"id":"ref-for-constructible\u2460\u2463"},{"id":"ref-for-constructible\u2460\u2464"},{"id":"ref-for-constructible\u2460\u2465"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2466"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-constructible\u2460\u2467"}],"title":"9.2.1. Simple Assignment"},{"refs":[{"id":"ref-for-constructible\u2460\u2468"}],"title":"9.2.2. Phony Assignment"},{"refs":[{"id":"ref-for-constructible\u2461\u24ea"}],"title":"11.1. Declaring a User-defined Function"},{"refs":[{"id":"ref-for-constructible\u2461\u2460"}],"title":"11.4. Restrictions on Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2461"}],"title":"17.1. Constructor Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2462"},{"id":"ref-for-constructible\u2461\u2463"},{"id":"ref-for-constructible\u2461\u2464"},{"id":"ref-for-constructible\u2461\u2465"},{"id":"ref-for-constructible\u2461\u2466"}],"title":"17.1.1. Zero Value Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2467"}],"title":"17.1.2. Value Constructor Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2468"},{"id":"ref-for-constructible\u2462\u24ea"},{"id":"ref-for-constructible\u2462\u2460"}],"title":"17.1.2.1. array"},{"refs":[{"id":"ref-for-constructible\u2462\u2461"}],"title":"17.1.2.15. Structures"},{"refs":[{"id":"ref-for-constructible\u2462\u2462"}],"title":"17.11.4. workgroupUniformLoad"}],"url":"#constructible"},
+"context-dependent-name": {"dfnID":"context-dependent-name","dfnText":"context-dependent name","external":false,"refSections":[{"refs":[{"id":"ref-for-context-dependent-name"}],"title":"3.4. Tokens"},{"refs":[{"id":"ref-for-context-dependent-name\u2460"}],"title":"3.8. Context-Dependent Names"},{"refs":[{"id":"ref-for-context-dependent-name\u2461"}],"title":"8.5.1. Vector Access Expression"},{"refs":[{"id":"ref-for-context-dependent-name\u2462"}],"title":"12. Attributes"}],"url":"#context-dependent-name"},
+"control-barrier": {"dfnID":"control-barrier","dfnText":"control barrier","external":false,"refSections":[{"refs":[{"id":"ref-for-control-barrier"}],"title":"17.11. Synchronization Built-in Functions"},{"refs":[{"id":"ref-for-control-barrier\u2460"}],"title":"17.11.1. storageBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2461"}],"title":"17.11.2. textureBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2462"}],"title":"17.11.3. workgroupBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2463"},{"id":"ref-for-control-barrier\u2464"}],"title":"17.11.4. workgroupUniformLoad"}],"url":"#control-barrier"},
+"conversionrank": {"dfnID":"conversionrank","dfnText":"ConversionRank","external":false,"refSections":[{"refs":[{"id":"ref-for-conversionrank"},{"id":"ref-for-conversionrank\u2460"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-conversionrank\u2461"}],"title":"6.1.3. Overload Resolution"}],"url":"#conversionrank"},
+"correctly-rounded": {"dfnID":"correctly-rounded","dfnText":"correctly rounded","external":false,"refSections":[{"refs":[{"id":"ref-for-correctly-rounded"}],"title":"15.7.4. Floating Point Accuracy"},{"refs":[{"id":"ref-for-correctly-rounded\u2460"}],"title":"15.7.4.2. Accuracy of AbstractFloat Expressions"}],"url":"#correctly-rounded"},
+"creation-fixed-footprint": {"dfnID":"creation-fixed-footprint","dfnText":"creation-fixed footprint","external":false,"refSections":[{"refs":[{"id":"ref-for-creation-fixed-footprint"}],"title":"2.4. Limits"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460"},{"id":"ref-for-creation-fixed-footprint\u2461"},{"id":"ref-for-creation-fixed-footprint\u2462"}],"title":"6.2.9. Array Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2463"},{"id":"ref-for-creation-fixed-footprint\u2464"}],"title":"6.2.10. Structure Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2465"},{"id":"ref-for-creation-fixed-footprint\u2466"}],"title":"6.2.12. Constructible Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2467"},{"id":"ref-for-creation-fixed-footprint\u2468"},{"id":"ref-for-creation-fixed-footprint\u2460\u24ea"},{"id":"ref-for-creation-fixed-footprint\u2460\u2460"},{"id":"ref-for-creation-fixed-footprint\u2460\u2461"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2462"}],"title":"6.4.2. Host-shareable Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2463"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2464"}],"title":"12.13. size"}],"url":"#creation-fixed-footprint"},
+"d057ae39": {"dfnID":"d057ae39","dfnText":"GPUAddressMode","external":true,"refSections":[{"refs":[{"id":"ref-for-enumdef-gpuaddressmode"}],"title":"6.5. Texture and Sampler Types"},{"refs":[{"id":"ref-for-enumdef-gpuaddressmode\u2460"}],"title":"17.7.14. textureSampleBaseClampToEdge"}],"url":"https://www.w3.org/TR/webgpu/#enumdef-gpuaddressmode"},
+"d177d646": {"dfnID":"d177d646","dfnText":"subgroupMinSize","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpuadapterinfo-subgroupminsize\u2461"}],"title":"15.5. Subgroups"}],"url":"https://gpuweb.github.io/gpuweb/#dom-gpuadapterinfo-subgroupminsize"},
+"d3d9f73d": {"dfnID":"d3d9f73d","dfnText":"sampleType","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputexturebindinglayout-sampletype"}],"title":"6.5.2. Sampled Texture Types"},{"refs":[{"id":"ref-for-dom-gputexturebindinglayout-sampletype\u2460"}],"title":"6.5.3. Multisampled Texture Types"}],"url":"https://www.w3.org/TR/webgpu/#dom-gputexturebindinglayout-sampletype"},
+"d78f2e9c": {"dfnID":"d78f2e9c","dfnText":"GPUDevice","external":true,"refSections":[{"refs":[{"id":"ref-for-gpudevice"}],"title":"4.1.1. Enable Extensions"}],"url":"https://www.w3.org/TR/webgpu/#gpudevice"},
+"dc06927b": {"dfnID":"dc06927b","dfnText":"memory model non-private","external":true,"refSections":[{"refs":[{"id":"ref-for-memory-model-non-private"},{"id":"ref-for-memory-model-non-private\u2460"},{"id":"ref-for-memory-model-non-private\u2461"},{"id":"ref-for-memory-model-non-private\u2462"}],"title":"14.5.5. Private vs Non-private"}],"url":"https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#memory-model-non-private"},
+"dc397eaa": {"dfnID":"dc397eaa","dfnText":"RasterizationPoint","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint"}],"title":"13.3.1.1.10. position"},{"refs":[{"id":"ref-for-rasterizationpoint\u2460"}],"title":"13.3.1.1.13. sample_mask"},{"refs":[{"id":"ref-for-rasterizationpoint\u2461"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint"},
+"dde6d8fa": {"dfnID":"dde6d8fa","dfnText":"GPUBufferBindingType","external":true,"refSections":[{"refs":[{"id":"ref-for-enumdef-gpubufferbindingtype"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#enumdef-gpubufferbindingtype"},
+"decimal-floating-point-literal": {"dfnID":"decimal-floating-point-literal","dfnText":"decimal floating point literal","external":false,"refSections":[{"refs":[{"id":"ref-for-decimal-floating-point-literal"},{"id":"ref-for-decimal-floating-point-literal\u2460"},{"id":"ref-for-decimal-floating-point-literal\u2461"}],"title":"3.5.2. Numeric Literals"}],"url":"#decimal-floating-point-literal"},
+--
+"local-invocation-index": {"dfnID":"local-invocation-index","dfnText":"local invocation index","external":false,"refSections":[{"refs":[{"id":"ref-for-local-invocation-index"}],"title":"13.3.1.1.8. local_invocation_index"}],"url":"#local-invocation-index"},
+"logical-texel-address": {"dfnID":"logical-texel-address","dfnText":"logical texel address","external":false,"refSections":[{"refs":[{"id":"ref-for-logical-texel-address"}],"title":"6.5.3. Multisampled Texture Types"},{"refs":[{"id":"ref-for-logical-texel-address\u2460"}],"title":"17.7.1. textureDimensions"},{"refs":[{"id":"ref-for-logical-texel-address\u2461"}],"title":"17.7.4. textureLoad"},{"refs":[{"id":"ref-for-logical-texel-address\u2462"}],"title":"17.7.15. textureStore"}],"url":"#logical-texel-address"},
+"loop-body": {"dfnID":"loop-body","dfnText":"loop body","external":false,"refSections":[{"refs":[{"id":"ref-for-loop-body"},{"id":"ref-for-loop-body\u2460"}],"title":"2.3.3. Diagnostic Filtering"}],"url":"#loop-body"},
+"mat2x2f": {"dfnID":"mat2x2f","dfnText":"mat2x2f","external":false,"refSections":[],"url":"#mat2x2f"},
+"mat2x2h": {"dfnID":"mat2x2h","dfnText":"mat2x2h","external":false,"refSections":[],"url":"#mat2x2h"},
+"mat2x3f": {"dfnID":"mat2x3f","dfnText":"mat2x3f","external":false,"refSections":[],"url":"#mat2x3f"},
+"mat2x3h": {"dfnID":"mat2x3h","dfnText":"mat2x3h","external":false,"refSections":[],"url":"#mat2x3h"},
+"mat2x4f": {"dfnID":"mat2x4f","dfnText":"mat2x4f","external":false,"refSections":[],"url":"#mat2x4f"},
+"mat2x4h": {"dfnID":"mat2x4h","dfnText":"mat2x4h","external":false,"refSections":[],"url":"#mat2x4h"},
+"mat3x2f": {"dfnID":"mat3x2f","dfnText":"mat3x2f","external":false,"refSections":[],"url":"#mat3x2f"},
+"mat3x2h": {"dfnID":"mat3x2h","dfnText":"mat3x2h","external":false,"refSections":[],"url":"#mat3x2h"},
+"mat3x3f": {"dfnID":"mat3x3f","dfnText":"mat3x3f","external":false,"refSections":[],"url":"#mat3x3f"},
+"mat3x3h": {"dfnID":"mat3x3h","dfnText":"mat3x3h","external":false,"refSections":[],"url":"#mat3x3h"},
+"mat3x4f": {"dfnID":"mat3x4f","dfnText":"mat3x4f","external":false,"refSections":[],"url":"#mat3x4f"},
+"mat3x4h": {"dfnID":"mat3x4h","dfnText":"mat3x4h","external":false,"refSections":[],"url":"#mat3x4h"},
+"mat4x2f": {"dfnID":"mat4x2f","dfnText":"mat4x2f","external":false,"refSections":[],"url":"#mat4x2f"},
+"mat4x2h": {"dfnID":"mat4x2h","dfnText":"mat4x2h","external":false,"refSections":[],"url":"#mat4x2h"},
+"mat4x3f": {"dfnID":"mat4x3f","dfnText":"mat4x3f","external":false,"refSections":[],"url":"#mat4x3f"},
+"mat4x3h": {"dfnID":"mat4x3h","dfnText":"mat4x3h","external":false,"refSections":[],"url":"#mat4x3h"},
+"mat4x4f": {"dfnID":"mat4x4f","dfnText":"mat4x4f","external":false,"refSections":[],"url":"#mat4x4f"},
+"mat4x4h": {"dfnID":"mat4x4h","dfnText":"mat4x4h","external":false,"refSections":[],"url":"#mat4x4h"},
+--
+"workgroup-grid": {"dfnID":"workgroup-grid","dfnText":"workgroup grid","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-grid"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-workgroup-grid\u2460"}],"title":"13.3.1.1.7. local_invocation_id"},{"refs":[{"id":"ref-for-workgroup-grid\u2461"}],"title":"13.3.1.1.8. local_invocation_index"}],"url":"#workgroup-grid"},
+"workgroup-id": {"dfnID":"workgroup-id","dfnText":"workgroup ID","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-id"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-workgroup-id\u2460"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#workgroup-id"},
+"workgroup-index": {"dfnID":"workgroup-index","dfnText":"workgroup index","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-index"}],"title":"13.3.1.1.16. workgroup_index"}],"url":"#workgroup-index"},
+"workgroup-uniformity-scope": {"dfnID":"workgroup-uniformity-scope","dfnText":"Workgroup uniformity scope","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-uniformity-scope"}],"title":"15.2.2. Uniformity Analysis Overview"}],"url":"#workgroup-uniformity-scope"},
+"write-access": {"dfnID":"write-access","dfnText":"write access","external":false,"refSections":[{"refs":[{"id":"ref-for-write-access"}],"title":"6.4.7. Use Cases for References and Pointers"},{"refs":[{"id":"ref-for-write-access\u2460"},{"id":"ref-for-write-access\u2461"}],"title":"6.5.5. Storage Texture Types"},{"refs":[{"id":"ref-for-write-access\u2462"}],"title":"7.1. Variables vs Values"},{"refs":[{"id":"ref-for-write-access\u2463"},{"id":"ref-for-write-access\u2464"}],"title":"8.5.1.3. Component Reference from Vector Memory View"},{"refs":[{"id":"ref-for-write-access\u2465"}],"title":"9.2.3. Compound Assignment"},{"refs":[{"id":"ref-for-write-access\u2466"},{"id":"ref-for-write-access\u2467"}],"title":"11.4.1.2. Aliasing"},{"refs":[{"id":"ref-for-write-access\u2468"},{"id":"ref-for-write-access\u2460\u24ea"},{"id":"ref-for-write-access\u2460\u2460"}],"title":"14.5.1. Memory Operation"},{"refs":[{"id":"ref-for-write-access\u2460\u2461"},{"id":"ref-for-write-access\u2460\u2462"}],"title":"14.5.5. Private vs Non-private"},{"refs":[{"id":"ref-for-write-access\u2460\u2463"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"#write-access"},
+"zero-value": {"dfnID":"zero-value","dfnText":"zero value","external":false,"refSections":[{"refs":[{"id":"ref-for-zero-value"}],"title":"6.4.6. Out-of-Bounds Access"},{"refs":[{"id":"ref-for-zero-value\u2460"},{"id":"ref-for-zero-value\u2461"},{"id":"ref-for-zero-value\u2462"},{"id":"ref-for-zero-value\u2463"},{"id":"ref-for-zero-value\u2464"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-zero-value\u2465"}],"title":"17.1.1. Zero Value Built-in Functions"},{"refs":[{"id":"ref-for-zero-value\u2466"}],"title":"17.1.2.2. bool"}],"url":"#zero-value"},
+};
+
+document.addEventListener("DOMContentLoaded", ()=>{
+    genAllDfnPanels();
+
+    document.body.addEventListener("click", (e) => {
+        // If not handled already, just hide all dfn panels.
+        hideAllDfnPanels();
+    });
+});
+
+window.addEventListener("resize", () => {
+    // Pin any visible dfn panel
+    queryAll(".dfn-panel.on, .dfn-panel.activated").forEach(el=>positionDfnPanel(el));
+});
+--
+"#built-in-values-local_invocation_index": {"displayText":"local_invocation_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"local_invocation_index","type":"dfn","url":"#built-in-values-local_invocation_index"},
+"#built-in-values-num_subgroups": {"displayText":"num_subgroups","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"num_subgroups","type":"dfn","url":"#built-in-values-num_subgroups"},
+"#built-in-values-num_workgroups": {"displayText":"num_workgroups","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"num_workgroups","type":"dfn","url":"#built-in-values-num_workgroups"},
+"#built-in-values-position": {"displayText":"position","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"position","type":"dfn","url":"#built-in-values-position"},
+"#built-in-values-primitive_index": {"displayText":"primitive_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"primitive_index","type":"dfn","url":"#built-in-values-primitive_index"},
+"#built-in-values-sample_index": {"displayText":"sample_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"sample_index","type":"dfn","url":"#built-in-values-sample_index"},
+"#built-in-values-sample_mask": {"displayText":"sample_mask","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"sample_mask","type":"dfn","url":"#built-in-values-sample_mask"},
+"#built-in-values-subgroup_id": {"displayText":"subgroup_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"subgroup_id","type":"dfn","url":"#built-in-values-subgroup_id"},
+"#built-in-values-subgroup_invocation_id": {"displayText":"subgroup_invocation_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"subgroup_invocation_id","type":"dfn","url":"#built-in-values-subgroup_invocation_id"},
+"#built-in-values-subgroup_size": {"displayText":"subgroup_size","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"subgroup_size","type":"dfn","url":"#built-in-values-subgroup_size"},
+"#built-in-values-vertex_index": {"displayText":"vertex_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"vertex_index","type":"dfn","url":"#built-in-values-vertex_index"},
+"#built-in-values-workgroup_id": {"displayText":"workgroup_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"workgroup_id","type":"dfn","url":"#built-in-values-workgroup_id"},
+"#built-in-values-workgroup_index": {"displayText":"workgroup_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"workgroup_index","type":"dfn","url":"#built-in-values-workgroup_index"},
+"#builtin-functions-that-compute-a-derivative": {"displayText":"builtin functions that compute a derivative","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"builtin functions that compute a derivative","type":"dfn","url":"#builtin-functions-that-compute-a-derivative"},
+"#byte-size": {"displayText":"byte-size","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"byte-size","type":"dfn","url":"#byte-size"},
+"#call-site": {"displayText":"call site","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"call site","type":"dfn","url":"#call-site"},
+"#call-site-tag": {"displayText":"call site tag","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"call site tag","type":"dfn","url":"#call-site-tag"},
+"#called-function": {"displayText":"called function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"called function","type":"dfn","url":"#called-function"},
+"#calling-function": {"displayText":"calling function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"calling function","type":"dfn","url":"#calling-function"},
+"#callsitenorestriction": {"displayText":"callsitenorestriction","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"callsitenorestriction","type":"dfn","url":"#callsitenorestriction"},
+"#callsiterequiredtobeuniforms": {"displayText":"callsiterequiredtobeuniform.s","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"callsiterequiredtobeuniform.s","type":"dfn","url":"#callsiterequiredtobeuniforms"},
+            <li><a href="#local-invocation-id-builtin-value"><span class="secno">13.3.1.1.7</span> <span class="content"><code>local_invocation_id</code></span></a>
+            <li><a href="#local-invocation-index-builtin-value"><span class="secno">13.3.1.1.8</span> <span class="content"><code>local_invocation_index</code></span></a>
+            <li><a href="#num-workgroups-index-builtin-value"><span class="secno">13.3.1.1.9</span> <span class="content"><code>num_workgroups</code></span></a>
+            <li><a href="#position-builtin-value"><span class="secno">13.3.1.1.10</span> <span class="content"><code>position</code></span></a>
+            <li><a href="#primitive-index-builtin-value"><span class="secno">13.3.1.1.11</span> <span class="content"><code>primitive_index</code></span></a>
+            <li><a href="#sample-index-builtin-value"><span class="secno">13.3.1.1.12</span> <span class="content"><code>sample_index</code></span></a>
+            <li><a href="#sample-mask-builtin-value"><span class="secno">13.3.1.1.13</span> <span class="content"><code>sample_mask</code></span></a>
+            <li><a href="#vertex-index-builtin-value"><span class="secno">13.3.1.1.14</span> <span class="content"><code>vertex_index</code></span></a>
+            <li><a href="#workgroup-id-builtin-value"><span class="secno">13.3.1.1.15</span> <span class="content"><code>workgroup_id</code></span></a>
+            <li><a href="#workgroup-index-builtin-value"><span class="secno">13.3.1.1.16</span> <span class="content"><code>workgroup_index</code></span></a>
+            <li><a href="#subgroup-invocation-id-builtin-value"><span class="secno">13.3.1.1.17</span> <span class="content"><code>subgroup_invocation_id</code></span></a>
+            <li><a href="#subgroup-size-builtin-value"><span class="secno">13.3.1.1.18</span> <span class="content"><code>subgroup_size</code></span></a>
+            <li><a href="#subgroup-id-builtin-value"><span class="secno">13.3.1.1.19</span> <span class="content"><code>subgroup_id</code></span></a>
+            <li><a href="#num-subgroups-builtin-value"><span class="secno">13.3.1.1.20</span> <span class="content"><code>num_subgroups</code></span></a>
+           </ol>
+          <li><a href="#user-defined-inputs-outputs"><span class="secno">13.3.1.2</span> <span class="content">User-defined Inputs and Outputs</span></a>
+          <li><a href="#input-output-locations"><span class="secno">13.3.1.3</span> <span class="content">Input-output Locations</span></a>
+          <li><a href="#interpolation"><span class="secno">13.3.1.4</span> <span class="content">Interpolation</span></a>
+         </ol>
+        <li><a href="#resource-interface"><span class="secno">13.3.2</span> <span class="content">Resource Interface</span></a>
+        <li><a href="#resource-layout-compatibility"><span class="secno">13.3.3</span> <span class="content">Resource Layout Compatibility</span></a>
+--
+     <p><a data-link-type="dfn" href="#built-in-values-local_invocation_id" id="ref-for-built-in-values-local_invocation_id"><code>'local_invocation_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-local_invocation_index" id="ref-for-built-in-values-local_invocation_index"><code>'local_invocation_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-global_invocation_id" id="ref-for-built-in-values-global_invocation_id"><code>'global_invocation_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-global_invocation_index" id="ref-for-built-in-values-global_invocation_index"><code>'global_invocation_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_id" id="ref-for-built-in-values-workgroup_id"><code>'workgroup_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_index" id="ref-for-built-in-values-workgroup_index"><code>'workgroup_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_workgroups" id="ref-for-built-in-values-num_workgroups"><code>'num_workgroups'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_invocation_id" id="ref-for-built-in-values-subgroup_invocation_id"><code>'subgroup_invocation_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_size" id="ref-for-built-in-values-subgroup_size"><code>'subgroup_size'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-primitive_index" id="ref-for-built-in-values-primitive_index"><code>'primitive_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_id" id="ref-for-built-in-values-subgroup_id"><code>'subgroup_id'</code></a></p>
+--
+      <td><a data-link-type="dfn" href="#built-in-values-local_invocation_id" id="ref-for-built-in-values-local_invocation_id①">local_invocation_id</a>
+      
+      <td>compute
+      
+      <td>input
+      
+      <td>vec3&lt;u32>
+
+  
+     <tr>
+      <td><a data-link-type="dfn" href="#built-in-values-local_invocation_index" id="ref-for-built-in-values-local_invocation_index①">local_invocation_index</a>
+      
+      <td>compute
+      
+      <td>input
+      
+      <td>u32
+
+  
+     <tr>
+      <td><a data-link-type="dfn" href="#built-in-values-global_invocation_id" id="ref-for-built-in-values-global_invocation_id①">global_invocation_id</a>
+--
+   <c- nd>@builtin</c-><c- p>(</c->local_invocation_id<c- p>)</c-> <c- n>local_id</c-><c- p>:</c-> vec3<c- o>&lt;</c->u32<c- o>></c-><c- p>,</c->
+   <c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>local_index</c-><c- p>:</c-> u32<c- p>,</c->
+   <c- nd>@builtin</c-><c- p>(</c->global_invocation_id<c- p>)</c-> <c- n>global_id</c-><c- p>:</c-> vec3<c- o>&lt;</c->u32<c- o>></c-><c- p>,</c->
+<c- p>)</c-> <c- p>{}</c->
+</pre>
+   </div>
+   <h6 class="heading settled" data-level="13.3.1.1.1" id="clip-distances-builtin-value"><span class="secno">13.3.1.1.1. </span><span class="content"><code>clip_distances</code></span><a class="self-link" href="#clip-distances-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-clip_distances">clip_distances</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#vertex-shader-stage" id="ref-for-vertex-shader-stage②">vertex</a>
+  
+     <tr>
+      <td style="width:10%">Type
+--
+      <a data-link-type="dfn" href="#built-in-values-local_invocation_id" id="ref-for-built-in-values-local_invocation_id②">local_invocation_id</a>.
+
+
+   </table>
+   <h6 class="heading settled" data-level="13.3.1.1.5" id="global-invocation-index-builtin-value"><span class="secno">13.3.1.1.5. </span><span class="content"><code>global_invocation_index</code></span><a class="self-link" href="#global-invocation-index-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-global_invocation_index">global_invocation_index</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#compute-shader-stage" id="ref-for-compute-shader-stage⑥">compute</a>
+  
+     <tr>
+      <td style="width:10%">Type
+      
+      <td>u32;
+--
+   <h6 class="heading settled" data-level="13.3.1.1.7" id="local-invocation-id-builtin-value"><span class="secno">13.3.1.1.7. </span><span class="content"><code>local_invocation_id</code></span><a class="self-link" href="#local-invocation-id-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-local_invocation_id">local_invocation_id</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#compute-shader-stage" id="ref-for-compute-shader-stage⑦">compute</a>
+  
+     <tr>
+      <td style="width:10%">Type
+      
+      <td>vec3&lt;u32>
+  
+     <tr>
+      <td style="width:10%">Direction
+      
+      <td>Input
+  
+     <tr>
+      <td style="width:10%">Description
+      
+      <td>
+--
+   <li><a href="#built-in-values-local_invocation_id">local_invocation_id</a><span>, in § 13.3.1.1.7</span>
+   <li><a href="#local-invocation-index">local invocation index</a><span>, in § 15.3</span>
+   <li><a href="#built-in-values-local_invocation_index">local_invocation_index</a><span>, in § 13.3.1.1.8</span>
+   <li><a href="#attribute-location">location</a><span>, in § 12.11</span>
+   <li><a href="#syntax-location_attr">location_attr</a><span>, in § 12.11</span>
+   <li><a href="#logical-texel-address">logical texel address</a><span>, in § 6.5</span>
+   <li>
+    loop
+    <ul>
+     <li><a href="#statement-loop">dfn for statement</a><span>, in § 9.4.3</span>
+     <li><a href="#syntax_kw-loop">dfn for syntax_kw</a><span>, in § 16.1</span>
+    </ul>
+   <li><a href="#loop-body">loop body</a><span>, in § 9.4.3</span>
+   <li><a href="#syntax-loop_statement">loop_statement</a><span>, in § 9.4.3</span>
+   <li><a href="#mat2x2f">mat2x2f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x2h">mat2x2h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x3f">mat2x3f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x3h">mat2x3h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x4f">mat2x4f</a><span>, in § 6.2.7</span>
+   <li><a href="#mat2x4h">mat2x4h</a><span>, in § 6.2.7</span>
+   <li><a href="#mat3x2f">mat3x2f</a><span>, in § 6.2.7</span>
+--
+"built-in-values-local_invocation_id": {"dfnID":"built-in-values-local_invocation_id","dfnText":"local_invocation_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-local_invocation_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-local_invocation_id\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-local_invocation_id\u2461"}],"title":"13.3.1.1.4. global_invocation_id"}],"url":"#built-in-values-local_invocation_id"},
+"built-in-values-local_invocation_index": {"dfnID":"built-in-values-local_invocation_index","dfnText":"local_invocation_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-local_invocation_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-local_invocation_index\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-local_invocation_index\u2461"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-local_invocation_index"},
+"built-in-values-num_subgroups": {"dfnID":"built-in-values-num_subgroups","dfnText":"num_subgroups","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-num_subgroups"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2462"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2463"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-built-in-values-num_subgroups\u2464"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-num_subgroups"},
+"built-in-values-num_workgroups": {"dfnID":"built-in-values-num_workgroups","dfnText":"num_workgroups","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-num_workgroups"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-num_workgroups\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-num_workgroups\u2461"},{"id":"ref-for-built-in-values-num_workgroups\u2462"},{"id":"ref-for-built-in-values-num_workgroups\u2463"}],"title":"13.3.1.1.5. global_invocation_index"},{"refs":[{"id":"ref-for-built-in-values-num_workgroups\u2464"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#built-in-values-num_workgroups"},
+"built-in-values-position": {"dfnID":"built-in-values-position","dfnText":"position","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-position"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-position\u2460"}],"title":"11.4. Restrictions on Functions"},{"refs":[{"id":"ref-for-built-in-values-position\u2461"},{"id":"ref-for-built-in-values-position\u2462"}],"title":"12.10. invariant"},{"refs":[{"id":"ref-for-built-in-values-position\u2463"},{"id":"ref-for-built-in-values-position\u2464"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-position\u2465"}],"title":"13.3.1.1.10. position"},{"refs":[{"id":"ref-for-built-in-values-position\u2466"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"#built-in-values-position"},
+"built-in-values-primitive_index": {"dfnID":"built-in-values-primitive_index","dfnText":"primitive_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-primitive_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-primitive_index\u2460"},{"id":"ref-for-built-in-values-primitive_index\u2461"}],"title":"4.1.1. Enable Extensions"},{"refs":[{"id":"ref-for-built-in-values-primitive_index\u2462"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-primitive_index"},
+"built-in-values-sample_index": {"dfnID":"built-in-values-sample_index","dfnText":"sample_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-sample_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-sample_index\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-sample_index\u2461"}],"title":"13.3.1.1.12. sample_index"},{"refs":[{"id":"ref-for-built-in-values-sample_index\u2462"}],"title":"13.3.1.1.13. sample_mask"}],"url":"#built-in-values-sample_index"},
+"built-in-values-sample_mask": {"dfnID":"built-in-values-sample_mask","dfnText":"sample_mask","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-sample_mask"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-sample_mask\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-sample_mask"},
+"built-in-values-subgroup_id": {"dfnID":"built-in-values-subgroup_id","dfnText":"subgroup_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-subgroup_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-built-in-values-subgroup_id\u2463"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-subgroup_id"},
+"built-in-values-subgroup_invocation_id": {"dfnID":"built-in-values-subgroup_invocation_id","dfnText":"subgroup_invocation_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-subgroup_invocation_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-subgroup_invocation_id\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-subgroup_invocation_id\u2461"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-subgroup_invocation_id"},
+"built-in-values-subgroup_size": {"dfnID":"built-in-values-subgroup_size","dfnText":"subgroup_size","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-subgroup_size"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2461"}],"title":"13.3.1.1.17. subgroup_invocation_id"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-built-in-values-subgroup_size\u2463"}],"title":"15.5. Subgroups"}],"url":"#built-in-values-subgroup_size"},
+"built-in-values-vertex_index": {"dfnID":"built-in-values-vertex_index","dfnText":"vertex_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-vertex_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-vertex_index\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-vertex_index"},
+"built-in-values-workgroup_id": {"dfnID":"built-in-values-workgroup_id","dfnText":"workgroup_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-workgroup_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2461"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#built-in-values-workgroup_id"},
+"built-in-values-workgroup_index": {"dfnID":"built-in-values-workgroup_index","dfnText":"workgroup_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-workgroup_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-workgroup_index\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-workgroup_index\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-workgroup_index"},
+"builtin-functions-that-compute-a-derivative": {"dfnID":"builtin-functions-that-compute-a-derivative","dfnText":"builtin functions that compute a derivative","external":false,"refSections":[{"refs":[{"id":"ref-for-builtin-functions-that-compute-a-derivative"}],"title":"2.3.2. Filterable Triggering Rules"},{"refs":[{"id":"ref-for-builtin-functions-that-compute-a-derivative\u2460"}],"title":"15.2. Uniformity"}],"url":"#builtin-functions-that-compute-a-derivative"},
+"byte-size": {"dfnID":"byte-size","dfnText":"byte-size","external":false,"refSections":[{"refs":[{"id":"ref-for-byte-size"},{"id":"ref-for-byte-size\u2460"},{"id":"ref-for-byte-size\u2461"},{"id":"ref-for-byte-size\u2462"}],"title":"2.4. Limits"},{"refs":[{"id":"ref-for-byte-size\u2463"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-byte-size\u2464"}],"title":"14.4. Memory Layout"}],"url":"#byte-size"},
+"c06fb4a5": {"dfnID":"c06fb4a5","dfnText":"\"depth\"","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputexturesampletype-depth"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#dom-gputexturesampletype-depth"},
+"c3c8301d": {"dfnID":"c3c8301d","dfnText":"texture view swizzle","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputextureviewdescriptor-swizzle"},{"id":"ref-for-dom-gputextureviewdescriptor-swizzle\u2460"}],"title":"17.7.4. textureLoad"}],"url":"https://gpuweb.github.io/gpuweb/#dom-gputextureviewdescriptor-swizzle"},
+"c69b32cb": {"dfnID":"c69b32cb","dfnText":"memory model memory operation","external":true,"refSections":[{"refs":[{"id":"ref-for-memory-model-memory-operation"}],"title":"14.5.1. Memory Operation"}],"url":"https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#memory-model-memory-operation"},
+"c83b76ce": {"dfnID":"c83b76ce","dfnText":"\"write-only\"","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpustoragetextureaccess-write-only"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#dom-gpustoragetextureaccess-write-only"},
+"c8491c30": {"dfnID":"c8491c30","dfnText":"rasterizationpoint-perspectivedivisor","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint-perspectivedivisor"}],"title":"13.3.1.1.10. position"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint-perspectivedivisor"},
+--
+"compute-shader-stage": {"dfnID":"compute-shader-stage","dfnText":"compute shader stage","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-stage"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2462"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2463"}],"title":"12.16.3. compute"},{"refs":[{"id":"ref-for-compute-shader-stage\u2464"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2465"}],"title":"13.3.1.1.5. global_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2466"}],"title":"13.3.1.1.7. local_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2467"}],"title":"13.3.1.1.8. local_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2468"}],"title":"13.3.1.1.9. num_workgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u24ea"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2460"}],"title":"13.3.1.1.16. workgroup_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2461"},{"id":"ref-for-compute-shader-stage\u2460\u2462"}],"title":"13.3.1.1.17. subgroup_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2463"}],"title":"13.3.1.1.18. subgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2464"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2465"}],"title":"13.3.1.1.20. num_subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2466"},{"id":"ref-for-compute-shader-stage\u2460\u2467"}],"title":"14.3. Address Spaces"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2468"}],"title":"15.2.1. Terminology and Concepts"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u24ea"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2460"}],"title":"15.3. Compute Shaders and Workgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2461"}],"title":"15.5. Subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2462"}],"title":"15.6.1. Barriers"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2463"}],"title":"17.12. Subgroup Built-in Functions"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2464"}],"title":"17.13. Quad Operations"}],"url":"#compute-shader-stage"},
+"compute-shader-stage-workgroup": {"dfnID":"compute-shader-stage-workgroup","dfnText":"workgroup","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-stage-workgroup"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2460"}],"title":"6.2.8. Atomic Types"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2461"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2462"}],"title":"13.3.1.1.20. num_subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2463"}],"title":"14.3. Address Spaces"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2464"}],"title":"15.2.1. Terminology and Concepts"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2465"},{"id":"ref-for-compute-shader-stage-workgroup\u2466"}],"title":"15.5. Subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2467"}],"title":"15.6.1. Barriers"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2468"}],"title":"17.12. Subgroup Built-in Functions"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2460\u24ea"}],"title":"17.13. Quad Operations"}],"url":"#compute-shader-stage-workgroup"},
+"concretization": {"dfnID":"concretization","dfnText":"concretization","external":false,"refSections":[{"refs":[{"id":"ref-for-concretization"}],"title":"7. Variable and Value Declarations"}],"url":"#concretization"},
+"concretization-of-a-value": {"dfnID":"concretization-of-a-value","dfnText":"concretization of a value","external":false,"refSections":[{"refs":[{"id":"ref-for-concretization-of-a-value"}],"title":"7.2.2. override Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2460"}],"title":"7.2.3. let Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2461"},{"id":"ref-for-concretization-of-a-value\u2462"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2463"}],"title":"8.5.1.1. Vector Single Component Selection"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2464"}],"title":"8.5.2. Matrix Access Expression"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2465"}],"title":"8.5.3. Array Access Expression"}],"url":"#concretization-of-a-value"},
+"const-declaration": {"dfnID":"const-declaration","dfnText":"const-declaration","external":false,"refSections":[{"refs":[{"id":"ref-for-const-declaration"},{"id":"ref-for-const-declaration\u2460"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2461"}],"title":"7.1. Variables vs Values"},{"refs":[{"id":"ref-for-const-declaration\u2462"}],"title":"7.2. Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2463"},{"id":"ref-for-const-declaration\u2464"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-const-declaration\u2465"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-declaration\u2466"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2467"}],"title":"11.3. const Functions"},{"refs":[{"id":"ref-for-const-declaration\u2468"},{"id":"ref-for-const-declaration\u2460\u24ea"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#const-declaration"},
+"const-expressions": {"dfnID":"const-expressions","dfnText":"const-expressions","external":false,"refSections":[{"refs":[{"id":"ref-for-const-expressions"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-const-expressions\u2460"}],"title":"6.1. Type Checking"},{"refs":[{"id":"ref-for-const-expressions\u2461"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-const-expressions\u2462"},{"id":"ref-for-const-expressions\u2463"}],"title":"6.1.3. Overload Resolution"},{"refs":[{"id":"ref-for-const-expressions\u2464"}],"title":"6.2.5. Scalar Types"},{"refs":[{"id":"ref-for-const-expressions\u2465"}],"title":"6.2.9. Array Types"},{"refs":[{"id":"ref-for-const-expressions\u2466"},{"id":"ref-for-const-expressions\u2467"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-const-expressions\u2468"},{"id":"ref-for-const-expressions\u2460\u24ea"},{"id":"ref-for-const-expressions\u2460\u2460"},{"id":"ref-for-const-expressions\u2460\u2461"},{"id":"ref-for-const-expressions\u2460\u2462"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2463"}],"title":"7.2.1. const Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2464"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2465"},{"id":"ref-for-const-expressions\u2460\u2466"},{"id":"ref-for-const-expressions\u2460\u2467"}],"title":"8. Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2468"}],"title":"8.1. Early Evaluation Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2461\u24ea"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2460"},{"id":"ref-for-const-expressions\u2461\u2461"},{"id":"ref-for-const-expressions\u2461\u2462"}],"title":"8.5.1.1. Vector Single Component Selection"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2463"}],"title":"8.5.1.3. Component Reference from Vector Memory View"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2464"},{"id":"ref-for-const-expressions\u2461\u2465"},{"id":"ref-for-const-expressions\u2461\u2466"},{"id":"ref-for-const-expressions\u2461\u2467"}],"title":"8.5.2. Matrix Access Expression"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2468"},{"id":"ref-for-const-expressions\u2462\u24ea"},{"id":"ref-for-const-expressions\u2462\u2460"},{"id":"ref-for-const-expressions\u2462\u2461"},{"id":"ref-for-const-expressions\u2462\u2462"}],"title":"8.5.3. Array Access Expression"},{"refs":[{"id":"ref-for-const-expressions\u2462\u2463"},{"id":"ref-for-const-expressions\u2462\u2464"},{"id":"ref-for-const-expressions\u2462\u2465"},{"id":"ref-for-const-expressions\u2462\u2466"},{"id":"ref-for-const-expressions\u2462\u2467"},{"id":"ref-for-const-expressions\u2462\u2468"}],"title":"8.7. Arithmetic Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u24ea"},{"id":"ref-for-const-expressions\u2463\u2460"},{"id":"ref-for-const-expressions\u2463\u2461"},{"id":"ref-for-const-expressions\u2463\u2462"}],"title":"8.9. Bit Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2463"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2464"}],"title":"9.4.2. Switch Statement"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2465"}],"title":"10.1. Const Assertion Statement"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2466"},{"id":"ref-for-const-expressions\u2463\u2467"}],"title":"11.3. const Functions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2468"}],"title":"12.1. align"},{"refs":[{"id":"ref-for-const-expressions\u2464\u24ea"}],"title":"12.2. binding"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2460"}],"title":"12.3. blend_src"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2461"}],"title":"12.5. const"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2462"}],"title":"12.7. group"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2463"}],"title":"12.8. id"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2464"}],"title":"12.11. location"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2465"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2466"},{"id":"ref-for-const-expressions\u2464\u2467"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2468"},{"id":"ref-for-const-expressions\u2465\u24ea"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2460"},{"id":"ref-for-const-expressions\u2465\u2461"},{"id":"ref-for-const-expressions\u2465\u2462"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2463"}],"title":"15.7.3. Floating Point Rounding and Overflow"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2464"}],"title":"15.7.6. Floating Point Conversion"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2465"}],"title":"17.5.10. clamp"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2466"}],"title":"17.5.25. extractBits (signed)"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2467"}],"title":"17.5.26. extractBits (unsigned)"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2468"}],"title":"17.5.35. insertBits"},{"refs":[{"id":"ref-for-const-expressions\u2466\u24ea"}],"title":"17.5.37. ldexp"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2460"}],"title":"17.5.47. quantizeToF16"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2461"}],"title":"17.5.57. smoothstep"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2462"},{"id":"ref-for-const-expressions\u2466\u2463"}],"title":"17.7.2. textureGather"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2464"}],"title":"17.7.3. textureGatherCompare"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2465"}],"title":"17.7.8. textureSample"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2466"}],"title":"17.7.9. textureSampleBias"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2467"}],"title":"17.7.10. textureSampleCompare"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2468"}],"title":"17.7.11. textureSampleCompareLevel"},{"refs":[{"id":"ref-for-const-expressions\u2467\u24ea"}],"title":"17.7.12. textureSampleGrad"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2460"}],"title":"17.7.13. textureSampleLevel"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2461"}],"title":"17.9.9. pack2x16float"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2462"}],"title":"17.12.6. subgroupBroadcast"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2463"}],"title":"17.12.12. subgroupShuffle"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2464"}],"title":"17.12.12.1. subgroupShuffleDown"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2465"}],"title":"17.12.12.2. subgroupShuffleUp"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2466"}],"title":"17.12.12.3. subgroupShuffleXor"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2467"}],"title":"17.13.1. quadBroadcast"}],"url":"#const-expressions"},
+"const-functions": {"dfnID":"const-functions","dfnText":"const-functions","external":false,"refSections":[{"refs":[{"id":"ref-for-const-functions"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-const-functions\u2460"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-functions\u2461"}],"title":"12.5. const"}],"url":"#const-functions"},
+"constructible": {"dfnID":"constructible","dfnText":"constructible","external":false,"refSections":[{"refs":[{"id":"ref-for-constructible"}],"title":"6.2.12. Constructible Types"},{"refs":[{"id":"ref-for-constructible\u2460"},{"id":"ref-for-constructible\u2461"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-constructible\u2462"}],"title":"6.3. Enumeration Types"},{"refs":[{"id":"ref-for-constructible\u2463"},{"id":"ref-for-constructible\u2464"},{"id":"ref-for-constructible\u2465"},{"id":"ref-for-constructible\u2466"},{"id":"ref-for-constructible\u2467"},{"id":"ref-for-constructible\u2468"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u24ea"}],"title":"7.2.1. const Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2460"}],"title":"7.2.3. let Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2461"},{"id":"ref-for-constructible\u2460\u2462"},{"id":"ref-for-constructible\u2460\u2463"},{"id":"ref-for-constructible\u2460\u2464"},{"id":"ref-for-constructible\u2460\u2465"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2466"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-constructible\u2460\u2467"}],"title":"9.2.1. Simple Assignment"},{"refs":[{"id":"ref-for-constructible\u2460\u2468"}],"title":"9.2.2. Phony Assignment"},{"refs":[{"id":"ref-for-constructible\u2461\u24ea"}],"title":"11.1. Declaring a User-defined Function"},{"refs":[{"id":"ref-for-constructible\u2461\u2460"}],"title":"11.4. Restrictions on Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2461"}],"title":"17.1. Constructor Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2462"},{"id":"ref-for-constructible\u2461\u2463"},{"id":"ref-for-constructible\u2461\u2464"},{"id":"ref-for-constructible\u2461\u2465"},{"id":"ref-for-constructible\u2461\u2466"}],"title":"17.1.1. Zero Value Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2467"}],"title":"17.1.2. Value Constructor Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2468"},{"id":"ref-for-constructible\u2462\u24ea"},{"id":"ref-for-constructible\u2462\u2460"}],"title":"17.1.2.1. array"},{"refs":[{"id":"ref-for-constructible\u2462\u2461"}],"title":"17.1.2.15. Structures"},{"refs":[{"id":"ref-for-constructible\u2462\u2462"}],"title":"17.11.4. workgroupUniformLoad"}],"url":"#constructible"},
+"context-dependent-name": {"dfnID":"context-dependent-name","dfnText":"context-dependent name","external":false,"refSections":[{"refs":[{"id":"ref-for-context-dependent-name"}],"title":"3.4. Tokens"},{"refs":[{"id":"ref-for-context-dependent-name\u2460"}],"title":"3.8. Context-Dependent Names"},{"refs":[{"id":"ref-for-context-dependent-name\u2461"}],"title":"8.5.1. Vector Access Expression"},{"refs":[{"id":"ref-for-context-dependent-name\u2462"}],"title":"12. Attributes"}],"url":"#context-dependent-name"},
+"control-barrier": {"dfnID":"control-barrier","dfnText":"control barrier","external":false,"refSections":[{"refs":[{"id":"ref-for-control-barrier"}],"title":"17.11. Synchronization Built-in Functions"},{"refs":[{"id":"ref-for-control-barrier\u2460"}],"title":"17.11.1. storageBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2461"}],"title":"17.11.2. textureBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2462"}],"title":"17.11.3. workgroupBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2463"},{"id":"ref-for-control-barrier\u2464"}],"title":"17.11.4. workgroupUniformLoad"}],"url":"#control-barrier"},
+"conversionrank": {"dfnID":"conversionrank","dfnText":"ConversionRank","external":false,"refSections":[{"refs":[{"id":"ref-for-conversionrank"},{"id":"ref-for-conversionrank\u2460"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-conversionrank\u2461"}],"title":"6.1.3. Overload Resolution"}],"url":"#conversionrank"},
+"correctly-rounded": {"dfnID":"correctly-rounded","dfnText":"correctly rounded","external":false,"refSections":[{"refs":[{"id":"ref-for-correctly-rounded"}],"title":"15.7.4. Floating Point Accuracy"},{"refs":[{"id":"ref-for-correctly-rounded\u2460"}],"title":"15.7.4.2. Accuracy of AbstractFloat Expressions"}],"url":"#correctly-rounded"},
+"creation-fixed-footprint": {"dfnID":"creation-fixed-footprint","dfnText":"creation-fixed footprint","external":false,"refSections":[{"refs":[{"id":"ref-for-creation-fixed-footprint"}],"title":"2.4. Limits"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460"},{"id":"ref-for-creation-fixed-footprint\u2461"},{"id":"ref-for-creation-fixed-footprint\u2462"}],"title":"6.2.9. Array Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2463"},{"id":"ref-for-creation-fixed-footprint\u2464"}],"title":"6.2.10. Structure Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2465"},{"id":"ref-for-creation-fixed-footprint\u2466"}],"title":"6.2.12. Constructible Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2467"},{"id":"ref-for-creation-fixed-footprint\u2468"},{"id":"ref-for-creation-fixed-footprint\u2460\u24ea"},{"id":"ref-for-creation-fixed-footprint\u2460\u2460"},{"id":"ref-for-creation-fixed-footprint\u2460\u2461"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2462"}],"title":"6.4.2. Host-shareable Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2463"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2464"}],"title":"12.13. size"}],"url":"#creation-fixed-footprint"},
+"d057ae39": {"dfnID":"d057ae39","dfnText":"GPUAddressMode","external":true,"refSections":[{"refs":[{"id":"ref-for-enumdef-gpuaddressmode"}],"title":"6.5. Texture and Sampler Types"},{"refs":[{"id":"ref-for-enumdef-gpuaddressmode\u2460"}],"title":"17.7.14. textureSampleBaseClampToEdge"}],"url":"https://www.w3.org/TR/webgpu/#enumdef-gpuaddressmode"},
+"d177d646": {"dfnID":"d177d646","dfnText":"subgroupMinSize","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpuadapterinfo-subgroupminsize\u2461"}],"title":"15.5. Subgroups"}],"url":"https://gpuweb.github.io/gpuweb/#dom-gpuadapterinfo-subgroupminsize"},
+"d3d9f73d": {"dfnID":"d3d9f73d","dfnText":"sampleType","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputexturebindinglayout-sampletype"}],"title":"6.5.2. Sampled Texture Types"},{"refs":[{"id":"ref-for-dom-gputexturebindinglayout-sampletype\u2460"}],"title":"6.5.3. Multisampled Texture Types"}],"url":"https://www.w3.org/TR/webgpu/#dom-gputexturebindinglayout-sampletype"},
+"d78f2e9c": {"dfnID":"d78f2e9c","dfnText":"GPUDevice","external":true,"refSections":[{"refs":[{"id":"ref-for-gpudevice"}],"title":"4.1.1. Enable Extensions"}],"url":"https://www.w3.org/TR/webgpu/#gpudevice"},
+"dc06927b": {"dfnID":"dc06927b","dfnText":"memory model non-private","external":true,"refSections":[{"refs":[{"id":"ref-for-memory-model-non-private"},{"id":"ref-for-memory-model-non-private\u2460"},{"id":"ref-for-memory-model-non-private\u2461"},{"id":"ref-for-memory-model-non-private\u2462"}],"title":"14.5.5. Private vs Non-private"}],"url":"https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#memory-model-non-private"},
+"dc397eaa": {"dfnID":"dc397eaa","dfnText":"RasterizationPoint","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint"}],"title":"13.3.1.1.10. position"},{"refs":[{"id":"ref-for-rasterizationpoint\u2460"}],"title":"13.3.1.1.13. sample_mask"},{"refs":[{"id":"ref-for-rasterizationpoint\u2461"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint"},
+"dde6d8fa": {"dfnID":"dde6d8fa","dfnText":"GPUBufferBindingType","external":true,"refSections":[{"refs":[{"id":"ref-for-enumdef-gpubufferbindingtype"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#enumdef-gpubufferbindingtype"},
+"decimal-floating-point-literal": {"dfnID":"decimal-floating-point-literal","dfnText":"decimal floating point literal","external":false,"refSections":[{"refs":[{"id":"ref-for-decimal-floating-point-literal"},{"id":"ref-for-decimal-floating-point-literal\u2460"},{"id":"ref-for-decimal-floating-point-literal\u2461"}],"title":"3.5.2. Numeric Literals"}],"url":"#decimal-floating-point-literal"},
+--
+"local-invocation-id": {"dfnID":"local-invocation-id","dfnText":"local invocation ID","external":false,"refSections":[{"refs":[{"id":"ref-for-local-invocation-id"}],"title":"13.3.1.1.7. local_invocation_id"},{"refs":[{"id":"ref-for-local-invocation-id\u2460"},{"id":"ref-for-local-invocation-id\u2461"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#local-invocation-id"},
+"local-invocation-index": {"dfnID":"local-invocation-index","dfnText":"local invocation index","external":false,"refSections":[{"refs":[{"id":"ref-for-local-invocation-index"}],"title":"13.3.1.1.8. local_invocation_index"}],"url":"#local-invocation-index"},
+"logical-texel-address": {"dfnID":"logical-texel-address","dfnText":"logical texel address","external":false,"refSections":[{"refs":[{"id":"ref-for-logical-texel-address"}],"title":"6.5.3. Multisampled Texture Types"},{"refs":[{"id":"ref-for-logical-texel-address\u2460"}],"title":"17.7.1. textureDimensions"},{"refs":[{"id":"ref-for-logical-texel-address\u2461"}],"title":"17.7.4. textureLoad"},{"refs":[{"id":"ref-for-logical-texel-address\u2462"}],"title":"17.7.15. textureStore"}],"url":"#logical-texel-address"},
+"loop-body": {"dfnID":"loop-body","dfnText":"loop body","external":false,"refSections":[{"refs":[{"id":"ref-for-loop-body"},{"id":"ref-for-loop-body\u2460"}],"title":"2.3.3. Diagnostic Filtering"}],"url":"#loop-body"},
+"mat2x2f": {"dfnID":"mat2x2f","dfnText":"mat2x2f","external":false,"refSections":[],"url":"#mat2x2f"},
+"mat2x2h": {"dfnID":"mat2x2h","dfnText":"mat2x2h","external":false,"refSections":[],"url":"#mat2x2h"},
+"mat2x3f": {"dfnID":"mat2x3f","dfnText":"mat2x3f","external":false,"refSections":[],"url":"#mat2x3f"},
+"mat2x3h": {"dfnID":"mat2x3h","dfnText":"mat2x3h","external":false,"refSections":[],"url":"#mat2x3h"},
+"mat2x4f": {"dfnID":"mat2x4f","dfnText":"mat2x4f","external":false,"refSections":[],"url":"#mat2x4f"},
+"mat2x4h": {"dfnID":"mat2x4h","dfnText":"mat2x4h","external":false,"refSections":[],"url":"#mat2x4h"},
+"mat3x2f": {"dfnID":"mat3x2f","dfnText":"mat3x2f","external":false,"refSections":[],"url":"#mat3x2f"},
+"mat3x2h": {"dfnID":"mat3x2h","dfnText":"mat3x2h","external":false,"refSections":[],"url":"#mat3x2h"},
+"mat3x3f": {"dfnID":"mat3x3f","dfnText":"mat3x3f","external":false,"refSections":[],"url":"#mat3x3f"},
+"mat3x3h": {"dfnID":"mat3x3h","dfnText":"mat3x3h","external":false,"refSections":[],"url":"#mat3x3h"},
+"mat3x4f": {"dfnID":"mat3x4f","dfnText":"mat3x4f","external":false,"refSections":[],"url":"#mat3x4f"},
+"mat3x4h": {"dfnID":"mat3x4h","dfnText":"mat3x4h","external":false,"refSections":[],"url":"#mat3x4h"},
+"mat4x2f": {"dfnID":"mat4x2f","dfnText":"mat4x2f","external":false,"refSections":[],"url":"#mat4x2f"},
+"mat4x2h": {"dfnID":"mat4x2h","dfnText":"mat4x2h","external":false,"refSections":[],"url":"#mat4x2h"},
+"mat4x3f": {"dfnID":"mat4x3f","dfnText":"mat4x3f","external":false,"refSections":[],"url":"#mat4x3f"},
+"mat4x3h": {"dfnID":"mat4x3h","dfnText":"mat4x3h","external":false,"refSections":[],"url":"#mat4x3h"},
+"mat4x4f": {"dfnID":"mat4x4f","dfnText":"mat4x4f","external":false,"refSections":[],"url":"#mat4x4f"},
+--
+"workgroup-grid": {"dfnID":"workgroup-grid","dfnText":"workgroup grid","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-grid"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-workgroup-grid\u2460"}],"title":"13.3.1.1.7. local_invocation_id"},{"refs":[{"id":"ref-for-workgroup-grid\u2461"}],"title":"13.3.1.1.8. local_invocation_index"}],"url":"#workgroup-grid"},
+"workgroup-id": {"dfnID":"workgroup-id","dfnText":"workgroup ID","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-id"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-workgroup-id\u2460"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#workgroup-id"},
+"workgroup-index": {"dfnID":"workgroup-index","dfnText":"workgroup index","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-index"}],"title":"13.3.1.1.16. workgroup_index"}],"url":"#workgroup-index"},
+"workgroup-uniformity-scope": {"dfnID":"workgroup-uniformity-scope","dfnText":"Workgroup uniformity scope","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-uniformity-scope"}],"title":"15.2.2. Uniformity Analysis Overview"}],"url":"#workgroup-uniformity-scope"},
+"write-access": {"dfnID":"write-access","dfnText":"write access","external":false,"refSections":[{"refs":[{"id":"ref-for-write-access"}],"title":"6.4.7. Use Cases for References and Pointers"},{"refs":[{"id":"ref-for-write-access\u2460"},{"id":"ref-for-write-access\u2461"}],"title":"6.5.5. Storage Texture Types"},{"refs":[{"id":"ref-for-write-access\u2462"}],"title":"7.1. Variables vs Values"},{"refs":[{"id":"ref-for-write-access\u2463"},{"id":"ref-for-write-access\u2464"}],"title":"8.5.1.3. Component Reference from Vector Memory View"},{"refs":[{"id":"ref-for-write-access\u2465"}],"title":"9.2.3. Compound Assignment"},{"refs":[{"id":"ref-for-write-access\u2466"},{"id":"ref-for-write-access\u2467"}],"title":"11.4.1.2. Aliasing"},{"refs":[{"id":"ref-for-write-access\u2468"},{"id":"ref-for-write-access\u2460\u24ea"},{"id":"ref-for-write-access\u2460\u2460"}],"title":"14.5.1. Memory Operation"},{"refs":[{"id":"ref-for-write-access\u2460\u2461"},{"id":"ref-for-write-access\u2460\u2462"}],"title":"14.5.5. Private vs Non-private"},{"refs":[{"id":"ref-for-write-access\u2460\u2463"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"#write-access"},
+"zero-value": {"dfnID":"zero-value","dfnText":"zero value","external":false,"refSections":[{"refs":[{"id":"ref-for-zero-value"}],"title":"6.4.6. Out-of-Bounds Access"},{"refs":[{"id":"ref-for-zero-value\u2460"},{"id":"ref-for-zero-value\u2461"},{"id":"ref-for-zero-value\u2462"},{"id":"ref-for-zero-value\u2463"},{"id":"ref-for-zero-value\u2464"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-zero-value\u2465"}],"title":"17.1.1. Zero Value Built-in Functions"},{"refs":[{"id":"ref-for-zero-value\u2466"}],"title":"17.1.2.2. bool"}],"url":"#zero-value"},
+};
+
+document.addEventListener("DOMContentLoaded", ()=>{
+    genAllDfnPanels();
+
+    document.body.addEventListener("click", (e) => {
+        // If not handled already, just hide all dfn panels.
+        hideAllDfnPanels();
+    });
+});
+
+window.addEventListener("resize", () => {
+    // Pin any visible dfn panel
+    queryAll(".dfn-panel.on, .dfn-panel.activated").forEach(el=>positionDfnPanel(el));
+});
+--
+"#built-in-values-local_invocation_id": {"displayText":"local_invocation_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"local_invocation_id","type":"dfn","url":"#built-in-values-local_invocation_id"},
+"#built-in-values-local_invocation_index": {"displayText":"local_invocation_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"local_invocation_index","type":"dfn","url":"#built-in-values-local_invocation_index"},
+"#built-in-values-num_subgroups": {"displayText":"num_subgroups","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"num_subgroups","type":"dfn","url":"#built-in-values-num_subgroups"},
+"#built-in-values-num_workgroups": {"displayText":"num_workgroups","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"num_workgroups","type":"dfn","url":"#built-in-values-num_workgroups"},
+"#built-in-values-position": {"displayText":"position","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"position","type":"dfn","url":"#built-in-values-position"},
+"#built-in-values-primitive_index": {"displayText":"primitive_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"primitive_index","type":"dfn","url":"#built-in-values-primitive_index"},
+"#built-in-values-sample_index": {"displayText":"sample_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"sample_index","type":"dfn","url":"#built-in-values-sample_index"},
+"#built-in-values-sample_mask": {"displayText":"sample_mask","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"sample_mask","type":"dfn","url":"#built-in-values-sample_mask"},
+"#built-in-values-subgroup_id": {"displayText":"subgroup_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"subgroup_id","type":"dfn","url":"#built-in-values-subgroup_id"},
+"#built-in-values-subgroup_invocation_id": {"displayText":"subgroup_invocation_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"subgroup_invocation_id","type":"dfn","url":"#built-in-values-subgroup_invocation_id"},
+"#built-in-values-subgroup_size": {"displayText":"subgroup_size","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"subgroup_size","type":"dfn","url":"#built-in-values-subgroup_size"},
+"#built-in-values-vertex_index": {"displayText":"vertex_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"vertex_index","type":"dfn","url":"#built-in-values-vertex_index"},
+"#built-in-values-workgroup_id": {"displayText":"workgroup_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"workgroup_id","type":"dfn","url":"#built-in-values-workgroup_id"},
+"#built-in-values-workgroup_index": {"displayText":"workgroup_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"workgroup_index","type":"dfn","url":"#built-in-values-workgroup_index"},
+"#builtin-functions-that-compute-a-derivative": {"displayText":"builtin functions that compute a derivative","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"builtin functions that compute a derivative","type":"dfn","url":"#builtin-functions-that-compute-a-derivative"},
+"#byte-size": {"displayText":"byte-size","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"byte-size","type":"dfn","url":"#byte-size"},
+"#call-site": {"displayText":"call site","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"call site","type":"dfn","url":"#call-site"},
+"#call-site-tag": {"displayText":"call site tag","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"call site tag","type":"dfn","url":"#call-site-tag"},
+"#called-function": {"displayText":"called function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"called function","type":"dfn","url":"#called-function"},
+"#calling-function": {"displayText":"calling function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"calling function","type":"dfn","url":"#calling-function"},
+"#callsitenorestriction": {"displayText":"callsitenorestriction","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"callsitenorestriction","type":"dfn","url":"#callsitenorestriction"},
+            <li><a href="#workgroup-id-builtin-value"><span class="secno">13.3.1.1.15</span> <span class="content"><code>workgroup_id</code></span></a>
+            <li><a href="#workgroup-index-builtin-value"><span class="secno">13.3.1.1.16</span> <span class="content"><code>workgroup_index</code></span></a>
+            <li><a href="#subgroup-invocation-id-builtin-value"><span class="secno">13.3.1.1.17</span> <span class="content"><code>subgroup_invocation_id</code></span></a>
+            <li><a href="#subgroup-size-builtin-value"><span class="secno">13.3.1.1.18</span> <span class="content"><code>subgroup_size</code></span></a>
+            <li><a href="#subgroup-id-builtin-value"><span class="secno">13.3.1.1.19</span> <span class="content"><code>subgroup_id</code></span></a>
+            <li><a href="#num-subgroups-builtin-value"><span class="secno">13.3.1.1.20</span> <span class="content"><code>num_subgroups</code></span></a>
+           </ol>
+          <li><a href="#user-defined-inputs-outputs"><span class="secno">13.3.1.2</span> <span class="content">User-defined Inputs and Outputs</span></a>
+          <li><a href="#input-output-locations"><span class="secno">13.3.1.3</span> <span class="content">Input-output Locations</span></a>
+          <li><a href="#interpolation"><span class="secno">13.3.1.4</span> <span class="content">Interpolation</span></a>
+         </ol>
+        <li><a href="#resource-interface"><span class="secno">13.3.2</span> <span class="content">Resource Interface</span></a>
+        <li><a href="#resource-layout-compatibility"><span class="secno">13.3.3</span> <span class="content">Resource Layout Compatibility</span></a>
+        <li><a href="#buffer-binding-determines-runtime-sized-array-element-count"><span class="secno">13.3.4</span> <span class="content">Buffer Binding Determines Runtime-Sized Array Element Count</span></a>
+       </ol>
+     </ol>
+    <li>
+     <a href="#memory"><span class="secno">14</span> <span class="content">Memory</span></a>
+     <ol class="toc">
+      <li><a href="#memory-locations-section"><span class="secno">14.1</span> <span class="content">Memory Locations</span></a>
+      <li><a href="#memory-access-mode"><span class="secno">14.2</span> <span class="content">Memory Access Mode</span></a>
+--
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_id" id="ref-for-built-in-values-workgroup_id"><code>'workgroup_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_index" id="ref-for-built-in-values-workgroup_index"><code>'workgroup_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_workgroups" id="ref-for-built-in-values-num_workgroups"><code>'num_workgroups'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_invocation_id" id="ref-for-built-in-values-subgroup_invocation_id"><code>'subgroup_invocation_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_size" id="ref-for-built-in-values-subgroup_size"><code>'subgroup_size'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-primitive_index" id="ref-for-built-in-values-primitive_index"><code>'primitive_index'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_id" id="ref-for-built-in-values-subgroup_id"><code>'subgroup_id'</code></a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_subgroups" id="ref-for-built-in-values-num_subgroups"><code>'num_subgroups'</code></a></p>
+   </ul>
+   <h4 class="heading settled" data-level="3.8.3" id="diagnostic-rule-names"><span class="secno">3.8.3. </span><span class="content">Diagnostic Rule Names</span><a class="self-link" href="#diagnostic-rule-names"></a></h4>
+   <p>A <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="diagnostic-name-token">diagnostic name-token</dfn> is a <a data-link-type="dfn" href="#token" id="ref-for-token⑦">token</a> used in the name of a diagnostic <a data-link-type="dfn" href="#diagnostic-triggering-rule" id="ref-for-diagnostic-triggering-rule⑦">triggering rule</a>.</p>
+   <p>See <a href="#diagnostics">§ 2.3 Diagnostics</a>.</p>
+   <div class="syntax">
+    
+--
+      <td><a data-link-type="dfn" href="#built-in-values-workgroup_id" id="ref-for-built-in-values-workgroup_id①">workgroup_id</a>
+      
+      <td>compute
+      
+      <td>input
+      
+      <td>vec3&lt;u32>
+      
+      <td>
+     <tr>
+      <td><a data-link-type="dfn" href="#built-in-values-workgroup_index" id="ref-for-built-in-values-workgroup_index②">workgroup_index</a>
+      
+      <td>compute
+      
+      <td>input
+      
+      <td>u32
+      
+      <td><a data-link-type="dfn" href="#language_extension-linear_indexing" id="ref-for-language_extension-linear_indexing②">linear_indexing</a>
+
+  
+--
+      is equal to <a data-link-type="dfn" href="#built-in-values-workgroup_id" id="ref-for-built-in-values-workgroup_id②">workgroup_id</a> * <a data-link-type="dfn" href="#attribute-workgroup_size" id="ref-for-attribute-workgroup_size③">workgroup_size</a> +
+      <a data-link-type="dfn" href="#built-in-values-local_invocation_id" id="ref-for-built-in-values-local_invocation_id②">local_invocation_id</a>.
+
+
+   </table>
+   <h6 class="heading settled" data-level="13.3.1.1.5" id="global-invocation-index-builtin-value"><span class="secno">13.3.1.1.5. </span><span class="content"><code>global_invocation_index</code></span><a class="self-link" href="#global-invocation-index-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-global_invocation_index">global_invocation_index</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#compute-shader-stage" id="ref-for-compute-shader-stage⑥">compute</a>
+  
+     <tr>
+      <td style="width:10%">Type
+      
+--
+   <h6 class="heading settled" data-level="13.3.1.1.15" id="workgroup-id-builtin-value"><span class="secno">13.3.1.1.15. </span><span class="content"><code>workgroup_id</code></span><a class="self-link" href="#workgroup-id-builtin-value"></a></h6>
+   <table class="data">
+    <tbody>
+     <tr>
+      <td style="width:10%">Name
+      
+      <td><dfn class="dfn-paneled" data-dfn-for="built-in values" data-dfn-type="dfn" data-noexport id="built-in-values-workgroup_id">workgroup_id</dfn>
+  
+     <tr>
+      <td style="width:10%">Stage
+      
+      <td><a data-link-type="dfn" href="#compute-shader-stage" id="ref-for-compute-shader-stage①⓪">compute</a>
+  
+     <tr>
+      <td style="width:10%">Type
+      
+      <td>vec3&lt;u32>
+  
+     <tr>
+      <td style="width:10%">Direction
+      
+      <td>Input
+  
+     <tr>
+      <td style="width:10%">Description
+      
+      <td>
+--
+     <p><a data-link-type="dfn" href="#built-in-values-workgroup_id" id="ref-for-built-in-values-workgroup_id③">workgroup_id</a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_workgroups" id="ref-for-built-in-values-num_workgroups⑤">num_workgroups</a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_size" id="ref-for-built-in-values-subgroup_size③">subgroup_size</a> when used in a <a data-link-type="dfn" href="#compute-shader-stage" id="ref-for-compute-shader-stage②⓪">compute shader stage</a></p>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-num_subgroups" id="ref-for-built-in-values-num_subgroups④">num_subgroups</a></p>
+   </ul>
+   <p>At <a data-link-type="dfn" href="#subgroup-uniformity-scope" id="ref-for-subgroup-uniformity-scope">subgroup uniformity scope</a>, the following built-in
+input variables are also considered uniform:</p>
+   <ul>
+    <li data-md>
+     <p><a data-link-type="dfn" href="#built-in-values-subgroup_id" id="ref-for-built-in-values-subgroup_id③">subgroup_id</a></p>
+   </ul>
+   <p>All other ones (see <a data-link-type="dfn" href="#built-in-values" id="ref-for-built-in-values⑥">built-in values</a>) are considered non-uniform.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> An author should avoid grouping the uniform built-in values together with
+other non-uniform inputs because the analysis does not analyze the <a data-link-type="dfn" href="#components" id="ref-for-components④">components</a>
+of a <a data-link-type="dfn" href="#composite" id="ref-for-composite⑧">composite</a> type separately.</p>
+   <table class="data">
+    <caption>Uniformity rules for <a data-link-type="dfn" href="#lhsvalue" id="ref-for-lhsvalue③">LHSValue</a> expressions</caption>
+    <thead>
+--
+  <c- c1>// workgroup_id is a uniform built-in value.</c->
+  <c- nd>@builtin</c-><c- p>(</c->workgroup_id<c- p>)</c-> <c- n>wgid</c-> <c- p>:</c-> vec3<c- o>&lt;</c->u32<c- o>></c-><c- p>,</c->
+  <c- c1>// local_invocation_index is a non-uniform built-in value.</c->
+  <c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>lid</c-> <c- p>:</c-> u32
+<c- p>}</c->
+
+<c- nd>@compute</c-> <c- nd>@workgroup_size</c-><c- p>(</c-><c- mi>16</c-><c- p>,</c-><c- mi>1</c-><c- p>,</c-><c- mi>1</c-><c- p>)</c->
+<c- k>fn</c-> <c- n>main</c-><c- p>(</c-><c- n>inputs</c-> <c- p>:</c-> <c- n>Inputs</c-><c- p>)</c-> <c- p>{</c->
+  <c- c1>// This comparison is always uniform,</c->
+  <c- c1>// but the analysis cannot determine that.</c->
+  <c- k>if</c-> <c- n>inputs</c-><c- p>.</c-><c- n>wgid</c-><c- p>.</c-><c- n>x</c-> <c- o>==</c-> <c- mi>1</c-> <c- p>{</c->
+    <c- n>workgroupBarrier</c-><c- p>();</c->
+  <c- p>}</c->
+<c- p>}</c->
+</pre>
+   </div>
+   <div class="example2">
+    <figure>
+     <figcaption>Invalid uniformity graph</figcaption>
+     <object data="img/uniformity_3.mmd.svg" type="image/svg+xml"></object>
+    </figure>
+   </div>
+--
+<c- k>fn</c-> <c- n>main</c-><c- p>(</c-><c- nd>@builtin</c-><c- p>(</c->workgroup_id<c- p>)</c-> <c- n>wgid</c-> <c- p>:</c-> vec3<c- o>&lt;</c->u32<c- o>></c-><c- p>,</c->
+        <c- nd>@builtin</c-><c- p>(</c->local_invocation_index<c- p>)</c-> <c- n>lid</c-> <c- p>:</c-> u32<c- p>)</c-> <c- p>{</c->
+  <c- c1>// The uniformity analysis can now correctly determine this comparison is</c->
+  <c- c1>// always uniform.</c->
+  <c- k>if</c-> <c- n>wgid</c-><c- p>.</c-><c- n>x</c-> <c- o>==</c-> <c- mi>1</c-> <c- p>{</c->
+    <c- c1>// Valid barrier function call.</c->
+    <c- n>workgroupBarrier</c-><c- p>();</c->
+  <c- p>}</c->
+<c- p>}</c->
+</pre>
+   </div>
+   <div class="example3">
+    <figure>
+     <figcaption>Valid alternative uniformity graph</figcaption>
+     <object data="img/uniformity_3b.mmd.svg" type="image/svg+xml"></object>
+    </figure>
+   </div>
+   <h5 class="heading settled" data-level="15.2.10.4" id="uniformity-example4"><span class="secno">15.2.10.4. </span><span class="content">Uniformity in a Loop</span><a class="self-link" href="#uniformity-example4"></a></h5>
+   <p>In this example, there is an invalid <code>workgroupBarrier</code> function call in a
+loop.
+The non-uniform built-in value <code>local_invocation_index</code> is the ultimate cause
+--
+   <li><a href="#built-in-values-workgroup_id">workgroup_id</a><span>, in § 13.3.1.1.15</span>
+   <li><a href="#workgroup-index">workgroup index</a><span>, in § 15.3</span>
+   <li><a href="#built-in-values-workgroup_index">workgroup_index</a><span>, in § 13.3.1.1.16</span>
+   <li><a href="#attribute-workgroup_size">workgroup_size</a><span>, in § 12.15</span>
+   <li>
+    workgroup_size_attr
+    <ul>
+     <li><a href="#recursive-descent-syntax-workgroup_size_attr">dfn for recursive descent syntax</a><span>, in § 18</span>
+     <li><a href="#syntax-workgroup_size_attr">dfn for syntax</a><span>, in § 12.15</span>
+    </ul>
+   <li><a href="#workgroup-uniformity-scope">Workgroup uniformity scope</a><span>, in § 15.2.1</span>
+   <li><a href="#access-write">write</a><span>, in § 14.2</span>
+   <li><a href="#write-access">write access</a><span>, in § 14.2</span>
+   <li><a href="#type-write-only-storage-texture">write-only storage texture</a><span>, in § 6.5.5</span>
+   <li><a href="#syntax_sym-xor">xor</a><span>, in § 16.3</span>
+   <li><a href="#syntax_sym-xor_equal">xor_equal</a><span>, in § 16.3</span>
+   <li><a href="#zero-value">zero value</a><span>, in § 17.1.1</span>
+  </ul>
+  <h3 class="heading no-num no-ref settled" id="index-defined-elsewhere"><span class="content">Terms defined by reference</span><a class="self-link" href="#index-defined-elsewhere"></a></h3>
+  <ul class="index">
+   <li>
+--
+"built-in-values-workgroup_id": {"dfnID":"built-in-values-workgroup_id","dfnText":"workgroup_id","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-workgroup_id"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2460"}],"title":"13.3.1.1. Built-in Inputs and Outputs"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2461"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-built-in-values-workgroup_id\u2462"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#built-in-values-workgroup_id"},
+"built-in-values-workgroup_index": {"dfnID":"built-in-values-workgroup_index","dfnText":"workgroup_index","external":false,"refSections":[{"refs":[{"id":"ref-for-built-in-values-workgroup_index"}],"title":"3.8.2. Built-in Value Names"},{"refs":[{"id":"ref-for-built-in-values-workgroup_index\u2460"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-built-in-values-workgroup_index\u2461"}],"title":"13.3.1.1. Built-in Inputs and Outputs"}],"url":"#built-in-values-workgroup_index"},
+"builtin-functions-that-compute-a-derivative": {"dfnID":"builtin-functions-that-compute-a-derivative","dfnText":"builtin functions that compute a derivative","external":false,"refSections":[{"refs":[{"id":"ref-for-builtin-functions-that-compute-a-derivative"}],"title":"2.3.2. Filterable Triggering Rules"},{"refs":[{"id":"ref-for-builtin-functions-that-compute-a-derivative\u2460"}],"title":"15.2. Uniformity"}],"url":"#builtin-functions-that-compute-a-derivative"},
+"byte-size": {"dfnID":"byte-size","dfnText":"byte-size","external":false,"refSections":[{"refs":[{"id":"ref-for-byte-size"},{"id":"ref-for-byte-size\u2460"},{"id":"ref-for-byte-size\u2461"},{"id":"ref-for-byte-size\u2462"}],"title":"2.4. Limits"},{"refs":[{"id":"ref-for-byte-size\u2463"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-byte-size\u2464"}],"title":"14.4. Memory Layout"}],"url":"#byte-size"},
+"c06fb4a5": {"dfnID":"c06fb4a5","dfnText":"\"depth\"","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputexturesampletype-depth"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#dom-gputexturesampletype-depth"},
+"c3c8301d": {"dfnID":"c3c8301d","dfnText":"texture view swizzle","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputextureviewdescriptor-swizzle"},{"id":"ref-for-dom-gputextureviewdescriptor-swizzle\u2460"}],"title":"17.7.4. textureLoad"}],"url":"https://gpuweb.github.io/gpuweb/#dom-gputextureviewdescriptor-swizzle"},
+"c69b32cb": {"dfnID":"c69b32cb","dfnText":"memory model memory operation","external":true,"refSections":[{"refs":[{"id":"ref-for-memory-model-memory-operation"}],"title":"14.5.1. Memory Operation"}],"url":"https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#memory-model-memory-operation"},
+"c83b76ce": {"dfnID":"c83b76ce","dfnText":"\"write-only\"","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpustoragetextureaccess-write-only"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#dom-gpustoragetextureaccess-write-only"},
+"c8491c30": {"dfnID":"c8491c30","dfnText":"rasterizationpoint-perspectivedivisor","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint-perspectivedivisor"}],"title":"13.3.1.1.10. position"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint-perspectivedivisor"},
+"call-site": {"dfnID":"call-site","dfnText":"call site","external":false,"refSections":[{"refs":[{"id":"ref-for-call-site"},{"id":"ref-for-call-site\u2460"}],"title":"2.3.2. Filterable Triggering Rules"},{"refs":[{"id":"ref-for-call-site\u2461"}],"title":"6.4.5. Originating Variable"},{"refs":[{"id":"ref-for-call-site\u2462"}],"title":"6.4.8. Forming Reference and Pointer Values"},{"refs":[{"id":"ref-for-call-site\u2463"}],"title":"8.12. Formal Parameter Expression"},{"refs":[{"id":"ref-for-call-site\u2464"}],"title":"9.4.10. Return Statement"},{"refs":[{"id":"ref-for-call-site\u2465"}],"title":"11.2. Function Calls"},{"refs":[{"id":"ref-for-call-site\u2466"},{"id":"ref-for-call-site\u2467"}],"title":"11.4.1.2. Aliasing"},{"refs":[{"id":"ref-for-call-site\u2468"},{"id":"ref-for-call-site\u2460\u24ea"}],"title":"15.2. Uniformity"},{"refs":[{"id":"ref-for-call-site\u2460\u2460"},{"id":"ref-for-call-site\u2460\u2461"}],"title":"15.2.3. Analyzing the Uniformity Requirements of a Function"}],"url":"#call-site"},
+"call-site-tag": {"dfnID":"call-site-tag","dfnText":"call site tag","external":false,"refSections":[{"refs":[{"id":"ref-for-call-site-tag"},{"id":"ref-for-call-site-tag\u2460"},{"id":"ref-for-call-site-tag\u2461"},{"id":"ref-for-call-site-tag\u2462"}],"title":"15.2.3. Analyzing the Uniformity Requirements of a Function"},{"refs":[{"id":"ref-for-call-site-tag\u2463"},{"id":"ref-for-call-site-tag\u2464"},{"id":"ref-for-call-site-tag\u2465"},{"id":"ref-for-call-site-tag\u2466"},{"id":"ref-for-call-site-tag\u2467"},{"id":"ref-for-call-site-tag\u2468"},{"id":"ref-for-call-site-tag\u2460\u24ea"}],"title":"15.2.7. Uniformity Rules for Function Calls"}],"url":"#call-site-tag"},
+"called-function": {"dfnID":"called-function","dfnText":"called function","external":false,"refSections":[{"refs":[{"id":"ref-for-called-function"},{"id":"ref-for-called-function\u2460"},{"id":"ref-for-called-function\u2461"}],"title":"11.2. Function Calls"}],"url":"#called-function"},
+"callee": {"dfnID":"callee","dfnText":"callee","external":false,"refSections":[],"url":"#callee"},
+"caller": {"dfnID":"caller","dfnText":"caller","external":false,"refSections":[],"url":"#caller"},
+"calling-function": {"dfnID":"calling-function","dfnText":"calling function","external":false,"refSections":[{"refs":[{"id":"ref-for-calling-function"}],"title":"6.4.7. Use Cases for References and Pointers"},{"refs":[{"id":"ref-for-calling-function\u2460"}],"title":"6.4.8. Forming Reference and Pointer Values"},{"refs":[{"id":"ref-for-calling-function\u2461"},{"id":"ref-for-calling-function\u2462"},{"id":"ref-for-calling-function\u2463"}],"title":"11.2. Function Calls"}],"url":"#calling-function"},
+"callsitenorestriction": {"dfnID":"callsitenorestriction","dfnText":"CallSiteNoRestriction","external":false,"refSections":[{"refs":[{"id":"ref-for-callsitenorestriction"}],"title":"15.2.3. Analyzing the Uniformity Requirements of a Function"},{"refs":[{"id":"ref-for-callsitenorestriction\u2460"},{"id":"ref-for-callsitenorestriction\u2461"},{"id":"ref-for-callsitenorestriction\u2462"},{"id":"ref-for-callsitenorestriction\u2463"},{"id":"ref-for-callsitenorestriction\u2464"},{"id":"ref-for-callsitenorestriction\u2465"},{"id":"ref-for-callsitenorestriction\u2466"}],"title":"15.2.7. Uniformity Rules for Function Calls"}],"url":"#callsitenorestriction"},
+"callsiterequiredtobeuniforms": {"dfnID":"callsiterequiredtobeuniforms","dfnText":"CallSiteRequiredToBeUniform.S","external":false,"refSections":[{"refs":[{"id":"ref-for-callsiterequiredtobeuniforms"}],"title":"15.2.3. Analyzing the Uniformity Requirements of a Function"},{"refs":[{"id":"ref-for-callsiterequiredtobeuniforms\u2460"},{"id":"ref-for-callsiterequiredtobeuniforms\u2461"},{"id":"ref-for-callsiterequiredtobeuniforms\u2462"},{"id":"ref-for-callsiterequiredtobeuniforms\u2463"},{"id":"ref-for-callsiterequiredtobeuniforms\u2464"},{"id":"ref-for-callsiterequiredtobeuniforms\u2465"}],"title":"15.2.7. Uniformity Rules for Function Calls"}],"url":"#callsiterequiredtobeuniforms"},
+"case-clause": {"dfnID":"case-clause","dfnText":"case clause","external":false,"refSections":[{"refs":[{"id":"ref-for-case-clause"}],"title":"2.3.3. Diagnostic Filtering"},{"refs":[{"id":"ref-for-case-clause\u2460"},{"id":"ref-for-case-clause\u2461"},{"id":"ref-for-case-clause\u2462"}],"title":"9.4.2. Switch Statement"}],"url":"#case-clause"},
+"ccfdc82c": {"dfnID":"ccfdc82c","dfnText":"count","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpumultisamplestate-count"}],"title":"13.3.1.1.12. sample_index"},{"refs":[{"id":"ref-for-dom-gpumultisamplestate-count\u2460"}],"title":"13.3.1.1.13. sample_mask"}],"url":"https://www.w3.org/TR/webgpu/#dom-gpumultisamplestate-count"},
+"cdca3919": {"dfnID":"cdca3919","dfnText":"rasterizationpoint-depth","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint-depth"}],"title":"13.3.1.1.10. position"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint-depth"},
+"ceiling-expression": {"dfnID":"ceiling-expression","dfnText":"ceiling expression","external":false,"refSections":[{"refs":[{"id":"ref-for-ceiling-expression"}],"title":"17.5.9. ceil"}],"url":"#ceiling-expression"},
+--
+"compute-shader-grid": {"dfnID":"compute-shader-grid","dfnText":"compute shader grid","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-grid"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-grid\u2460"}],"title":"13.3.1.1.5. global_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-grid\u2461"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-compute-shader-grid\u2462"}],"title":"13.3.1.1.16. workgroup_index"}],"url":"#compute-shader-grid"},
+"compute-shader-stage": {"dfnID":"compute-shader-stage","dfnText":"compute shader stage","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-stage"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2462"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2463"}],"title":"12.16.3. compute"},{"refs":[{"id":"ref-for-compute-shader-stage\u2464"}],"title":"13.3.1.1.4. global_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2465"}],"title":"13.3.1.1.5. global_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2466"}],"title":"13.3.1.1.7. local_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2467"}],"title":"13.3.1.1.8. local_invocation_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2468"}],"title":"13.3.1.1.9. num_workgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u24ea"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2460"}],"title":"13.3.1.1.16. workgroup_index"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2461"},{"id":"ref-for-compute-shader-stage\u2460\u2462"}],"title":"13.3.1.1.17. subgroup_invocation_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2463"}],"title":"13.3.1.1.18. subgroup_size"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2464"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2465"}],"title":"13.3.1.1.20. num_subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2466"},{"id":"ref-for-compute-shader-stage\u2460\u2467"}],"title":"14.3. Address Spaces"},{"refs":[{"id":"ref-for-compute-shader-stage\u2460\u2468"}],"title":"15.2.1. Terminology and Concepts"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u24ea"}],"title":"15.2.8. Uniformity Rules for Expressions"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2460"}],"title":"15.3. Compute Shaders and Workgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2461"}],"title":"15.5. Subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2462"}],"title":"15.6.1. Barriers"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2463"}],"title":"17.12. Subgroup Built-in Functions"},{"refs":[{"id":"ref-for-compute-shader-stage\u2461\u2464"}],"title":"17.13. Quad Operations"}],"url":"#compute-shader-stage"},
+"compute-shader-stage-workgroup": {"dfnID":"compute-shader-stage-workgroup","dfnText":"workgroup","external":false,"refSections":[{"refs":[{"id":"ref-for-compute-shader-stage-workgroup"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2460"}],"title":"6.2.8. Atomic Types"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2461"}],"title":"13.3.1.1.19. subgroup_id"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2462"}],"title":"13.3.1.1.20. num_subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2463"}],"title":"14.3. Address Spaces"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2464"}],"title":"15.2.1. Terminology and Concepts"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2465"},{"id":"ref-for-compute-shader-stage-workgroup\u2466"}],"title":"15.5. Subgroups"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2467"}],"title":"15.6.1. Barriers"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2468"}],"title":"17.12. Subgroup Built-in Functions"},{"refs":[{"id":"ref-for-compute-shader-stage-workgroup\u2460\u24ea"}],"title":"17.13. Quad Operations"}],"url":"#compute-shader-stage-workgroup"},
+"concretization": {"dfnID":"concretization","dfnText":"concretization","external":false,"refSections":[{"refs":[{"id":"ref-for-concretization"}],"title":"7. Variable and Value Declarations"}],"url":"#concretization"},
+"concretization-of-a-value": {"dfnID":"concretization-of-a-value","dfnText":"concretization of a value","external":false,"refSections":[{"refs":[{"id":"ref-for-concretization-of-a-value"}],"title":"7.2.2. override Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2460"}],"title":"7.2.3. let Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2461"},{"id":"ref-for-concretization-of-a-value\u2462"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2463"}],"title":"8.5.1.1. Vector Single Component Selection"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2464"}],"title":"8.5.2. Matrix Access Expression"},{"refs":[{"id":"ref-for-concretization-of-a-value\u2465"}],"title":"8.5.3. Array Access Expression"}],"url":"#concretization-of-a-value"},
+"const-declaration": {"dfnID":"const-declaration","dfnText":"const-declaration","external":false,"refSections":[{"refs":[{"id":"ref-for-const-declaration"},{"id":"ref-for-const-declaration\u2460"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2461"}],"title":"7.1. Variables vs Values"},{"refs":[{"id":"ref-for-const-declaration\u2462"}],"title":"7.2. Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2463"},{"id":"ref-for-const-declaration\u2464"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-const-declaration\u2465"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-declaration\u2466"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-const-declaration\u2467"}],"title":"11.3. const Functions"},{"refs":[{"id":"ref-for-const-declaration\u2468"},{"id":"ref-for-const-declaration\u2460\u24ea"}],"title":"15.2.8. Uniformity Rules for Expressions"}],"url":"#const-declaration"},
+"const-expressions": {"dfnID":"const-expressions","dfnText":"const-expressions","external":false,"refSections":[{"refs":[{"id":"ref-for-const-expressions"}],"title":"1.1. Overview"},{"refs":[{"id":"ref-for-const-expressions\u2460"}],"title":"6.1. Type Checking"},{"refs":[{"id":"ref-for-const-expressions\u2461"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-const-expressions\u2462"},{"id":"ref-for-const-expressions\u2463"}],"title":"6.1.3. Overload Resolution"},{"refs":[{"id":"ref-for-const-expressions\u2464"}],"title":"6.2.5. Scalar Types"},{"refs":[{"id":"ref-for-const-expressions\u2465"}],"title":"6.2.9. Array Types"},{"refs":[{"id":"ref-for-const-expressions\u2466"},{"id":"ref-for-const-expressions\u2467"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-const-expressions\u2468"},{"id":"ref-for-const-expressions\u2460\u24ea"},{"id":"ref-for-const-expressions\u2460\u2460"},{"id":"ref-for-const-expressions\u2460\u2461"},{"id":"ref-for-const-expressions\u2460\u2462"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2463"}],"title":"7.2.1. const Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2464"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2465"},{"id":"ref-for-const-expressions\u2460\u2466"},{"id":"ref-for-const-expressions\u2460\u2467"}],"title":"8. Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2460\u2468"}],"title":"8.1. Early Evaluation Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2461\u24ea"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2460"},{"id":"ref-for-const-expressions\u2461\u2461"},{"id":"ref-for-const-expressions\u2461\u2462"}],"title":"8.5.1.1. Vector Single Component Selection"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2463"}],"title":"8.5.1.3. Component Reference from Vector Memory View"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2464"},{"id":"ref-for-const-expressions\u2461\u2465"},{"id":"ref-for-const-expressions\u2461\u2466"},{"id":"ref-for-const-expressions\u2461\u2467"}],"title":"8.5.2. Matrix Access Expression"},{"refs":[{"id":"ref-for-const-expressions\u2461\u2468"},{"id":"ref-for-const-expressions\u2462\u24ea"},{"id":"ref-for-const-expressions\u2462\u2460"},{"id":"ref-for-const-expressions\u2462\u2461"},{"id":"ref-for-const-expressions\u2462\u2462"}],"title":"8.5.3. Array Access Expression"},{"refs":[{"id":"ref-for-const-expressions\u2462\u2463"},{"id":"ref-for-const-expressions\u2462\u2464"},{"id":"ref-for-const-expressions\u2462\u2465"},{"id":"ref-for-const-expressions\u2462\u2466"},{"id":"ref-for-const-expressions\u2462\u2467"},{"id":"ref-for-const-expressions\u2462\u2468"}],"title":"8.7. Arithmetic Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u24ea"},{"id":"ref-for-const-expressions\u2463\u2460"},{"id":"ref-for-const-expressions\u2463\u2461"},{"id":"ref-for-const-expressions\u2463\u2462"}],"title":"8.9. Bit Expressions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2463"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2464"}],"title":"9.4.2. Switch Statement"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2465"}],"title":"10.1. Const Assertion Statement"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2466"},{"id":"ref-for-const-expressions\u2463\u2467"}],"title":"11.3. const Functions"},{"refs":[{"id":"ref-for-const-expressions\u2463\u2468"}],"title":"12.1. align"},{"refs":[{"id":"ref-for-const-expressions\u2464\u24ea"}],"title":"12.2. binding"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2460"}],"title":"12.3. blend_src"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2461"}],"title":"12.5. const"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2462"}],"title":"12.7. group"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2463"}],"title":"12.8. id"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2464"}],"title":"12.11. location"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2465"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2466"},{"id":"ref-for-const-expressions\u2464\u2467"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-const-expressions\u2464\u2468"},{"id":"ref-for-const-expressions\u2465\u24ea"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2460"},{"id":"ref-for-const-expressions\u2465\u2461"},{"id":"ref-for-const-expressions\u2465\u2462"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2463"}],"title":"15.7.3. Floating Point Rounding and Overflow"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2464"}],"title":"15.7.6. Floating Point Conversion"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2465"}],"title":"17.5.10. clamp"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2466"}],"title":"17.5.25. extractBits (signed)"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2467"}],"title":"17.5.26. extractBits (unsigned)"},{"refs":[{"id":"ref-for-const-expressions\u2465\u2468"}],"title":"17.5.35. insertBits"},{"refs":[{"id":"ref-for-const-expressions\u2466\u24ea"}],"title":"17.5.37. ldexp"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2460"}],"title":"17.5.47. quantizeToF16"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2461"}],"title":"17.5.57. smoothstep"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2462"},{"id":"ref-for-const-expressions\u2466\u2463"}],"title":"17.7.2. textureGather"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2464"}],"title":"17.7.3. textureGatherCompare"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2465"}],"title":"17.7.8. textureSample"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2466"}],"title":"17.7.9. textureSampleBias"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2467"}],"title":"17.7.10. textureSampleCompare"},{"refs":[{"id":"ref-for-const-expressions\u2466\u2468"}],"title":"17.7.11. textureSampleCompareLevel"},{"refs":[{"id":"ref-for-const-expressions\u2467\u24ea"}],"title":"17.7.12. textureSampleGrad"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2460"}],"title":"17.7.13. textureSampleLevel"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2461"}],"title":"17.9.9. pack2x16float"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2462"}],"title":"17.12.6. subgroupBroadcast"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2463"}],"title":"17.12.12. subgroupShuffle"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2464"}],"title":"17.12.12.1. subgroupShuffleDown"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2465"}],"title":"17.12.12.2. subgroupShuffleUp"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2466"}],"title":"17.12.12.3. subgroupShuffleXor"},{"refs":[{"id":"ref-for-const-expressions\u2467\u2467"}],"title":"17.13.1. quadBroadcast"}],"url":"#const-expressions"},
+"const-functions": {"dfnID":"const-functions","dfnText":"const-functions","external":false,"refSections":[{"refs":[{"id":"ref-for-const-functions"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-const-functions\u2460"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-const-functions\u2461"}],"title":"12.5. const"}],"url":"#const-functions"},
+"constructible": {"dfnID":"constructible","dfnText":"constructible","external":false,"refSections":[{"refs":[{"id":"ref-for-constructible"}],"title":"6.2.12. Constructible Types"},{"refs":[{"id":"ref-for-constructible\u2460"},{"id":"ref-for-constructible\u2461"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-constructible\u2462"}],"title":"6.3. Enumeration Types"},{"refs":[{"id":"ref-for-constructible\u2463"},{"id":"ref-for-constructible\u2464"},{"id":"ref-for-constructible\u2465"},{"id":"ref-for-constructible\u2466"},{"id":"ref-for-constructible\u2467"},{"id":"ref-for-constructible\u2468"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u24ea"}],"title":"7.2.1. const Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2460"}],"title":"7.2.3. let Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2461"},{"id":"ref-for-constructible\u2460\u2462"},{"id":"ref-for-constructible\u2460\u2463"},{"id":"ref-for-constructible\u2460\u2464"},{"id":"ref-for-constructible\u2460\u2465"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-constructible\u2460\u2466"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-constructible\u2460\u2467"}],"title":"9.2.1. Simple Assignment"},{"refs":[{"id":"ref-for-constructible\u2460\u2468"}],"title":"9.2.2. Phony Assignment"},{"refs":[{"id":"ref-for-constructible\u2461\u24ea"}],"title":"11.1. Declaring a User-defined Function"},{"refs":[{"id":"ref-for-constructible\u2461\u2460"}],"title":"11.4. Restrictions on Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2461"}],"title":"17.1. Constructor Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2462"},{"id":"ref-for-constructible\u2461\u2463"},{"id":"ref-for-constructible\u2461\u2464"},{"id":"ref-for-constructible\u2461\u2465"},{"id":"ref-for-constructible\u2461\u2466"}],"title":"17.1.1. Zero Value Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2467"}],"title":"17.1.2. Value Constructor Built-in Functions"},{"refs":[{"id":"ref-for-constructible\u2461\u2468"},{"id":"ref-for-constructible\u2462\u24ea"},{"id":"ref-for-constructible\u2462\u2460"}],"title":"17.1.2.1. array"},{"refs":[{"id":"ref-for-constructible\u2462\u2461"}],"title":"17.1.2.15. Structures"},{"refs":[{"id":"ref-for-constructible\u2462\u2462"}],"title":"17.11.4. workgroupUniformLoad"}],"url":"#constructible"},
+"context-dependent-name": {"dfnID":"context-dependent-name","dfnText":"context-dependent name","external":false,"refSections":[{"refs":[{"id":"ref-for-context-dependent-name"}],"title":"3.4. Tokens"},{"refs":[{"id":"ref-for-context-dependent-name\u2460"}],"title":"3.8. Context-Dependent Names"},{"refs":[{"id":"ref-for-context-dependent-name\u2461"}],"title":"8.5.1. Vector Access Expression"},{"refs":[{"id":"ref-for-context-dependent-name\u2462"}],"title":"12. Attributes"}],"url":"#context-dependent-name"},
+"control-barrier": {"dfnID":"control-barrier","dfnText":"control barrier","external":false,"refSections":[{"refs":[{"id":"ref-for-control-barrier"}],"title":"17.11. Synchronization Built-in Functions"},{"refs":[{"id":"ref-for-control-barrier\u2460"}],"title":"17.11.1. storageBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2461"}],"title":"17.11.2. textureBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2462"}],"title":"17.11.3. workgroupBarrier"},{"refs":[{"id":"ref-for-control-barrier\u2463"},{"id":"ref-for-control-barrier\u2464"}],"title":"17.11.4. workgroupUniformLoad"}],"url":"#control-barrier"},
+"conversionrank": {"dfnID":"conversionrank","dfnText":"ConversionRank","external":false,"refSections":[{"refs":[{"id":"ref-for-conversionrank"},{"id":"ref-for-conversionrank\u2460"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-conversionrank\u2461"}],"title":"6.1.3. Overload Resolution"}],"url":"#conversionrank"},
+"correctly-rounded": {"dfnID":"correctly-rounded","dfnText":"correctly rounded","external":false,"refSections":[{"refs":[{"id":"ref-for-correctly-rounded"}],"title":"15.7.4. Floating Point Accuracy"},{"refs":[{"id":"ref-for-correctly-rounded\u2460"}],"title":"15.7.4.2. Accuracy of AbstractFloat Expressions"}],"url":"#correctly-rounded"},
+"creation-fixed-footprint": {"dfnID":"creation-fixed-footprint","dfnText":"creation-fixed footprint","external":false,"refSections":[{"refs":[{"id":"ref-for-creation-fixed-footprint"}],"title":"2.4. Limits"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460"},{"id":"ref-for-creation-fixed-footprint\u2461"},{"id":"ref-for-creation-fixed-footprint\u2462"}],"title":"6.2.9. Array Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2463"},{"id":"ref-for-creation-fixed-footprint\u2464"}],"title":"6.2.10. Structure Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2465"},{"id":"ref-for-creation-fixed-footprint\u2466"}],"title":"6.2.12. Constructible Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2467"},{"id":"ref-for-creation-fixed-footprint\u2468"},{"id":"ref-for-creation-fixed-footprint\u2460\u24ea"},{"id":"ref-for-creation-fixed-footprint\u2460\u2460"},{"id":"ref-for-creation-fixed-footprint\u2460\u2461"}],"title":"6.2.13. Fixed-Footprint Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2462"}],"title":"6.4.2. Host-shareable Types"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2463"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-creation-fixed-footprint\u2460\u2464"}],"title":"12.13. size"}],"url":"#creation-fixed-footprint"},
+"d057ae39": {"dfnID":"d057ae39","dfnText":"GPUAddressMode","external":true,"refSections":[{"refs":[{"id":"ref-for-enumdef-gpuaddressmode"}],"title":"6.5. Texture and Sampler Types"},{"refs":[{"id":"ref-for-enumdef-gpuaddressmode\u2460"}],"title":"17.7.14. textureSampleBaseClampToEdge"}],"url":"https://www.w3.org/TR/webgpu/#enumdef-gpuaddressmode"},
+"d177d646": {"dfnID":"d177d646","dfnText":"subgroupMinSize","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gpuadapterinfo-subgroupminsize\u2461"}],"title":"15.5. Subgroups"}],"url":"https://gpuweb.github.io/gpuweb/#dom-gpuadapterinfo-subgroupminsize"},
+"d3d9f73d": {"dfnID":"d3d9f73d","dfnText":"sampleType","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-gputexturebindinglayout-sampletype"}],"title":"6.5.2. Sampled Texture Types"},{"refs":[{"id":"ref-for-dom-gputexturebindinglayout-sampletype\u2460"}],"title":"6.5.3. Multisampled Texture Types"}],"url":"https://www.w3.org/TR/webgpu/#dom-gputexturebindinglayout-sampletype"},
+"d78f2e9c": {"dfnID":"d78f2e9c","dfnText":"GPUDevice","external":true,"refSections":[{"refs":[{"id":"ref-for-gpudevice"}],"title":"4.1.1. Enable Extensions"}],"url":"https://www.w3.org/TR/webgpu/#gpudevice"},
+"dc06927b": {"dfnID":"dc06927b","dfnText":"memory model non-private","external":true,"refSections":[{"refs":[{"id":"ref-for-memory-model-non-private"},{"id":"ref-for-memory-model-non-private\u2460"},{"id":"ref-for-memory-model-non-private\u2461"},{"id":"ref-for-memory-model-non-private\u2462"}],"title":"14.5.5. Private vs Non-private"}],"url":"https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#memory-model-non-private"},
+"dc397eaa": {"dfnID":"dc397eaa","dfnText":"RasterizationPoint","external":true,"refSections":[{"refs":[{"id":"ref-for-rasterizationpoint"}],"title":"13.3.1.1.10. position"},{"refs":[{"id":"ref-for-rasterizationpoint\u2460"}],"title":"13.3.1.1.13. sample_mask"},{"refs":[{"id":"ref-for-rasterizationpoint\u2461"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"https://gpuweb.github.io/gpuweb/#rasterizationpoint"},
+"dde6d8fa": {"dfnID":"dde6d8fa","dfnText":"GPUBufferBindingType","external":true,"refSections":[{"refs":[{"id":"ref-for-enumdef-gpubufferbindingtype"}],"title":"13.3.3. Resource Layout Compatibility"}],"url":"https://www.w3.org/TR/webgpu/#enumdef-gpubufferbindingtype"},
+"decimal-floating-point-literal": {"dfnID":"decimal-floating-point-literal","dfnText":"decimal floating point literal","external":false,"refSections":[{"refs":[{"id":"ref-for-decimal-floating-point-literal"},{"id":"ref-for-decimal-floating-point-literal\u2460"},{"id":"ref-for-decimal-floating-point-literal\u2461"}],"title":"3.5.2. Numeric Literals"}],"url":"#decimal-floating-point-literal"},
+--
+"group_count_x": {"dfnID":"group_count_x","dfnText":"group_count_x","external":false,"refSections":[{"refs":[{"id":"ref-for-group_count_x"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-group_count_x\u2460"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#group_count_x"},
+"group_count_y": {"dfnID":"group_count_y","dfnText":"group_count_y","external":false,"refSections":[{"refs":[{"id":"ref-for-group_count_y"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-group_count_y\u2460"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#group_count_y"},
+"group_count_z": {"dfnID":"group_count_z","dfnText":"group_count_z","external":false,"refSections":[{"refs":[{"id":"ref-for-group_count_z"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-group_count_z\u2460"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#group_count_z"},
+"helper-invocation": {"dfnID":"helper-invocation","dfnText":"helper invocation","external":false,"refSections":[{"refs":[{"id":"ref-for-helper-invocation"},{"id":"ref-for-helper-invocation\u2460"}],"title":"9.4.11. Discard Statement"},{"refs":[{"id":"ref-for-helper-invocation\u2461"}],"title":"13.3.1.1.17. subgroup_invocation_id"},{"refs":[{"id":"ref-for-helper-invocation\u2462"}],"title":"15.5. Subgroups"}],"url":"#helper-invocation"},
+"hexadecimal-floating-point-literal": {"dfnID":"hexadecimal-floating-point-literal","dfnText":"hexadecimal floating point literal","external":false,"refSections":[{"refs":[{"id":"ref-for-hexadecimal-floating-point-literal"},{"id":"ref-for-hexadecimal-floating-point-literal\u2460"},{"id":"ref-for-hexadecimal-floating-point-literal\u2461"}],"title":"3.5.2. Numeric Literals"}],"url":"#hexadecimal-floating-point-literal"},
+"host-shareable": {"dfnID":"host-shareable","dfnText":"host-shareable","external":false,"refSections":[{"refs":[{"id":"ref-for-host-shareable"},{"id":"ref-for-host-shareable\u2460"},{"id":"ref-for-host-shareable\u2461"},{"id":"ref-for-host-shareable\u2462"}],"title":"7. Variable and Value Declarations"},{"refs":[{"id":"ref-for-host-shareable\u2463"},{"id":"ref-for-host-shareable\u2464"},{"id":"ref-for-host-shareable\u2465"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-host-shareable\u2466"},{"id":"ref-for-host-shareable\u2467"},{"id":"ref-for-host-shareable\u2468"},{"id":"ref-for-host-shareable\u2460\u24ea"}],"title":"14.4. Memory Layout"},{"refs":[{"id":"ref-for-host-shareable\u2460\u2460"},{"id":"ref-for-host-shareable\u2460\u2461"}],"title":"14.4.1. Alignment and Size"},{"refs":[{"id":"ref-for-host-shareable\u2460\u2462"},{"id":"ref-for-host-shareable\u2460\u2463"}],"title":"14.4.4. Internal Layout of Values"}],"url":"#host-shareable"},
+"hyperbolic-angle": {"dfnID":"hyperbolic-angle","dfnText":"hyperbolic angle","external":false,"refSections":[{"refs":[{"id":"ref-for-hyperbolic-angle"}],"title":"17.5.3. acosh"},{"refs":[{"id":"ref-for-hyperbolic-angle\u2460"}],"title":"17.5.5. asinh"},{"refs":[{"id":"ref-for-hyperbolic-angle\u2461"}],"title":"17.5.7. atanh"},{"refs":[{"id":"ref-for-hyperbolic-angle\u2462"}],"title":"17.5.12. cosh"},{"refs":[{"id":"ref-for-hyperbolic-angle\u2463"}],"title":"17.5.56. sinh"},{"refs":[{"id":"ref-for-hyperbolic-angle\u2464"}],"title":"17.5.61. tanh"}],"url":"#hyperbolic-angle"},
+"i32": {"dfnID":"i32","dfnText":"i32","external":false,"refSections":[{"refs":[{"id":"ref-for-i32"}],"title":"3.5.2. Numeric Literals"},{"refs":[{"id":"ref-for-i32\u2460"}],"title":"5. Declaration and Scope"},{"refs":[{"id":"ref-for-i32\u2461"}],"title":"6.1.2. Conversion Rank"},{"refs":[{"id":"ref-for-i32\u2462"},{"id":"ref-for-i32\u2463"},{"id":"ref-for-i32\u2464"},{"id":"ref-for-i32\u2465"},{"id":"ref-for-i32\u2466"}],"title":"6.2.1. Abstract Numeric Types"},{"refs":[{"id":"ref-for-i32\u2467"},{"id":"ref-for-i32\u2468"},{"id":"ref-for-i32\u2460\u24ea"}],"title":"6.2.5. Scalar Types"},{"refs":[{"id":"ref-for-i32\u2460\u2460"}],"title":"6.2.8. Atomic Types"},{"refs":[{"id":"ref-for-i32\u2460\u2461"}],"title":"6.4.6. Out-of-Bounds Access"},{"refs":[{"id":"ref-for-i32\u2460\u2462"}],"title":"6.9. Predeclared Types and Type-Generators Summary"},{"refs":[{"id":"ref-for-i32\u2460\u2463"},{"id":"ref-for-i32\u2460\u2464"},{"id":"ref-for-i32\u2460\u2465"},{"id":"ref-for-i32\u2460\u2466"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-i32\u2460\u2467"},{"id":"ref-for-i32\u2460\u2468"},{"id":"ref-for-i32\u2461\u24ea"},{"id":"ref-for-i32\u2461\u2460"},{"id":"ref-for-i32\u2461\u2461"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-i32\u2461\u2462"}],"title":"12.1. align"},{"refs":[{"id":"ref-for-i32\u2461\u2463"}],"title":"12.2. binding"},{"refs":[{"id":"ref-for-i32\u2461\u2464"}],"title":"12.3. blend_src"},{"refs":[{"id":"ref-for-i32\u2461\u2465"}],"title":"12.7. group"},{"refs":[{"id":"ref-for-i32\u2461\u2466"}],"title":"12.8. id"},{"refs":[{"id":"ref-for-i32\u2461\u2467"}],"title":"12.11. location"},{"refs":[{"id":"ref-for-i32\u2461\u2468"}],"title":"12.13. size"},{"refs":[{"id":"ref-for-i32\u2462\u24ea"}],"title":"12.14. subgroup_size"},{"refs":[{"id":"ref-for-i32\u2462\u2460"}],"title":"12.15. workgroup_size"},{"refs":[{"id":"ref-for-i32\u2462\u2461"},{"id":"ref-for-i32\u2462\u2462"},{"id":"ref-for-i32\u2462\u2463"},{"id":"ref-for-i32\u2462\u2464"}],"title":"14.4.1. Alignment and Size"},{"refs":[{"id":"ref-for-i32\u2462\u2465"},{"id":"ref-for-i32\u2462\u2466"}],"title":"14.4.4. Internal Layout of Values"},{"refs":[{"id":"ref-for-i32\u2462\u2467"}],"title":"14.4.5. Address Space Layout Constraints"},{"refs":[{"id":"ref-for-i32\u2462\u2468"},{"id":"ref-for-i32\u2463\u24ea"},{"id":"ref-for-i32\u2463\u2460"},{"id":"ref-for-i32\u2463\u2461"}],"title":"15.7.6. Floating Point Conversion"},{"refs":[{"id":"ref-for-i32\u2463\u2462"},{"id":"ref-for-i32\u2463\u2463"},{"id":"ref-for-i32\u2463\u2464"},{"id":"ref-for-i32\u2463\u2465"},{"id":"ref-for-i32\u2463\u2466"}],"title":"17.1.2.5. i32"},{"refs":[{"id":"ref-for-i32\u2463\u2467"}],"title":"17.1.2.16. u32"},{"refs":[{"id":"ref-for-i32\u2463\u2468"},{"id":"ref-for-i32\u2464\u24ea"},{"id":"ref-for-i32\u2464\u2460"},{"id":"ref-for-i32\u2464\u2461"},{"id":"ref-for-i32\u2464\u2462"},{"id":"ref-for-i32\u2464\u2463"},{"id":"ref-for-i32\u2464\u2464"},{"id":"ref-for-i32\u2464\u2465"},{"id":"ref-for-i32\u2464\u2466"}],"title":"17.7.1. textureDimensions"},{"refs":[{"id":"ref-for-i32\u2464\u2467"},{"id":"ref-for-i32\u2464\u2468"},{"id":"ref-for-i32\u2465\u24ea"},{"id":"ref-for-i32\u2465\u2460"},{"id":"ref-for-i32\u2465\u2461"},{"id":"ref-for-i32\u2465\u2462"},{"id":"ref-for-i32\u2465\u2463"},{"id":"ref-for-i32\u2465\u2464"},{"id":"ref-for-i32\u2465\u2465"},{"id":"ref-for-i32\u2465\u2466"},{"id":"ref-for-i32\u2465\u2467"},{"id":"ref-for-i32\u2465\u2468"},{"id":"ref-for-i32\u2466\u24ea"},{"id":"ref-for-i32\u2466\u2460"},{"id":"ref-for-i32\u2466\u2461"},{"id":"ref-for-i32\u2466\u2462"},{"id":"ref-for-i32\u2466\u2463"},{"id":"ref-for-i32\u2466\u2464"}],"title":"17.7.2. textureGather"},{"refs":[{"id":"ref-for-i32\u2466\u2465"},{"id":"ref-for-i32\u2466\u2466"},{"id":"ref-for-i32\u2466\u2467"}],"title":"17.7.3. textureGatherCompare"},{"refs":[{"id":"ref-for-i32\u2466\u2468"},{"id":"ref-for-i32\u2467\u24ea"},{"id":"ref-for-i32\u2467\u2460"},{"id":"ref-for-i32\u2467\u2461"},{"id":"ref-for-i32\u2467\u2462"},{"id":"ref-for-i32\u2467\u2463"},{"id":"ref-for-i32\u2467\u2464"},{"id":"ref-for-i32\u2467\u2465"},{"id":"ref-for-i32\u2467\u2466"},{"id":"ref-for-i32\u2467\u2467"},{"id":"ref-for-i32\u2467\u2468"},{"id":"ref-for-i32\u2468\u24ea"},{"id":"ref-for-i32\u2468\u2460"},{"id":"ref-for-i32\u2468\u2461"},{"id":"ref-for-i32\u2468\u2462"},{"id":"ref-for-i32\u2468\u2463"},{"id":"ref-for-i32\u2468\u2464"},{"id":"ref-for-i32\u2468\u2465"},{"id":"ref-for-i32\u2468\u2466"},{"id":"ref-for-i32\u2468\u2467"},{"id":"ref-for-i32\u2468\u2468"},{"id":"ref-for-i32\u2460\u24ea\u24ea"},{"id":"ref-for-i32\u2460\u24ea\u2460"},{"id":"ref-for-i32\u2460\u24ea\u2461"},{"id":"ref-for-i32\u2460\u24ea\u2462"},{"id":"ref-for-i32\u2460\u24ea\u2463"},{"id":"ref-for-i32\u2460\u24ea\u2464"},{"id":"ref-for-i32\u2460\u24ea\u2465"},{"id":"ref-for-i32\u2460\u24ea\u2466"}],"title":"17.7.4. textureLoad"},{"refs":[{"id":"ref-for-i32\u2460\u24ea\u2467"}],"title":"17.7.5. textureNumLayers"},{"refs":[{"id":"ref-for-i32\u2460\u24ea\u2468"}],"title":"17.7.6. textureNumLevels"},{"refs":[{"id":"ref-for-i32\u2460\u2460\u24ea"}],"title":"17.7.7. textureNumSamples"},{"refs":[{"id":"ref-for-i32\u2460\u2460\u2460"},{"id":"ref-for-i32\u2460\u2460\u2461"},{"id":"ref-for-i32\u2460\u2460\u2462"},{"id":"ref-for-i32\u2460\u2460\u2463"},{"id":"ref-for-i32\u2460\u2460\u2464"},{"id":"ref-for-i32\u2460\u2460\u2465"}],"title":"17.7.8. textureSample"},{"refs":[{"id":"ref-for-i32\u2460\u2460\u2466"},{"id":"ref-for-i32\u2460\u2460\u2467"},{"id":"ref-for-i32\u2460\u2460\u2468"}],"title":"17.7.9. textureSampleBias"},{"refs":[{"id":"ref-for-i32\u2460\u2461\u24ea"},{"id":"ref-for-i32\u2460\u2461\u2460"},{"id":"ref-for-i32\u2460\u2461\u2461"}],"title":"17.7.10. textureSampleCompare"},{"refs":[{"id":"ref-for-i32\u2460\u2461\u2462"},{"id":"ref-for-i32\u2460\u2461\u2463"},{"id":"ref-for-i32\u2460\u2461\u2464"}],"title":"17.7.11. textureSampleCompareLevel"},{"refs":[{"id":"ref-for-i32\u2460\u2461\u2465"},{"id":"ref-for-i32\u2460\u2461\u2466"},{"id":"ref-for-i32\u2460\u2461\u2467"}],"title":"17.7.12. textureSampleGrad"},{"refs":[{"id":"ref-for-i32\u2460\u2461\u2468"},{"id":"ref-for-i32\u2460\u2462\u24ea"},{"id":"ref-for-i32\u2460\u2462\u2460"},{"id":"ref-for-i32\u2460\u2462\u2461"},{"id":"ref-for-i32\u2460\u2462\u2462"},{"id":"ref-for-i32\u2460\u2462\u2463"},{"id":"ref-for-i32\u2460\u2462\u2464"},{"id":"ref-for-i32\u2460\u2462\u2465"},{"id":"ref-for-i32\u2460\u2462\u2466"},{"id":"ref-for-i32\u2460\u2462\u2467"},{"id":"ref-for-i32\u2460\u2462\u2468"},{"id":"ref-for-i32\u2460\u2463\u24ea"}],"title":"17.7.13. textureSampleLevel"},{"refs":[{"id":"ref-for-i32\u2460\u2463\u2460"},{"id":"ref-for-i32\u2460\u2463\u2461"},{"id":"ref-for-i32\u2460\u2463\u2462"},{"id":"ref-for-i32\u2460\u2463\u2463"},{"id":"ref-for-i32\u2460\u2463\u2464"}],"title":"17.7.15. textureStore"},{"refs":[{"id":"ref-for-i32\u2460\u2463\u2465"}],"title":"17.8. Atomic Built-in Functions"},{"refs":[{"id":"ref-for-i32\u2460\u2463\u2466"}],"title":"17.12.6. subgroupBroadcast"},{"refs":[{"id":"ref-for-i32\u2460\u2463\u2467"}],"title":"17.12.12. subgroupShuffle"},{"refs":[{"id":"ref-for-i32\u2460\u2463\u2468"}],"title":"17.13.1. quadBroadcast"}],"url":"#i32"},
+"identifier": {"dfnID":"identifier","dfnText":"identifier","external":false,"refSections":[{"refs":[{"id":"ref-for-identifier"}],"title":"3.4. Tokens"},{"refs":[{"id":"ref-for-identifier\u2460"}],"title":"3.8. Context-Dependent Names"},{"refs":[{"id":"ref-for-identifier\u2461"}],"title":"3.8.4. Diagnostic Severity Control Names"},{"refs":[{"id":"ref-for-identifier\u2462"},{"id":"ref-for-identifier\u2463"}],"title":"3.8.5. Extension Names"},{"refs":[{"id":"ref-for-identifier\u2464"}],"title":"4.1.1. Enable Extensions"},{"refs":[{"id":"ref-for-identifier\u2465"}],"title":"4.1.2. Language Extensions"},{"refs":[{"id":"ref-for-identifier\u2466"}],"title":"5. Declaration and Scope"},{"refs":[{"id":"ref-for-identifier\u2467"}],"title":"6.2.10. Structure Types"},{"refs":[{"id":"ref-for-identifier\u2468"}],"title":"6.4.8. Forming Reference and Pointer Values"},{"refs":[{"id":"ref-for-identifier\u2460\u24ea"}],"title":"7.2. Value Declarations"},{"refs":[{"id":"ref-for-identifier\u2460\u2460"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-identifier\u2460\u2461"}],"title":"8.1.1. const Expressions"},{"refs":[{"id":"ref-for-identifier\u2460\u2462"}],"title":"8.1.2. override Expressions"},{"refs":[{"id":"ref-for-identifier\u2460\u2463"}],"title":"8.11. Variable Identifier Expression"},{"refs":[{"id":"ref-for-identifier\u2460\u2464"}],"title":"8.12. Formal Parameter Expression"},{"refs":[{"id":"ref-for-identifier\u2460\u2465"},{"id":"ref-for-identifier\u2460\u2466"},{"id":"ref-for-identifier\u2460\u2467"}],"title":"8.15. Identifier Expressions for Value Declarations"},{"refs":[{"id":"ref-for-identifier\u2460\u2468"}],"title":"8.16. Enumeration Expressions"},{"refs":[{"id":"ref-for-identifier\u2461\u24ea"},{"id":"ref-for-identifier\u2461\u2460"},{"id":"ref-for-identifier\u2461\u2461"},{"id":"ref-for-identifier\u2461\u2462"}],"title":"8.17. Type Expressions"},{"refs":[{"id":"ref-for-identifier\u2461\u2463"}],"title":"8.18. Expression Grammar Summary"},{"refs":[{"id":"ref-for-identifier\u2461\u2464"}],"title":"9.1. Compound Statement"},{"refs":[{"id":"ref-for-identifier\u2461\u2465"}],"title":"9.4.4. For Statement"},{"refs":[{"id":"ref-for-identifier\u2461\u2466"}],"title":"11.1. Declaring a User-defined Function"},{"refs":[{"id":"ref-for-identifier\u2461\u2467"}],"title":"15.2.4. Pointer Desugaring"},{"refs":[{"id":"ref-for-identifier\u2461\u2468"},{"id":"ref-for-identifier\u2462\u24ea"}],"title":"17.1. Constructor Built-in Functions"}],"url":"#identifier"},
+"ieee754-binary16": {"dfnID":"ieee754-binary16","dfnText":"binary16","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-binary16"}],"title":"6.2.4. Floating Point Types"},{"refs":[{"id":"ref-for-ieee754-binary16\u2460"}],"title":"6.5.1. Texel Formats"},{"refs":[{"id":"ref-for-ieee754-binary16\u2461"}],"title":"14.4.4. Internal Layout of Values"},{"refs":[{"id":"ref-for-ieee754-binary16\u2462"}],"title":"15.7.6. Floating Point Conversion"},{"refs":[{"id":"ref-for-ieee754-binary16\u2463"}],"title":"17.5.47. quantizeToF16"},{"refs":[{"id":"ref-for-ieee754-binary16\u2464"}],"title":"17.9.9. pack2x16float"},{"refs":[{"id":"ref-for-ieee754-binary16\u2465"}],"title":"17.10.7. unpack2x16float"}],"url":"#ieee754-binary16"},
+"ieee754-binary32": {"dfnID":"ieee754-binary32","dfnText":"binary32","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-binary32"}],"title":"6.2.4. Floating Point Types"},{"refs":[{"id":"ref-for-ieee754-binary32\u2460"}],"title":"6.5.1. Texel Formats"},{"refs":[{"id":"ref-for-ieee754-binary32\u2461"}],"title":"14.4.4. Internal Layout of Values"},{"refs":[{"id":"ref-for-ieee754-binary32\u2462"}],"title":"15.7.6. Floating Point Conversion"},{"refs":[{"id":"ref-for-ieee754-binary32\u2463"}],"title":"17.5.47. quantizeToF16"}],"url":"#ieee754-binary32"},
+"ieee754-binary64": {"dfnID":"ieee754-binary64","dfnText":"binary64","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-binary64"}],"title":"6.2.1. Abstract Numeric Types"},{"refs":[{"id":"ref-for-ieee754-binary64\u2460"}],"title":"15.7.4. Floating Point Accuracy"},{"refs":[{"id":"ref-for-ieee754-binary64\u2461"}],"title":"15.7.4.2. Accuracy of AbstractFloat Expressions"},{"refs":[{"id":"ref-for-ieee754-binary64\u2462"}],"title":"17.5.37. ldexp"}],"url":"#ieee754-binary64"},
+"ieee754-division-by-zero": {"dfnID":"ieee754-division-by-zero","dfnText":"Division by zero","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-division-by-zero"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-ieee754-division-by-zero\u2460"}],"title":"17.5.57. smoothstep"}],"url":"#ieee754-division-by-zero"},
+"ieee754-exceptions": {"dfnID":"ieee754-exceptions","dfnText":"exceptions","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-exceptions"}],"title":"15.7.1. Overview of IEEE-754"},{"refs":[{"id":"ref-for-ieee754-exceptions\u2460"}],"title":"15.7.2. Differences from IEEE-754"}],"url":"#ieee754-exceptions"},
+"ieee754-exponent-bias": {"dfnID":"ieee754-exponent-bias","dfnText":"exponent bias","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-exponent-bias"},{"id":"ref-for-ieee754-exponent-bias\u2460"},{"id":"ref-for-ieee754-exponent-bias\u2461"},{"id":"ref-for-ieee754-exponent-bias\u2462"}],"title":"15.7.1. Overview of IEEE-754"}],"url":"#ieee754-exponent-bias"},
+"ieee754-exponent-field": {"dfnID":"ieee754-exponent-field","dfnText":"exponent field","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-exponent-field"},{"id":"ref-for-ieee754-exponent-field\u2460"},{"id":"ref-for-ieee754-exponent-field\u2461"},{"id":"ref-for-ieee754-exponent-field\u2462"},{"id":"ref-for-ieee754-exponent-field\u2463"},{"id":"ref-for-ieee754-exponent-field\u2464"},{"id":"ref-for-ieee754-exponent-field\u2465"},{"id":"ref-for-ieee754-exponent-field\u2466"}],"title":"15.7.1. Overview of IEEE-754"}],"url":"#ieee754-exponent-field"},
+"ieee754-inexact": {"dfnID":"ieee754-inexact","dfnText":"Inexact","external":false,"refSections":[],"url":"#ieee754-inexact"},
+"ieee754-invalid-operation": {"dfnID":"ieee754-invalid-operation","dfnText":"Invalid operation","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-invalid-operation"}],"title":"15.7.1. Overview of IEEE-754"},{"refs":[{"id":"ref-for-ieee754-invalid-operation\u2460"}],"title":"15.7.2. Differences from IEEE-754"}],"url":"#ieee754-invalid-operation"},
+"ieee754-normal": {"dfnID":"ieee754-normal","dfnText":"normal","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-normal"}],"title":"6.2.4. Floating Point Types"},{"refs":[{"id":"ref-for-ieee754-normal\u2460"}],"title":"15.7.1. Overview of IEEE-754"}],"url":"#ieee754-normal"},
+"ieee754-overflow": {"dfnID":"ieee754-overflow","dfnText":"Overflow","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-overflow"}],"title":"15.7.1. Overview of IEEE-754"},{"refs":[{"id":"ref-for-ieee754-overflow\u2460"},{"id":"ref-for-ieee754-overflow\u2461"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-ieee754-overflow\u2462"}],"title":"15.7.4. Floating Point Accuracy"}],"url":"#ieee754-overflow"},
+"ieee754-rounding-mode": {"dfnID":"ieee754-rounding-mode","dfnText":"rounding mode","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-rounding-mode"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-ieee754-rounding-mode\u2460"}],"title":"15.7.4. Floating Point Accuracy"}],"url":"#ieee754-rounding-mode"},
+"ieee754-sign-field": {"dfnID":"ieee754-sign-field","dfnText":"sign field","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-sign-field"},{"id":"ref-for-ieee754-sign-field\u2460"}],"title":"15.7.1. Overview of IEEE-754"},{"refs":[{"id":"ref-for-ieee754-sign-field\u2461"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-ieee754-sign-field\u2462"}],"title":"15.7.6. Floating Point Conversion"}],"url":"#ieee754-sign-field"},
+"ieee754-subnormal": {"dfnID":"ieee754-subnormal","dfnText":"subnormal","external":false,"refSections":[{"refs":[{"id":"ref-for-ieee754-subnormal"}],"title":"6.2.4. Floating Point Types"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2460"},{"id":"ref-for-ieee754-subnormal\u2461"}],"title":"15.7.1. Overview of IEEE-754"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2462"},{"id":"ref-for-ieee754-subnormal\u2463"}],"title":"15.7.2. Differences from IEEE-754"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2464"},{"id":"ref-for-ieee754-subnormal\u2465"},{"id":"ref-for-ieee754-subnormal\u2466"},{"id":"ref-for-ieee754-subnormal\u2467"},{"id":"ref-for-ieee754-subnormal\u2468"}],"title":"15.7.4.1. Accuracy of Concrete Floating Point Expressions"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2460\u24ea"}],"title":"17.5.8. atan2"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2460\u2460"},{"id":"ref-for-ieee754-subnormal\u2460\u2461"},{"id":"ref-for-ieee754-subnormal\u2460\u2462"},{"id":"ref-for-ieee754-subnormal\u2460\u2463"}],"title":"17.5.34. frexp"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2460\u2464"}],"title":"17.5.41. max"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2460\u2465"}],"title":"17.5.42. min"},{"refs":[{"id":"ref-for-ieee754-subnormal\u2460\u2466"}],"title":"17.5.47. quantizeToF16"}],"url":"#ieee754-subnormal"},
+--
+"workgroup-id": {"dfnID":"workgroup-id","dfnText":"workgroup ID","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-id"}],"title":"13.3.1.1.15. workgroup_id"},{"refs":[{"id":"ref-for-workgroup-id\u2460"}],"title":"15.3. Compute Shaders and Workgroups"}],"url":"#workgroup-id"},
+"workgroup-index": {"dfnID":"workgroup-index","dfnText":"workgroup index","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-index"}],"title":"13.3.1.1.16. workgroup_index"}],"url":"#workgroup-index"},
+"workgroup-uniformity-scope": {"dfnID":"workgroup-uniformity-scope","dfnText":"Workgroup uniformity scope","external":false,"refSections":[{"refs":[{"id":"ref-for-workgroup-uniformity-scope"}],"title":"15.2.2. Uniformity Analysis Overview"}],"url":"#workgroup-uniformity-scope"},
+"write-access": {"dfnID":"write-access","dfnText":"write access","external":false,"refSections":[{"refs":[{"id":"ref-for-write-access"}],"title":"6.4.7. Use Cases for References and Pointers"},{"refs":[{"id":"ref-for-write-access\u2460"},{"id":"ref-for-write-access\u2461"}],"title":"6.5.5. Storage Texture Types"},{"refs":[{"id":"ref-for-write-access\u2462"}],"title":"7.1. Variables vs Values"},{"refs":[{"id":"ref-for-write-access\u2463"},{"id":"ref-for-write-access\u2464"}],"title":"8.5.1.3. Component Reference from Vector Memory View"},{"refs":[{"id":"ref-for-write-access\u2465"}],"title":"9.2.3. Compound Assignment"},{"refs":[{"id":"ref-for-write-access\u2466"},{"id":"ref-for-write-access\u2467"}],"title":"11.4.1.2. Aliasing"},{"refs":[{"id":"ref-for-write-access\u2468"},{"id":"ref-for-write-access\u2460\u24ea"},{"id":"ref-for-write-access\u2460\u2460"}],"title":"14.5.1. Memory Operation"},{"refs":[{"id":"ref-for-write-access\u2460\u2461"},{"id":"ref-for-write-access\u2460\u2462"}],"title":"14.5.5. Private vs Non-private"},{"refs":[{"id":"ref-for-write-access\u2460\u2463"}],"title":"15.4. Fragment Shaders and Helper Invocations"}],"url":"#write-access"},
+"zero-value": {"dfnID":"zero-value","dfnText":"zero value","external":false,"refSections":[{"refs":[{"id":"ref-for-zero-value"}],"title":"6.4.6. Out-of-Bounds Access"},{"refs":[{"id":"ref-for-zero-value\u2460"},{"id":"ref-for-zero-value\u2461"},{"id":"ref-for-zero-value\u2462"},{"id":"ref-for-zero-value\u2463"},{"id":"ref-for-zero-value\u2464"}],"title":"7.3. var Declarations"},{"refs":[{"id":"ref-for-zero-value\u2465"}],"title":"17.1.1. Zero Value Built-in Functions"},{"refs":[{"id":"ref-for-zero-value\u2466"}],"title":"17.1.2.2. bool"}],"url":"#zero-value"},
+};
+
+document.addEventListener("DOMContentLoaded", ()=>{
+    genAllDfnPanels();
+
+    document.body.addEventListener("click", (e) => {
+        // If not handled already, just hide all dfn panels.
+        hideAllDfnPanels();
+    });
+});
+
+window.addEventListener("resize", () => {
+    // Pin any visible dfn panel
+    queryAll(".dfn-panel.on, .dfn-panel.activated").forEach(el=>positionDfnPanel(el));
+});
+
+--
+"#built-in-values-workgroup_id": {"displayText":"workgroup_id","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"workgroup_id","type":"dfn","url":"#built-in-values-workgroup_id"},
+"#built-in-values-workgroup_index": {"displayText":"workgroup_index","export":true,"for_":["built-in values"],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"workgroup_index","type":"dfn","url":"#built-in-values-workgroup_index"},
+"#builtin-functions-that-compute-a-derivative": {"displayText":"builtin functions that compute a derivative","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"builtin functions that compute a derivative","type":"dfn","url":"#builtin-functions-that-compute-a-derivative"},
+"#byte-size": {"displayText":"byte-size","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"byte-size","type":"dfn","url":"#byte-size"},
+"#call-site": {"displayText":"call site","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"call site","type":"dfn","url":"#call-site"},
+"#call-site-tag": {"displayText":"call site tag","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"call site tag","type":"dfn","url":"#call-site-tag"},
+"#called-function": {"displayText":"called function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"called function","type":"dfn","url":"#called-function"},
+"#calling-function": {"displayText":"calling function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"calling function","type":"dfn","url":"#calling-function"},
+"#callsitenorestriction": {"displayText":"callsitenorestriction","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"callsitenorestriction","type":"dfn","url":"#callsitenorestriction"},
+"#callsiterequiredtobeuniforms": {"displayText":"callsiterequiredtobeuniform.s","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"callsiterequiredtobeuniform.s","type":"dfn","url":"#callsiterequiredtobeuniforms"},
+"#case-clause": {"displayText":"case clause","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"case clause","type":"dfn","url":"#case-clause"},
+"#ceiling-expression": {"displayText":"ceiling expression","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"ceiling expression","type":"dfn","url":"#ceiling-expression"},
+"#cf_start": {"displayText":"cf_start","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"cf_start","type":"dfn","url":"#cf_start"},
+"#channel-formats": {"displayText":"channel formats","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"channel formats","type":"dfn","url":"#channel-formats"},
+"#channel-transfer-function": {"displayText":"channel transfer function","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"channel transfer function","type":"dfn","url":"#channel-transfer-function"},
+"#comment": {"displayText":"comment","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"comment","type":"dfn","url":"#comment"},
+"#component-wise": {"displayText":"component-wise","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"component-wise","type":"dfn","url":"#component-wise"},
+"#components": {"displayText":"components","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"components","type":"dfn","url":"#components"},
+"#composite": {"displayText":"composite","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"composite","type":"dfn","url":"#composite"},
+"#compound-assignment": {"displayText":"compound assignment","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"compound assignment","type":"dfn","url":"#compound-assignment"},
+"#compound-statement": {"displayText":"compound statement","export":true,"for_":[],"level":"","normative":true,"shortname":"wgsl","spec":"wgsl","status":"local","text":"compound statement","type":"dfn","url":"#compound-statement"},

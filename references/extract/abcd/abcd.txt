@@ -1,0 +1,1085 @@
+=== [Page 1] ===
+                     ABCD: Eliminating Array Bounds Checks on Demand
+
+                 Rastislav Bodı́k                                     Rajiv Gupta                                Vivek Sarkar
+             University of Wisconsin                             University of Arizona               IBM T.J. Watson Research Center
+              bodik@cs.wisc.edu                             gupta@cs.arizona.edu                           vsarkar@us.ibm.com
+
+
+
+
+Abstract                                                                              Bounds checks cause programs to execute slower for two rea-
+                                                                                  sons. One is the cost of executing the bounds checks themselves
+To guarantee typesafe execution, Java and other strongly typed lan-               since they can occur quite frequently and involve a memory load
+guages require bounds checking of array accesses. Because array-                  of the array length and two compare operations. Even more impor-
+bounds checks may raise exceptions, they block code motion of                     tantly, the presence of bounds checks greatly limits the application
+instructions with side effects, thus preventing many useful code                  of code optimizations. Precise exception semantics (as in Java) re-
+optimizations, such as partial redundancy elimination or instruc-                 quires that all code transformations preserve the program state at an
+tion scheduling of memory operations. Furthermore, because it is                  exception point, and also the order in which exceptions occur. As
+not expressible at bytecode level, the elimination of bounds checks               a consequence, the application of traditional optimizations must be
+can only be performed at run time, after the bytecode program is                  restricted to prevent side-effect-causing instructions from moving
+loaded. Using existing powerful bounds-check optimizers at run                    across any exception points. Since the exception points introduced
+time is not feasible, however, because they are too heavyweight for               by array bounds checks can be frequent, the scope over which op-
+the dynamic compilation setting.                                                  timizations are applicable can be severely restricted.
+    ABCD is a light-weight algorithm for elimination of Array                         When designing optimizations for Java, we face two conﬂicting
+Bounds Checks on Demand. Its design emphasizes simplicity and                     goals: the optimization algorithm must be fast yet general enough
+efﬁciency. In essence, ABCD works by adding a few edges to the                    to globally identify bounds checks that are fully redundant, or even
+SSA value graph and performing a simple traversal of the graph.                   partially redundant. The following observations provide insight
+Despite its simplicity, ABCD is surprisingly powerful. On our                     into meeting the challenge for keeping the cost of dynamic opti-
+benchmarks, ABCD removes on average 45% of dynamic bound                          mization low:
+check instructions, sometimes achieving near-ideal optimization.
+    The efﬁciency of ABCD stems from two factors. First, ABCD                        We should employ demand-driven-analysis techniques since
+works on a sparse representation. As a result, it requires on av-                        they are highly suitable for dynamic optimization. Demand-
+erage fewer than 10 simple analysis steps per bounds check. Sec-                         driven analysis can be used to focus attention on “hot” bounds
+ond, ABCD is demand-driven. It can be applied to a set of fre-                           checks; i.e., the bounds checks with the highest execution fre-
+quently executed (hot) bounds checks, which makes it suitable for                        quencies. Furthermore, demand-driven analysis is well suited
+the dynamic-compilation setting, in which compile-time cost is                           to dealing with incremental updates of data ﬂow information
+constrained but hot statements are known.                                                after program transformations because it sidesteps the need
+                                                                                         for expensive initialization phases needed in exhaustive anal-
+                                                                                         yses.
+1 Introduction
+                                                                                     We should develop algorithms that reuse representations that
+The advent of safe mobile computing in general, and Java in par-                         are commonly used in compilers. Our approach in this work
+ticular, has brought about two signiﬁcant changes for optimizing                         is to start with SSA form [CFR+ 91] (i.e., we assume it to
+compilers. First, type safety requires expensive run-time seman-                         be already available) and develop an algorithm that works by
+tic checks (e.g., bounds checks, null checks, type checks, etc.).                        simple traversals of a cheaply computable extension of the
+Second, because the mobile bytecode must be veriﬁably typesafe                           SSA graph.
+when it is loaded, the optimizer can remove semantic checks from
+bytecode only at run time. This paper addresses the problem of                        Many of the existing algorithms for array-bounds-check elim-
+eliminating redundant bounds checks using lightweight techniques                  ination are heavyweight (e.g., those based on theorem provers
+suitable for the time-constrained dynamic-compilation setting.                    [SI77,Nec98,NL98,XMR00]) and are therefore not suitable for de-
+                                                                                  ployment in a dynamic-optimization environment. Some simpler
+Permission to make digital or hard copies of all or part of this work for
+personal or classroom use is granted without fee provided that copies             algorithms (e.g., those based upon value-range analysis [Har77,
+are not made or distributed for proﬁt or commercial advantage and that            Pat95, RR99]) cannot eliminate partially redundant checks. Al-
+copies bear this notice and the full citation on the ﬁrst page. To copy oth-      gorithms that can eliminate partial redundancy [MCM82, Gup90,
+erwise, or republish, to post on servers or to redistribute to lists, requires    Gup94,Asu92,KW95] operate upon dense program representations
+prior speciﬁc permission and/or a fee.                                            (e.g., the control ﬂow graph) and rely upon exhaustive iterative data
+PLDI 2000, Vancouver, British Columbia, Canada.                                   ﬂow analyzers. Thus, they, too, do not meet our dynamic-compile-
+Copyright 2000 ACM 1-58113-199-2/00/0006$5.00.                                    time requirements.
+                                                                                      In this paper, we introduce a new algorithm, called ABCD, for
+
+=== [Page 2] ===
+elimination of array bounds checks on demand. The ABCD algo-                                           limit = a.length;
+rithm makes the following contributions:                                                               st = -1;
+  1. Sparse Representation: ABCD uses a novel sparse repre-                                            while (st < limit)          f
+     sentation called the inequality graph, which is built from                                           st++;
+     an extended SSA representation. This representation can be                                           limit--;
+     cheaply constructed from a given SSA representation of the
+     program. We will see that the inequality graph representation
+                                                                                                          for (j = st; j < limit; j++)                  f
+     is powerful enough to enable all array-bounds checks to be                                              if (a[j] = a[j+1]) ...
+     eliminated from the BubbleSort program in Figure 1. (To the                                            g
+     best of our knowledge, no other existing Java compiler can                                             for (j = limit; --j >= st; )                f
+     fully eliminate all the bounds checks in this example.)                                                   if (a[j] = a[j+1]) ...
+  2. Demand-Driven Analysis: ABCD employs a demand-driven                                                   g
+     approach in which the algorithm proceeds by propagating                                           g
+     inequality assertions that need to be veriﬁed to eliminate a
+     bounds check. Therefore, the optimization can be performed                              Figure 1: The running example: Bidirectional Bubble Sort. The
+     incrementally by starting with the “hot” bounds checks.                                 ﬁgure shows a relevant fragment of a program from the Symantec
+  3. Generality: The effectiveness of ABCD stems from its ability                            benchmark suite. A bounds check is performed before each of the
+     to remove both fully and partially redundant checks. Through                            four array accesses. To simplify the presentation, the rest of the pa-
+     simple traversals of the sparse inequality graph represen-                              per omits the second for loop. ABCD can eliminate all four bound
+     tation, our algorithm is able to locate insertion points for                            checks in this example.
+     checks required for eliminating partial redundancy. To re-
+     main within the tight compile-time constraints of a dynamic
+     compiler, ABCD exploits recent results in redundancy elimi-                               1. Instead of constraint propagation, ABCD builds a single,
+     nation, which show how simple proﬁle-based algorithms can                                    program-point-independent constraint system. This con-
+     achieve nearly complete removal of redundancies [BGS98].                                     straint system is sparse; in fact, it is nothing more than SSA
+                                                                                                  form with a few extra edges.
+       For the sake of efﬁciency, the assertion checking (theo-
+       rem proving) is restricted to the ﬁve classes of “constraint-                           2. Instead of relying on a theorem prover, ABCD performs a
+       generating” statements described in Section 2.                                             simple, demand-driven traversal of the sparse representation.
+                                                                                                  Despite its limited power, our “traversal prover” was able to
+  4. Empirical evaluation: Our experience shows that, despite its                                 eliminate 45% of dynamic upper-bound checks in our exper-
+     simplicity, ABCD is efﬁcient, effective, and simple to imple-                                iments.
+     ment. We have implemented ABCD in the Jalapeño optimiz-
+     ing compiler [BCF+ 99]. Our results show that ABCD re-                                      The remainder of this section outlines the main components of
+     moves on average 45% of all dynamic bounds checks, while                                ABCD: the types of constraints, the sparse constraint system and its
+     performing fewer than 10 analysis steps per bound check.                                graph representation, the constraint solver, and ﬁnally the handling
+                                                                                             of partially redundant bounds checks.
+    The rest of the paper is organized as follows. Section 2 gives
+an overview of ABCD. Section 3 presents our sparse program rep-
+                                                                                             The Constraints. ABCD is efﬁcient because it operates on sim-
+resentation. Section 4 describes the constraint system used for de-
+tecting redundant checks and Section 5 shows how to solve the con-
+                                                                                             ple difference constraints [Pra77, CLR92] of the form x y          ,
+                                                                                             where x is a program variable, y is a program variable or a sym-
+straint system to remove fully redundant bounds checks. Section 6
+                                                                                             bolic literal (e.g., the length of an array), and is an integer con-
+extends the removal to partially redundant bounds checks. Sec-
+                                                                                             stant. Restricting the constraint form is what enables ABCD’s efﬁ-
+tion 7 outlines possible extensions to the ABCD algorithm. Sec-
+                                                                                             ciency: constraints on pairs of variables can be represented in the
+tion 8 presents experimental evaluation of the ABCD algorithm.
+                                                                                             sparse, global constraint system; and the difference relationships
+Finally, Section 9 compares ABCD with existing work.
+                                                                                             can be processed with the simple “traversal solver.” Other work
+                                                                                             (e.g., [Sho81]) has also found it beneﬁcial to restrict attention to
+2 Overview of ABCD                                                                           this class of inequalities.
+                                                                                                 Furthermore, ABCD gathers only constraints that can be ob-
+                                  [℄
+A bounds check “check A x ” is redundant if                 0
+                                                    x < A:length                             tained with a local examination of the program code, without any
+whenever the check is executed. ABCD optimizes the lower-bound                               prior global analysis. The following ﬁve types of program state-
+check (  0  x) and the upper-bound check (x < A:length) as two                              ments have been found to generate constraints useful for bounds-
+independent problems.1 In this paper, we restrict our attention to                           check elimination:
+                                                                                                  C1                                          x := A:length
+the optimization of upper-bound checks. The (dual) algorithm for
+                                                                                                           array-length literal
+                                                                                                  C2                                          x :=
+lower-bound checks can be derived trivially.
+                                                                                                           constant assignment
+                                                                                                  C3                                          x := y +
+     A straightforward approach to detecting redundant checks is
+                                                                                                           constant increment or decrement
+                                                                                                  C4                                          if/while x  y
+to i) construct a constraint system at each program point, perhaps
+                                                                                                           conditional branches
+                                                                                                  C5                                          check A[x℄
+by propagating the constraints using dataﬂow analysis, and then
+ii) apply a theorem prover at the point of the bounds check. Both                                          array-bounds check
+of these are expensive steps and ABCD streamlines them in the                                                   1 3
+                                                                                             Constraints C -C are generated by restricted forms of assign-
+following ways:
+   1
+                                                                                                                      4
+                                                                                             ments. Constraint C exploits invariants generated, on each exit
+    We forgo the (rare) optimization opportunities created by the interplay of the two       of a branch, by the branch’s conditional expression. Finally, con-
+problems for the sake of simplicity.                                                                   5
+                                                                                             straint C exploits a successful array-bounds check “check A x ,”  [℄
+
+                                                                                         2
+
+=== [Page 3] ===
+which guarantees that x < A:length. Note that all ﬁve of these                 1. Build e-SSA form:
+constraint types can be expressed as difference constraints. If a                     insert  -nodes (see Section 3)
+                                                                                      compute SSA form (e.g., using [CFR+ 91])
+variable is deﬁned in an assignment that generates more complex
+                                   1 3
+constraints (e.g., those outside C -C ), then ABCD considers the
+variable unconstrained (unless it also appears in statements C -    4          2. Build the Inequality Graph GI :
+  5
+C ). In general, disregarding existence of some constraints is safe,                  (see Table 1)
+as it will, at worst, hide from us some redundant checks.                      3. Remove redundant checks:
+                                                                                      for each check n of the form “check A x ” do [℄
+Sparse Global Representation of Constraints. Constraints gen-
+                                  1 5
+erated by program statements C –C are program-point speciﬁc.
+                                                                                          – – see Figure 5
+                                                                                                             (     h
+                                                                                          if demandProve GI ; x A:length            1i)
+                                                                                                                                   then
+Each of them is guaranteed to hold only in its live range, which is,
+informally, the range of CFG nodes between the generating state-                              remove n from the program
+ment and its dominance frontier or a killing deﬁnition, whichever                     end for
+is closer. To encode the constraint live ranges compactly (i.e., glob-
+ally rather than per node), ABCD splits live ranges of program vari-                           Figure 2: The ABCD algorithm.
+ables via SSA-style renaming. In effect, the renaming converts a
+ﬂow-sensitive constraint system into an equivalent ﬂow-insensitive
+system, as was done for pointer analysis in [HH98].                           equality graph is encoded via two kinds of nodes. The max nodes
+     ABCD splits live ranges of variables such that i) each resulting         are the -nodes, which correspond to control ﬂow merges. The
+live range refers to a unique variable name, and ii) for any vari-            remaining nodes act as the min nodes.
+able vi , the live range of vi is no larger than the live range of any            The inequality graph also enables elimination of partially re-
+constraint involving vi . When expressed using the unique variable            dundant bound checks. Partially redundant checks are redundant
+names, the constraint system becomes program-point-independent                along some, but not necessarily all, control ﬂow paths [MR79]. A
+(global). Moreover, inheriting the SSA properties, the constraint             typical example is a loop-invariant check: its outcome is the same
+system is sparse, in that it directly connects statements that generate       in each loop iteration and therefore it can be optimized by being
+related assertions, thus speeding up the constraint-solving process.          executed once, before the loop is entered. While fully redundant
+     As in SSA, we split live ranges by inserting “dummy” assign-
+                                                 1 3
+                                                                              bounds checks can be deleted, partially redundant checks require
+ments. To split live ranges of constraints C –C , the standard
+                                                                4
+                                                                              insertion of compensation checks that ensure that the check be-
+SSA -assignments are sufﬁcient. However, constraints C and
+  5
+                                                                              comes redundant along all control ﬂow paths.
+C require additional splitting, which we perform by inserting  -                 We identify the insertion points using the -nodes in the in-
+assignments at conditionals and bound checks. We call the result-             equality graph. As was shown in [CCK+ 97] in the context of ex-
+ing representation the extended SSA (e-SSA) form. The e-SSA                   pression elimination, insertion points correspond to a certain sub-
+form for the running example is shown in Figure 3.                            set of in-edges of the -nodes. We extend this approach to the
+                                                                              inequality graph. Because the insertion performed by ABCD may
+Solving the Constraint System. To simplify the presentation,                  be speculative, we rely on proﬁling data to determine proﬁtability
+we view the sparse constraint system not as a system of inequal-              of the optimization. Our approach relies upon recent results that
+ities, but instead as a graph, called the inequality graph. On the            demonstrate that speculative insertion is nearly as effective as non-
+graph, substitutions of constraints can be viewed as a graph traver-          speculative techniques that perform complete redundancy removal
+sal, which we exploit for formulating a simple “traversal prover”             using code duplication [BGS98].
+for our constraint system.
+     The inequality graph is an extension of the SSA value                    The ABCD Algorithm. The entire ABCD algorithm for fully re-
+graph [AWZ88]. There is one node for each e-SSA-variable, con-                dundant checks is outlined in Figure 2. The ﬁrst step transforms the
+stant, or array-length literal (e.g., the value A:length); edge weights       program into e-SSA form; the second steps connects e-SSA vari-
+constrain the differences between pairs of nodes. Given an inequal-
+                                               [℄
+                                                                              ables with constraints; the third step solves the constraint system
+ity graph, an (upper) bounds check “check A x ” is redundant if the           and removes checks that have been proven to be redundant.
+shortest path from A:length to x has negative length, which corre-
+                                                          0
+sponds to the bounds check condition, x A:length < , being al-
+                                                                              3 The Extended SSA Form
+ways true. The inequality graph for the running example is shown
+in Figure 4.
+     The “traversal solver” for our constraint system is thus equiv-          ABCD encodes the scope of constraints by transforming the pro-
+alent to a shortest-path computation; a demand-driven version                 gram into the extended SSA (e-SSA) form, described in this sec-
+of the solver amounts to computing the shortest path between                  tion. The salient property of e-SSA is that constraints generated in
+a pair of vertices (A:length and x). The situation is compli-                 an e-SSA program are valid wherever their variables are live. This
+cated, however, by the fact that the inequality graph is a hyper-             implicit encoding obviates the need to explicitly qualify constraints
+graph [Ber73, GLPN93, RR96], which operates on a generalized                  with their CFG scope, which results in a compact constraint system.
+notion of the shortest path (see Section 4).                                  Another important property is that constraints expressed on the e-
+                                                                              SSA program deﬁne a sparse constraint system that can be solved
+                                                                              efﬁciently.
+Handling Control Flow. The reason why ABCD’s constraint                           To understand the relationship between live ranges of variables
+system induces a non-standard notion of the shortest path is that             and scopes of constraints, consider a constraint x y      generated
+constraints must be treated in two different ways: Along a given
+control ﬂow path, each variable is bounded by the strongest con-
+                                                                              in a CFG node n (for example by statement x       := +
+                                                                                                                                   y     ). A safe
+                                                                              rule for delineating the scope of this constraint is to restrict it to
+straint generated on that path. In contrast, across a set of control          nodes at which x and y have the same values as they had at node n,
+ﬂow paths, a variable is bounded by the weakest constraint pro-               which is typically approximated by requiring that the values of x
+duced by any of the paths. This “max-min” semantics of the in-
+
+
+                                                                          3
+
+=== [Page 4] ===
+and y originate from the same deﬁnition sites as they did at node n.                                                                                       5
+                                                                                                   Similarly, to generate a new name for constraints C , a  -
+Given this rule, the scope can be represented by enumerating nodes                             assignment is inserted after each bounds check. A bounds check
+where this “same-deﬁnitions” condition holds. ABCD uses a more                                 can be viewed as a special if statement that will transfer program’s
+efﬁcient approach: it splits and renames live ranges of variables so                           control into the exception handler if the check fails; if the check
+that variables that appear in a constraint are used (i.e., are live) only                      does not fail, a useful constraint is generated:
+within the constraint’s scope.2 In effect, the renaming converts a
+ﬂow-sensitive constraint system into an equivalent ﬂow-insensitive                                   check a i1   [ ℄           check a[i1 ℄
+system, without a loss of precision.
+    ABCD splits variable live ranges by means of assignments, ei-
+                                                                                                                        =)      i2 :=  (i1 );
+                                                                                                                                // i2 < a:length here
+ther existing or new ones. As in the SSA form, each assignment
+writes into a unique variable name, which uniquely names live
+ranges. Assignments are needed at two points:
+                                                                                                                  5
+                                                                                               The constraint C must be expressed on the new name i2 , rather
+                                                                                               on i1 , otherwise it could erroneously lead to elimination of some
+Case 1) When a constraint is created: Live ranges of constraints                               bound checks, including the generating check itself.
+         1 3
+     C –C already start at assignments, whose target variables
+                                                           4
+     can be directly renamed. Constraints C start at exits of con-                             Example 1 (e-SSA Form) Figure 3 depicts the running example
+                                           5
+     ditionals, and constraints C start at bounds checks. To cap-                              before and after the conversion to e-SSA form. For the sake of
+     ture these two constraint types, ABCD inserts  -assignments,                             brevity, the second for loop from Figure 1 is omitted. To reduce
+     as will be discussed below.                                                               the number of -assignments induced by  -assignments, no -
+                                                                                               assignment for limit is inserted into the for loop. This is safe
+Case 2) When a constraint is killed: The scope of a constraint                                 because there are no uses of limit4 in the loop.                 
+     u v           generated at node n is terminated (i) at a node
+     where u or v is redeﬁned, (ii) at a control ﬂow join that can
+     be reached by a path from n along which u or v are redeﬁned,                              4 The Constraint System and the Inequality Graph
+     or (iii) at a control ﬂow join that is not dominated by n.
+                                                                                               Once the program is converted into e-SSA form, the constraints
+The standard SSA form sufﬁciently splits variable live ranges to en-                           generated throughout the program can be “connected” into a sin-
+                         1 3
+code constraints C –C . The SSA renaming is performed as fol-                                  gle, ﬂow-insensitive constraint system. Thanks to the simplicity
+lows [AWZ88]: New deﬁnitions, called -assignments, are placed                                 of constraints considered by ABCD (difference constraints of two
+(recursively) at control ﬂow join points that are reachable by differ-                         variables), this constraint system can be represented as a weighted
+ent deﬁnitions of a variable v . Renaming the targets of original as-                          directed graph and can be solved with relatively efﬁcient graph
+signments to v enforces cases 1 and 2-i above; renaming the targets                            traversal algorithms. This section presents the graph representation
+of -assignments enforces cases 2-ii and 2-iii. After the renaming,                            of the constraint system and its properties. The following section
+each use of a variable is dominated by its single reaching deﬁnition,                          presents an efﬁcient solver for the constraint system.
+which guarantees the desired property that v has the same value in                                 Representing simple constraint systems with graphs is a stan-
+its entire live range.                                                                         dard technique; a common example is the constraint graph [Pra77,
+                                     4         5
+     To express constraints C and C , case 1 requires additional re-                           CLR92]. Our Inequality Graph (GI ) generalizes the constraint
+naming. The renaming is performed by introducing  -assignments                                graph in that it allows representing program’s control ﬂow, as fol-
+on the exits of conditionals and bounds checks. Consider the con-                              lows. First, GI allows us to detect whether a given bounds check
+ditional statement shown below on the left:                                                    is redundant along all control ﬂow paths. Second, GI maintains
+                                                                                               enough program structure information to perform code motion of
+    if    (i1  10) then                        if      (i1  10) then                         partially redundant bounds checks (see Section 6). The solution of
+                                                        i2 :=  (i1 )                          the constraint system represented by GI is computed similarly to
+                                                        // i2  10 here
+                                                                                               how it is computed on the constraint graph — using a notion of the
+                                                                                               shortest path (see Section 5).
+    else                             =)         else                                               Informally, vertices of the inequality graph represent program
+                                                        i3 :=  (i1 )                          variables (in e-SSA form), constants, and literals. An edge con-
+                                                        // i3 > 10 here                        nects two vertices if the program generates a constraint on their
+    end if                                      end if                                         difference (variables for which the program does not generate a
+                                                                                               constraint will create disconnected vertices in GI ).
+                                                i4 := (i2 ; i3 )
+                                                                                               Deﬁnition 1 (The inequality graph GI ) Given a program P in e-
+The  -assignments are inserted, for each variable appearing in the                            SSA form, the Inequality Graph of P is a weighted, directed graph
+conditional expression, into the CFG out-edges of the conditional
+branch.3 Thanks to the  -assignemnts, each outcome of the con-
+                                                                                               GI =(          )                                        
+                                                                                                      V; E; d with a distinguished set of vertices V V :
+ditional is associated with a distinct variable name, which serves                                V = fvi g [ fAj :lengthg [ f k g, where vi is a program
+as a “hook” for attaching the constraints generated by the branch.                                  variable, Aj :length is a program literal denoting the length
+Although  -assignments are inserted into CFG edges, in the tex-                                    of array Ai , and k is an integer constant appearing in the
+tual representation of the program used throughout this paper,  -                                  program P .
+assignments are placed at the beginning of the basic blocks targeted
+                                                                                                  E contains a directed edge u ! v iff P generates a constraint
+                                                                                                   v u  according to any rule in Table 1. The weight
+by the branch.
+   2
+     To reduce the amount of program transformation, we actually allow the variables               d(u ! v ) of the edge is 2 N.
+appearing in the constraint to be live outside the scope, as long as they are simultane-
+ously live only in the scope.                                                                     V is a distinguished subset of vertices, V  V , such that
+     Note that  -assignments are analogous to the switch operators in the dependence
+                                                                                                   vi 2 V iff variable vi is deﬁned in program P using an e-
+   3
+
+ﬂow graph [JP93].
+                                                                                                   SSA -assignment.                                          
+
+                                                                                           4
+
+=== [Page 5] ===
+              Original program:                                                      e-SSA form:
+              limit := A.length                                                          limit0 := A.length
+              st := 1                                                                    st0 := 1
+              while:        while (st < limit)                                         while:
+                                                                                                               (
+                                                                                         limit1 :=  limit0 ,limit3 )
+                                                                                                       (
+                                                                                         st1 :=  st0 ,st3 )
+              if (st < limit)          f                                                 if (st1 < limit1 )            f
+                                                                                            st2    := ( )
+                                                                                                    st1
+                                                                                            limit2    := (
+                                                                                                       limit1             )
+                  st := st + 1                                                              st3 := st2 + 1
+                  limit := limit    1                                                       limit3 := limit2      1
+                  j := st                                                                   j0 := st3
+                  for:         for (j := st; j < limit; j++)                              for:
+                                                                                                           (
+                                                                                            j1 :=  j0 ,j4 )
+                  if (j < limit)           f                                                if (j1 < limit3 )              f
+                                                                                                j2     := ( )
+                                                                                                      j1
+                                                                                                limit4     := (
+                                                                                                           limit3             )
+                         check A[j]               A[j]                                          check A[j2 ]
+                                                                                                j3     := ( )
+                                                                                                      j2
+                         t := j + 1                                                             t0 := j3 + 1
+                         check A[t]               A[j+1]                                        check A[t0 ]
+                                                                                                t1     := ( )
+                                                                                                      t0
+                         j := j + 1               j++                                           j4 := j3 + 1
+                         goto for                                                               goto for
+                  g                               end for                                     g
+                  goto while                                                                  goto while
+              g                                   end while                               g
+                             Figure 3: The running example before and after the conversion into e-SSA form.
+
+
+Recall that Table 1 deﬁnes the edges of GI for the elimination             constraint system would imply
+                                                                                                           vj = vk :
+of upper-bound checks; the elimination of lower-bound checks is
+based on analogous, but separate, inequality graph.
+                                                                           Similarly, the system would imply ws = wt for the other  -
+Example 2 (The Inequality Graph GI ) Figure 4 shows the in-                assignments in C 4. As a result, the constraints generated on the
+equality graph GI for the running example. The vertices are                exit of the conditional in rule C 4, namely
+the program entities from Figure 3: (e-SSA) variables, the literal                             vj  ws and wt  vk 1;
+A:length, and the constant     1  . The set V contains the three -
+assignments. Note that, thanks to e-SSA form, a vertex represents          would be inconsistent, as no value of the program variables v and
+the deﬁnition as well as all uses of a variable. e-SSA form also           w could satisfy the constraint on vk :
+guarantees that GI is not a multigraph. Finally, note that the names
+in V denote, interchangeably, both the program entities and the
+                                                                                              vk = vj  ws = wt  vk 1:
+vertices of the inequality graph.                                         To avoid the inconsistency, ABCD translates the assignments vj :=
+                                                                            (vi ) and vk :=  (vi ) into constraints
+     It is worth mentioning why we decided to represent constraints
+generated by program assignments with inequalities, rather than                                   vj  vi and vk  vi ;
+with equalities, which appear to be the more intuitive choice, and         which makes variables vj , vk mutually unconstrained, reﬂecting
+which would also allow using the same inequality graph for both            the fact that vj and vk are never live simultaneously at any node in
+upper- and lower-bounds check elimination. The ﬁrst motivation             the program and thus their values should not be compared.
+is to represent all constraints uniformly, exclusively with inequal-           We are now ready to deﬁne the system of difference constraints.
+ities. The more important motivation is to formulate a consistent
+                                                       4
+constraint system in the presence of the constraints C . Consider
+      4
+the C rules in Table 1. If the assignments vj        := ( )
+                                                           vi and
+                                                                           Deﬁnition 2 (The constraint system) The constraint system of an
+                                                                           inequality graph GI    =(               )
+                                                                                                      V; E; d with a distinguished set of ver-
+   := ( )
+vk  vi were translated into constraints                                   tices V is a set of inequalities
+                       vj = vi and vk = vi ;
+                                                                                      ( maxfu + d(u ! v)g if v 2 V ,
+                                                                                        u!v                          
+                                                                                   v  min  f u + d(u ! v )g if v 2 V V .                  (1)
+rather than into vj    vi and vk  vi , as it is done by ABCD, the                     u!v
+
+
+                                                                       5
+
+=== [Page 6] ===
+                                  constraint     generating              generated                 edge / edge weight
+                                  type           statements              constraint
+                                  C1                :=
+                                                 vi Aj :length             
+                                                                      vi Aj :length              Aj :length ! vi        0
+                                  C2             vi :=                     vi                           ! vi           0
+                                  C3                := +
+                                                 vi vj                  vi vj   +                    vj ! vi
+                                  C4                  
+                                                 if vi wr then            vj vi                      vi ! vj           0
+                                                      := ( )
+                                                    vj  vi              ws wr                      wr ! ws            0
+                                                       := ( )
+                                                    ws  wr               vj ws                     ws ! vj            0
+                                                 else                     vk vi                      vi ! vk           0
+                                                      := ( )
+                                                    vk  vi              wt wr                      wr ! wt            0
+                                                       := ( )
+                                                    wt  wr             wt vk     1                 vk ! wt             1
+                                  C5                      [ ℄
+                                                 check Ak vi
+                                                    := ( )
+                                                 vj  vi            vj  Ak :length 1            Ak :length ! vj         1
+                                  control           := ( )
+                                                 vi  vj ; vk        vi  maxfvj ; vk g               vj ! vi           0
+                                  ﬂow                                    (vi 2 V )                   vk ! vi           0
+                                Table 1: The edges of the inequality graph for elimination of upper-bounds checks.
+
+
+for each v   2
+             V . A feasible solution for the constraint system is               limit 1 must come from outside the cycle. By propagating the con-
+an assignment of integer values to variables in V that satisﬁes all             straint on limit 0 from outside the cycle, the max node effectively
+constraints.                                                                   breaks the cycle.
+                                                                                    More formally, let C be a negative cycle in GI . Because each
+Handling Control Flow. ABCD extends the standard difference-                    cycle in GI is created as a result of cyclic control ﬂow, C must con-
+                                                                                tain at least one -assignment whose one or more arguments are de-
+constraint system [Pra77] in order to express the control ﬂow of the
+                                                                                ﬁned outside the cycle. Let v1 , deﬁned by v1    := (          )
+                                                                                                                                     v2 ; v3 , be such
+program. The standard system consists of a set of equations
+                                                                                a vertex. From the constraint system we have v1         maxf         g
+                                                                                                                                               v2 ; v3 .
+                  v        u  d(u ! v )       8v; u 2 V                        Assume that v2 is the argument deﬁned outside the negative cycle
+                                                                                C . Hence, v3 “closes” the negative cycle: v3 v1        +    ; < .   0
+which is equivalent to the following set of equations                           Therefore, v1     maxf        + g=
+                                                                                                         v2 ; v1        v2 , which yields an equivalent
+                                                                                constraint system without the negative cycle C .
+                 v  minfu + d(u ! v )g            8v 2 V:          (2)
+                          u!v
+                                                                                Redundancy of a Bounds Check. We now relate the solution of
+To see how ABCD extends the standard difference-constraint sys-                 the constraint system to the redundancy of a bounds check.
+tem, compare equations 1 and 2: a set V of distinguished vertices
+is constrained not by the strongest constraint that holds on its in-            Deﬁnition 3 (Fully redundant check) An upper-bound check
+edges, but instead by the weakest one. To reﬂect the semantics of                          [ ℄                               
+                                                                                “check Ai vj ” is fully redundant if vj Ai :length whenever1
+vertices in their mnemonics, we refer to vertices in V as max ver-             the check is executed.                                               
+tices and the vertices in V V as min vertices.
+    Because V corresponds to -assignments, Eq. 1 ensures that a                    In terms of the constraint system, a bounds check is redundant
+bounds check is redundant along all incoming control ﬂow paths.                 if the check is true under each feasible solution of the constraint
+                                            2
+As an example, consider variable st1 V deﬁned in Figure 4 by                   system. In other words, a bounds check is redundant if it is implied
+st1 := (              )
+         st0 ; st3 . The following constraints hold for arguments              by the constraint system.
+of the -assignment (the ﬁrst line follows from the fact that array
+length is non-negative, which could be represented as an edge in
+GI ):
+                                                                                                                                          [ ℄
+                                                                                Theorem 1 Let b be an upper-bound check “check Ai vj ” in pro-
+                                                                                gram P , and let GI be the inequality graph of P . The check b
+     st0  1  A:length 1
+                                                                                is redundant if for any feasible solution D to GI , the D vj       ( )
+                                                                                  (
+                                                                                D Ai :length ) 1  .                                                  
+     st3  st2 + 1  limit 2  limit 1  limit 0  A:length
+                                                                                     Proving redundancy of the bounds check “check Ai vj ”          [ ℄
+i.e., the control ﬂow predecessor corresponding to st3 constrains               thus entails computing the greatest value of     (Ai :length; vj    )=
+the value of st1 less than the predecessor corresponding to st0 .                 ( )
+                                                                                D vj         (          )
+                                                                                           D Ai :length , for all feasible solutions D of GI . The
+The constraint on st1 that holds along all incoming control ﬂow                                           [ ℄
+                                                                                bounds check “check Ai vj ” is redundant if      (Ai :length; vj    )
+paths is st1     A:length, the weaker of the two constraints, as is              1 . We call the value ( )
+                                                                                                           u; v the distance between vertices u and
+(correctly) computed by Eq. 1: st1       maxf
+                                             st0 ; st3 .   g                                                            ( )
+                                                                                v in GI . Alternatively, the distance u; v can be deﬁned as the
+                                                                                smallest value d such that adding constraint v       +
+                                                                                                                                     u d into the
+Consistency. Because GI may contain negative cycles, its con-                   constraint system will not change the set of feasible solutions of
+straint system may seem inconsistent, due to implying v          + v           the system.
+         0
+ ; < . Informally, the consistency of out constraint system is                       The problem of computing the distance in GI is a generaliza-
+                                                                                tion of the shortest-path problem in a weighted directed graph. Be-
+guaranteed by the presence of at least one max vertex in each cy-
+cle, which breaks the cycle if it is negative. Consider the negative            fore we outline the generalization, we note that, for upper-bound
+cycle limit 1 ; limit 2 ; limit 3 in Figure 4. Because each negative cy-        check elimination, the distance in GI corresponds to the longest
+                                                                                path, i.e., to the shortest path in the reverse problem, in which
+cle strengthens constraints, the weakest constraint at the max vertex
+                                                                                +1    <    1   and hence the max operator selects the shorter path.
+
+
+                                                                           6
+
+=== [Page 7] ===
+                                                                 0
+                                                     st0                       1
+
+                                                 0
+                                           st1 = (st0 ; st3 )                                0                      j0
+                                       0                             0
+                                                                                                                          0
+                              st2                                          st3                                 j1 = (j0 ; j4 )
+
+                                                      1                                                    0                      0
+
+                                                                                                  j4                                  j2
+
+
+                                                             0                                             1                      0
+                         1                       limit0                  A.length                                    j3
+
+                                                 0                                                     1                  1
+                                                                                                                                           1
+                                      limit1 = (limit0 ; limit3 )                                                   t0
+                                       0                             0
+
+                             limit2                                       limit3                                   limit4
+
+                                                         1                                        0
+
+Figure 4: The inequality graph GI of the running example. The meaning of an edge u                             !               +
+                                                                                                 v is v u . Each (upper-bound) check is
+represented in GI with two vertices: the array-length vertex and the array-index vertex. For example, the bounds check “check A j2 ,” is                    [ ℄
+represeneted with vertices A:length and j2 . A bounds check is redundant if the distance between the two vertices is less than 0. To compute
+the distance from a node u, we “propagate” from u the sum of edge weights in the following way: at each -node, the distance equals the
+greatest incoming distance; at each remaining node, the distance equals the smallest incoming distance. The distance between A:length and
+       2                                                                   h
+j2 is . The corresponding “shortest” path for this distance is A:length; limit 0 ; limit 1 ; limit 2 ; limit 3 ; limit 4 ; j2 .            i
+
+For the rest of the paper, the terms “shorter/longer” refer to the re-                  of P . The distance from u to v equals the shortest of all hyperpaths
+verse problem (in which 3 is shorter than 2).                                           from u to v .
+    An intuitive way to describe how distance generalizes the short-
+est path is to give an instance of GI in which the distance and the                     Example 3 To determine whether the bounds check “check A j2 ”          [ ℄
+shortest path are deﬁned identically. This is the case when only                        is redundant using the inequality graph in Figure 4, we compute
+vertices from V have multiple predecessors. Under such a restric-                      the distance between the vertex A:length and the vertex j2 . If the
+tion, each path in GI corresponds to a control ﬂow path, and the                        distance is less than 0, then the array index j2 is at most       1   greater
+distance in GI corresponds to the shortest path in GI . The shortest                    than the array length, and hence is within its bounds.
+path thus ﬁnds a constraint that is valid along all control ﬂow paths.                      The distance between A:length and j2 is            2
+                                                                                                                                              . Hence the check
+In contrast, when vertices in V      V are allowed to have multiple                                   [ ℄
+                                                                                        “check A j2 ” is redundant. The distance is equal to the longest
+predecessors, GI may contain paths that corresponds to different                        component path of the shortest hyperpath between the two vertices,
+constraints that hold along the same control ﬂow path. Therefore,                                     h                                                       i 
+                                                                                        which is A:length; limit 0 ; limit 1 ; limit 2 ; limit 3 ; limit 4 ; j2 .
+when computing the distance along a given control ﬂow path, we
+pick the longest of these different paths in GI .
+    An elegant formalism for dealing with two kinds of paths is the                     5 The Constraint Solver
+hypergraph [Ber73, GLPN93, RR96]. A directed hypergraph con-
+sists of a set of nodes and a set of hyperarcs, where each hyperarc                     This section presents the details of the solver that ABCD uses to
+connects a set of nodes to a single target node. The concept of hy-                     identify fully redundant checks. The extensions for partially re-
+perpaths is deﬁned recursively. There exists an empty hyperpath                         dundant checks are described in the next section.
+from from a set S of nodes to a node t if t          2
+                                                     S . A non-empty                        The constraint system represented by the inequality graph
+                                                                                        can be solved in various ways. First, as it has already been
+hyperpath from a set S of nodes to a node t consists of an hyperarc
+from a set S 0 to t and a hyperpath from S to s for every node s                        mentioned, the inequality graph GI can be viewed as a hyper-
+in S 0 . A hyperpath from S to t is thus a set of component paths,                      graph [Ber73, GLPN93, RR96]; the redundancy of a check is then
+                                                                                        reduced to computing the shortest hyperpath between two ver-
+which are traditional paths (i.e., sequences of vertices).
+                                                                                        tices (the array-length vertex and the array-index vertex). Sec-
+    To turn the inequality graph into a hypergraph, we group all
+in-edges of a vertex v V2        V into a single hyperarc; every in-                   ond, when the hypergraph is viewed as an abstract grammar prob-
+                                                                                        lem [Ram96], the shortest hyperpath can be found using a ﬁxed-
+edge of a vertex in V represent a separate hyperarc. The distance
+                                                                                        point computation. Third, the shortest hyperpath can be computed
+between u and v is deﬁned as follows: The length of a hyperpath P
+from u to v equals the length of the longest of the component paths
+                                                                                        efﬁciently using the dataﬂow analysis solver in [GW75], in O E 2      ( )
+                                                                                        time (even if GI is irreducible).
+
+
+                                                                                    7
+
+=== [Page 8] ===
+    ABCD uses an algorithm with worse asymptotic time complex-                may still be small enough to prove the check redundant. Consider
+ity but with very good practical running time, which is mainly due            j2 in Figure 4. When its amplifying cycle is broken (i.e., by remov-
+to the typically small size of the sparse inequality graph. In con-           ing edge j1    !  j2 ), an alternative path to A:length remains, via
+trast to the above three exhaustive analysis approaches, our solver           limit4 , with weight of     2
+                                                                                                          , which is sufﬁcient to prove the bounds
+works on demand. An exhaustive algorithm analyzes all bounds                  check redundant.
+checks in the program, which in the context of shortest paths means                To detect positive-weight cycles, the forward exploration keeps
+computing the single-source shortest-path problem for each array-                       [℄
+                                                                              in active v the value of the propagated value for each vertex
+length vertex. A demand-driven approach analyzes a single bounds              v that is on the active depth-ﬁrst traversal path. When a back-
+check, which amounts to computing the shortest path between the               edge is traversed, the positive weight cycle is detected by com-
+array-length vertex and the array-index vertex.                               paring the current value of and its value “one cycle ago.” When a
+    Our solver is demand-driven in yet another sense: Because we              positive-weight cycle is detected, the value False is returned. When
+expect that a dynamic optimizer will optimize only a small fraction           a “harmless” cycle of weight zero or less is detected, we consider
+of all bounds checks, our design favors performance of a single-              the path reduced, returning the value Reduced. The cycle is reduced
+check analysis over a batch analysis of all bounds checks. There-             in the sense that it does not inﬂuence the distance from a to b.
+fore, our solver does not actually return the length of the shortest               In summary, when the forward exploration stops at a node, we
+path, but only a boolean information whether the shortest path is             know for each path originating at b whether its distance is smaller
+below a limit sufﬁcient to prove that a given bounds check is re-             than or equal to (result True), greater than (result False), or
+dundant. This less strict question sometimes allows the solver to             is reduced (result Reduced). When the recursion is returning back-
+examine fewer paths than would be necessary to compute the pre-               wards, the algorithm merges these results according to the min-max
+cise value of the shortest path.                                              semantics of GI vertices, using the following lattice L:
+    To explain how the solver works, let us consider ﬁrst GI that
+is acyclic (but contains both min and max nodes). An efﬁcient way                                    True > Reduced > False;
+of computing the shortest path between a source s (an array-length
+vertex) and a target t (an array-index vertex) is to perform a topo-          where True is the top element and False is the bottom element. A
+logical traversal from s to t, performing the min/max operations in                  2
+                                                                              max node v       V merges these values using a meet operator ,          u
+                                                                                u = ,                      2
+                                                                              x y x x y . A min node v V V merges these values
+                                                                                                      t t = , 
+the process. However, to determine the topological order, one must
+ﬁrst traverse the entire graph, which is what demand analysis seeks           using a join operator , x y x        x y.
+to avoid in the ﬁrst place. Therefore, instead of a topological traver-
+sal, the solver performs a “brute-force” depth-ﬁrst exploration of            6 Removing Partially Redundant Checks
+the graph, in which a node may be visited multiple times. Each
+successive visit of a node corresponds to a stronger question about           The previous section identiﬁed checks that never fail. For some
+the distance of that node from the array-length vertex.                       checks, however, such a strong guarantee cannot be proven. A typ-
+    The algorithm, shown in Figure 5, performs a depth-ﬁrst traver-           ical example is a loop-invariant bounds check—all we can prove is
+sal of GI starting at the array-index vertex b. Intuitively, the recur-       that it either fails in the ﬁrst iteration of the loop or it never fails. In
+sive exploration of the graph proceeds forward (against the direc-            general, such checks are called partially redundant: they are guar-
+tion of GI edges) until either the source vertex a is reached, or until       anteed not to fail along some (but not all) control ﬂow paths leading
+a cycle is detected. The goal is to determine, for each traversed path        to them.
+from b to a, whether it is longer than . To this end, the forward                 Some partially redundant checks can be eliminated with an op-
+pass propagates the value and adjusts it as it crosses each edge, so          timization called Partial Redundancy Elimination (PRE), which
+that when the source vertex is reached, the traversed path is longer          generalizes common subexpression removal and loop invariant
+than iff the propagated value is greater than zero. Depending on              code motion [MR79]. PRE works by inserting compensating
+the outcome of this comparison, the recursion will return the value           checks in such program points that make the partially redundant
+of either True (the path is shorter) or False (the path is longer or of       check fully redundant (i.e., after the insertions, the check will have
+the same length).                                                             been performed along all control ﬂow paths) and hence it can be re-
+    Let us now consider cyclic inequality graphs. As was                      moved. We present here PRE optimization of array-bounds checks,
+mentioned in the previous section, although arbitrary inequality              as a natural extension of the ABCD algorithm for full redundancies.
+graphs may contain negative-weight cycles, these cycles have non-                 Before we proceed to describe the extensions to ABCD, let us
+decreasing effect on the path distance, because each cycle is broken          introduce into the running example a partially redundant check.
+by a max node. Cycles with positive weight, however, may impact               This task is easily accomplished by removing the assignment
+path distance, if they are not broken by a min vertex. Positive cycles        “limit0  :=   A:length” from Figure 3. The effect on the inequal-
+in GI correspond to program loops in which the program variable               ity graph (Figure 4) is that the vertex limit0 becomes disconnected
+is incremented in the loop body. We call these GI cycles ampli-               from vertex A:length, which breaks the shortest path that was used
+fying cycles. In Figure 4, the cycles involving st1 and the cycle                                       [ ℄
+                                                                              to prove that “check A j2 ” is fully redundant. The check is now
+involving j1 are amplifying. In contrast, the cycle of limit1 is not          only partially redundant; namely, it is loop-invariant.
+amplifying. Consider the cycle on variable st in the example in
+Figure 4. If the edge limit2 !   st2 was removed from Figure 4, the           6.1 The Analysis
+cycle on st would cause the distance from st0 to j0 to be of positive
+inﬁnite weight.                                                               In order to turn partially redundant bounds checks into fully redun-
+    Conceptually, our algorithm works by identifying and reducing             dant checks, the analysis must determine:
+amplifying cycles. After such a cycle is broken, two situations may
+occur. If the cycle was an articulation point between the source                  Where to insert the compensating checks. Our goal is to ﬁnd,
+vertex and the bounds check vertex, the distance will be (correctly)                for each partially redundant check b, a set of CFG edges into
+                                                                                    which checks must be inserted to make b fully redundant. For
+                                                                                               [ ℄
+computed to have inﬁnite weight, which means that the check can-
+not be proven to be redundant. If, after breaking the cycle, another                “check A j2 ” in Figure 3, it is sufﬁcient to insert a check
+path leads to the source (via a min vertex), the value of distance
+
+
+                                                                          8
+
+=== [Page 9] ===
+                                   (
+ function demandProve GI ; t return boolean )
+      GI = (V; E; d) is the inequality graph with max vertices V  V .
+      t = hb a  i is the check to be proven, where b 2 V is the check’s index variable, and a 2 V is the array-length
+       literal. For example, when analyzing “check A[x℄,” t = hx A:length  1i. Vertices a and b are the source and the
+       target of the shortest-path computation, respectively.
+
+      C memoizes the result of proving v a  , where a the array-length literal. C : V  N ! L, i.e., C maps hv a  i
+       into fTrue; False; Reducedg.
+
+      active detects cycles: if active[v℄ 6= null, then active[v℄ is the distance of v from b, where b is the check’s index variable.
+       active maintains the distance for each vertex v that is on the path on the current DFS stack.
+
+ begin
+ 1     C     active            ;
+ 2               (
+       if prove a; b;         ) 2 fTrue; Reducedg then return true ; else return false
+                               (
+        function prove vertex a; vertex v; int        ) return fTrue, Reduced, Falseg
+         // same or stronger difference was already proven
+ 3               [
+         if C v a e            ℄=
+                            True for some e           
+                                                 then return True
+         // same or weaker difference was already disproved
+ 4               [
+         if C v a e            ℄=
+                            False for some e          
+                                                   then return False
+         // v is on a cycle that was reduced for same or stronger difference
+ 5               [
+         if C v a e            ℄=
+                            Reduced for some e            
+                                                        then return Reduced
+         // traversal reached the source vertex, success if a a            
+ 6               =
+         if v a and                    0
+                             then return True
+         // if no constraint exist on the value of v , we fail
+ 7       if v has no predecessor in GI then return False
+         // a cycle was encountered
+ 8       if active v  [ ℄ 6=
+                       null then
+ 9                                     [℄
+              if > active v then return False         // an amplifying cycle
+ 10           else return Reduced                    // a “harmless” cycle
+ 11      end if
+ 12      active v    [℄
+ 13              2
+         if v V then
+ 14           for each edge u      v E do C v a ! 2   [        ℄
+                                                               Cv a   [       ℄u
+                                                                             prove a; u;   (         d(u ! v ))
+ 15      else
+ 16           for each edge u      v E do C v a ! 2   [        ℄
+                                                               Cv a   [       ℄t
+                                                                             prove a; u;   (         d(u ! v ))
+ 17      end if
+ 18      active v    [℄
+                      null
+ 19      return C v a     [             ℄
+      end prove
+ end demandProve
+
+                                                                                                            (      )
+Figure 5: The algorithm for proving the redundancy of a bounds check. The procedure demandProve GI ; t returns true if the check
+ =h
+t b a       i   is proven to be redundant on the inequality graph GI , which is equivalent to showing that the distance between vertex a and
+vertex b in GI is no greater than .
+
+
+
+
+                                                                     9
+
+=== [Page 10] ===
+     into the edge that corresponds to the ﬁrst argument of limit1 ’s         transforming the program. The broader problem is how to main-
+     -node, which is the entry of the while loop.                            tain exception semantics in the presence of code motion: When a
+     The ABCD algorithm extended for PRE computes the set of                  hoisted (i.e., inserted) check fails, the exception cannot be raised
+     insertion edges during the backtracking from the recursive ex-           immediately; it must be delayed, and raised at the location of the
+     ploration of the inequality graph. A check is inserted into a            original (i.e., partially redundant) check. This broader problem is
+     -node’s in-edge exactly when some of -node’s arguments                 beyond the scope of the paper. In this subsection we describe the
+     were proven (i.e., procedure prove() returned True) and some             solution that we currently use in our implementation of ABCD. We
+     were not able to be proven (i.e., prove() returned False). The           also sketch the solution that we are investigating.
+     False arguments are then collected during the backtracking                    In the current solution, each bounds check is split into two in-
+     into the insertion set.                                                  structions: the compare instruction, which sets a register if the in-
+                                                                              dex is out of bounds, and the trap instruction that raises the excep-
+    What compensating checks should be inserted.          The com-           tion if the ﬂag is set. As we discuss below, traps require a different
+     pensating check may be different than the check being opti-              transformation than compares do. Therefore, our current approach
+     mized. Speciﬁcally, the checks may differ in their index ex-             optimizes only the compare instructions. While leaving traps in the
+                                                           [ ℄
+     pression: the compensation of a check “check A vi ” may                  original locations prevents us from moving code freely around ar-
+     require insertion of a check “check A vj [ + ℄  j .” In our ex-          ray accesses, which was the primary motivation for bounds-check
+                                  [ ℄
+     ample, the check “checkA j2 ” is compensated with a check                optimization, note that only partially redundant traps are left in
+                [
+     “check A limit0    + 2℄
+                           .”                                                 the code; all fully redundant traps—a majority of all traps—are
+     Identifying the index expression in ABCD is trivial. Due to              removed.
+     the reliance on simple difference constraints, the index ex-                  Removing traps is similar to removing conditional branches.
+                                        +
+     pression is always of the form vi d (we assume that the in-              Traditionally, conditional branches are optimized with program re-
+                                                                              structuring (i.e., code duplication) [MW95, BGS97]. We see re-
+     dex expression of the optimized bounds check is of the form
+     vj +0  ): The variable vi corresponds to the -node argument             structuring as too expensive for a dynamic compiler, and hence our
+                                                                              current work is exploring transformation techniques unique to the
+     into which the insertion is being performed. The constant d
+     equals the distance from the insertion point to the array-index          dynamic-optimization setting.
+     vertex; in our example, the distance between limit0 and j2                    Our approach for run-time removal of traps is as follows. The
+     equals 2; therefore, the compensating check in our example               optimized version of the loop executes without a trap. When a
+                    [
+     is “check A limit0   + 2℄.” This distance can easily be com-             compare instruction fails, the code for the unoptimized version of
+                                                                              the loop (with the trap) is generated and the execution is transferred
+     puted from the value propagated by the recursive procedure
+     prove().                                                                 to it. Now, it is possible that the hoisted check failed spuriously, i.e.,
+                                                                              it was executed speculatively (see Section 6.1). If this is the case,
+    Proﬁtability of removing the partial redundancies. To ensure             the unoptimized loop ﬁnishes without encountering the trap and we
+     that inserted checks do not increase the dynamic number of               proceed with the execution of the optimized version of the code.
+     checks in the program, traditional PRE techniques insert a
+     check only when its cost can be amortized by removing a                  7 Extensions
+     check on each control ﬂow path emanating from the insertion
+     point. The “amortization” condition is computed as backward              7.1 Global Value Numbering
+     dataﬂow problem of anticipability [MR79].
+                                                                              The inequality graph GI can represent not only local constraints,
+     ABCD estimates proﬁtability using run-time proﬁling. We
+                                                                              i.e., those generated by individual program statements shown in
+     do not require that the check be removed on each emanat-
+                                                                              Table 1, but also constraints deduced by a global program anal-
+     ing path. Instead, we allow control-speculative insertion, in
+                                                                              ysis, for example, by global value numbering [AWZ88]. When
+     which we speculate that the program will follow a path on
+                                                                              two SSA variables vi and vj are found to be value congruent, their
+     which the insertion will lead to a removal of a check. To
+                                                                              equivalence can be reﬂected in GI by a constraint edge vi          !
+                                                                                                                                                 vj
+     determine whether speculative insertion is proﬁtable, ABCD
+     compares the cumulative execution frequency of the insertion
+                                                                                            0
+                                                                              with weight . Following the restrictions of the value-numbering
+                                                                              algorithm, this edge can be inserted only if the deﬁnition of vi dom-
+     points with the frequency of the partially redundant check.
+                                                                              inates the deﬁnition of vj , which serves to guarantee that any con-
+     If the impairment due to insertions is lower than the beneﬁt
+                                                                              straint that holds on vi will hold whenever vj is executed.
+     due to removal of the check, we carry out the transforma-
+                                                                                   Our current implementation of ABCD exploits global value
+     tion. Such a proﬁle-based PRE has been shown to be nearly
+                                                                              numbering in a more restricted, but also more economical, fash-
+     as powerful as a complete removal of redundancies based on
+                                                                              ion than described above. We do not encode the results of value-
+     program restructuring [BGS99].
+                                                                              numbering analysis on GI . Instead, we consult the congruence
+    The algorithm in Figure 5 can be easily extended to remove                information on demand, in the following common scenario: When
+partial redundancies. The recursive function prove is extended to                                                           [℄
+                                                                              attempting to eliminate a check “check A x ,” we were able to es-
+return not only the three lattice values but, when the value is False,        tablish that x < B:length but not that x < A:length. In that case,
+also the list of insertion edges that will make the optimized check           we consulted the value-numbering analysis and if A and B were
+fully redundant. The meet and join operators now also manipulate              congruent, we obtained the desired proof that x < A:length.
+the insertion sets. At a min vertex, ABCD selects the set that has
+the lower execution frequency. At a max vertex, the propagated                7.2 Elimination of both lower- and upper-bounds checks
+sets are merged.
+                                                                              The ABCD algorithm presented in the paper eliminates upper-
+                                                                              bound checks. To detect redundant lower-bound checks, two
+6.2 The Transformation
+                                                                              changes to the algorithm are needed. First, we reverse the rela-
+Although ABCD allows an elegant analysis of where compensat-                                                          1 3
+                                                                              tional operator of the constraints C –C from           
+                                                                                                                                    to   (see Ta-
+ing checks should be inserted, it does not address the problem of             ble 1). Second, the source vertex for the shortest-path computation
+
+
+                                                                         10
+
+=== [Page 11] ===
+is not Ai :length, but the lower bound, which in Java is the constant          8 Preliminary Experiments
+       0
+vertex .
+    It is interesting to note in this context that ABCD performs (an           We present an initial experimental evaluation of the ABCD al-
+implicit) subsumption of bound checks. For example, the upper-                 gorithm. Our experimental results were obtained by using
+bound check A i   [ 1℄   is redundant with respect to the upper-bound          the Jalapeño optimizing compiler infrastructure [BCF+ 99] on a
+             [℄
+check for A i . A equivalent subsumption will be performed for                 166MHz PowerPC 604e processor running AIX v4.3. For these ex-
+                                                      [℄
+lower bound checks: a lower-bound check for A i is redundant                   periments, the Jalapeño optimizing compiler performed a basic set
+with respect to a lower-bound check A i  [ 1℄     .                            of standard optimizations including copy propagation, type prop-
+    Although ABCD treats the analysis of upper- and lower-bound                agation, null check elimination, constant folding, devirtualization,
+checks as two independent problems, these two problems are                     local common subexpression elimination, load/store elimination,
+treated together in the transformation stage of the optimization.              dead code elimination, and linear-scan register allocation. Previous
+Next, we describe a trick that can merge an upper- and a lower-                work [BCF+ 99] has demonstrated that Jalapeño performance with
+bound check into a single check instruction. This trick applies to             these optimizations is roughly equivalent to that of the industry-
+arrays that have zero as their lower bound (as in Java). The merged            leading IBM product JVM and JIT compiler for the AIX/PowerPC
+check is performed as an unsigned comparison, thanks to which a                platform.
+negative value of the array index is thus transformed into a large                 For our experiments, we used ﬁve Java benchmarks (db,
+positive value that is guaranteed to exceed the size of the largest ar-        mpeg, jack, compress, jess) from the SPECjvm98 suite, seven mi-
+ray allowed in a Java virtual machine. Therefore, the upper-bound              crobenchmarks (bubbleSort, biDirBubbleSort, Qsort, Sieve, Hanoi,
+check on the unsigned value is equivalent to performing a (lower-              Dhrystone, Array) from the Symantec suite [Sym], and three other
+bound) check for a negative value as well as the upper-bound check             Java programs (toba, bytemark and jolt). For the SPEC codes, we
+on the signed value.                                                           use the medium-size (-s10) inputs. The focus of our measurements
+                                                                               was on dynamic counts of bounds check operations. When we re-
+7.3 Pointer Aliasing and Array SSA Form                                        port timing information, we report the best wall-clock time from
+                                                                               three runs.
+To convince the reader that ABCD correctly handles pointer alias-                  Our preliminary implementation has several limitations. We do
+ing, it is useful to highlight how aliasing in a strongly typed lan-           not use any interprocedural summary information, as the Jalapeño
+guage like Java differs from that in a language like C. We then                optimizing compiler assumes on “open-world” due to dynamic
+explain how ABCD deals with the two kinds of aliases.                          class loading. We do not perform any code duplication, such as
+    In Java, local variables cannot be subject to pointer aliasing be-         generation of multiple versions of a loop or partitioning a loop it-
+cause their address cannot be taken. Furthermore, no statement                 eration space into safe and unsafe regions [MMS98]. Most impor-
+can change the size of an array referenced by a local Java variable.           tantly, the Jalapeño optimizing compiler still lacks many optimiza-
+Consider the program below.                                                    tions (e.g., global code motion) that can beneﬁt from removal of
+                                                                               array bounds checks. For these reasons, these experimental results
+           x = new int[10];                                                    should be considered a lower bound on the potential gains due to ar-
+           y = x;                                                              ray bounds check elimination, and we expect the results to improve
+                                                                               as Jalapeño matures.
+           y = new int[1];                                                         Figure 6 shows the dynamic number of bounds checks removed
+           x[2];         passes bounds check                                   by ABCD. The baseline represents all the bounds checks that were
+                                                                               analyzed by ABCD; these are upper-bound checks, measured in
+The two middle statements do not affect the value of x, and hence              dynamic terms. For the ﬁve SPEC benchmarks, the number is
+the array access x[2] remains a valid (in-bounds) reference to the             broken down into local checks (those from the same basic block,
+array created in the x = new int[10] statement. SSA form                       and checks whose redundancy required global analysis). This di-
+correctly accounts for the fact that x is not modiﬁed, by placing a            vision is not made for the remaining programs. Manual exami-
+def-use edge between the deﬁnition of x and the reference to x[2].             nation of the Symantec benchmarks showed that ABCD achieved
+                                                                               near-optimal performance, in the sense that checks that were left
+       x.f = new int[10];                                                      unoptimized were not optimizable with intraprocedural analysis
+       y = x;                                                                  (Hanoi), or requiring a complex pointer analysis (Dhrystone). In
+                                                                               static terms, the average number of checks that were found fully
+       y.f = new int[1];                                                       redundant was about 31%. Only bytemark had a signiﬁcant num-
+       x.f[2];         fails bounds check!                                     ber of static checks that were partially redundant (26%).
+                                                                                   The average number of analysis steps (i.e., invocations of the
+Now, consider the second example. Because of the y = x copy                    recursive procedure prove) was less than 10 per analyzed check.
+statement, array access x.f[2] refers to the array created by the              This low number conﬁrms the beneﬁt of the sparse approach. The
+y.f = new int[1] statement, and hence the array access is                      time to analyze one bounds check ranged from 0 to 35 milliseconds,
+out of bounds. Again, SSA form will correctly capture this effect,             and averaged around 4 milliseconds. This time does not include the
+because the value of x.f will be the result of a memory load which             time to construct the e-SSA form.
+is assumed to return an unknown array. Therefore, there will be no                 We measured run-time speedup on the Symantec benchmarks.
+edge between the deﬁnition of x.f and the use of x.f in the array              We observed about 10% improvement. The number was lower than
+access, and hence the ABCD algorithm will conclude that x.f[2]                 we expected, mainly due to the limitations of the infrastructure out-
+refers to an unknown array.                                                    lined above.
+    In future work, we plan to use Array SSA form [SK98, KS98]
+to perform a more precise def-use analysis in the presence of point-
+ers that will enable the ABCD algorithm to conclude that x.f[2]
+refers to the array created in the y.f = new int[2] statement.
+
+
+
+                                                                          11
+
+=== [Page 12] ===
+             db                                                             use in a dynamic-optimization setting. It does not employ a sparse
+          mpeg                             global checks                    representation and uses expensive restructuring transformations for
+                                           local checks                     elimination of partial redundancy, while we perform hoisting.
+                                                                                Chow et al. [CCK+ 97] have developed a PRE algorithm that
+            jack
+
+      compress
+                                                                            also operates on the SSA graph. However, their algorithm does not
+            jess                                                            employ demand-driven analysis. Our algorithm is also simpler in
+     bubbleSort                                                             that it does not require an explicit distinction between speculative
+ biDirBubbleSort                                                            and nonspeculative redundancy removal. Finally and most impor-
+                                                                            tantly, the focus of their work, like many other works on redun-
+          Qsort
+                                                                            dancy elimination [KRS92, BGS98], is on PRE of expressions and
+          Sieve
+                                                                            not array-bounds checks. As we have demonstrated in this paper,
+          Hanoi                                                             elimination of bounds checks has a signiﬁcantly different character
+      Dhrystone                                                             since assertions generated from different sources (loop exit con-
+          Array
+                                                                            ditions, increments of induction variables, etc.) must be analyzed
+                                                                            in concert to prove that a bounds check is redundant. Also array-
+           toba
+                                                                            bounds check elimination exhibits min-max hypergraph behavior.
+       bytemark
+
+             jolt                                                           Demand-driven        Data-Flow      Analysis. Duesterwald         et
+                                                                            al. [DGS97] and Horwitz et al. [HRS95, SRH96] have de-
+               0%     20%       40%      60%        80%      100%           veloped demand-driven data ﬂow analysis frameworks for iterative
+                           bounds checks removed                            approaches that only allow lattices of ﬁnite size or height. For the
+                    % of upper-bound checks, dynamic count                  purpose of bounds check elimination we need to handle inﬁnite-
+                                                                            height lattices and require elimination-style analysis to handle
+Figure 6: The amount of bounds checks removed. The amount                   loops. Bodik et al. present an elimination-style demand-driven
+shown for each benchmark represents the fraction of upper-bound             analyzer that can handle lattices of inﬁnite height in [BGS98].
+checks that were removed, measured in terms of dynamic instruc-             However, it operates on a dense program representation (control
+tion counts. For the benchmarks from SPECjvm98 (the top ﬁve                 ﬂow graph) and thus does not satisfy the efﬁciency goals of
+bars), this fraction is divided between local and global checks.            dynamic optimization. In contrast, the algorithm developed in this
+                                                                            paper achieves further efﬁciency by performing demand-driven
+                                                                            analysis over a sparse program representation.
+9 Related Work
+                                                                            Acknowledgements
+Elimination of Array Bounds Checks. A number of approaches
+have been taken for performing elimination of array bounds checks.          We are indebted to Susan Horwitz, G. Ramalingam, Tom Reps,
+Theorem-proving-style algorithms have been used by Suzuki and               Mark Wegman, and Zhichen Xu for discussions and their sugges-
+Ishihata [SI77], Necula and Lee [Nec98, NL98], as well as Xu                tions on the presentation of the paper. We also thank the anony-
+et al. [XMR00]. Although more powerful than ABCD, theorem                   mous referees for their suggestions. Thanks to Tom Reps for the
+proving is expensive and therefore unsuitable for a dynamic opti-           discussions on the relationship of between the inequality graph, hy-
+mization setting. Value-range analysis has been used to compute             pergraphs and grammar problems.
+bounds on the values of index expressions for the purpose of elim-
+inating full redundancy [Har77, Pat95, RR99]. One of our goals              References
+was to handle non-scientiﬁc programs, which often have complex
+control ﬂow. Therefore, in addition to full redundancy, it was im-          [Asu92]     J.M. Asuru. Optimization of array subscript range checks.
+portant for us to handle elimination of partial redundancy. Several                     ACM Letters on Programming Languages and Systems,
+conventional iterative data-ﬂow-style bounds check elimination al-                      1(2):109–118, June 1992.
+gorithms have been developed that eliminate partial redundancy              [AWZ88]     Bowen Alpern, Mark N. Wegman, and F. Kenneth Zadeck. De-
+[MCM82, Gup90, Gup94, Asu92, KW95]. However, none of these                              tecting equalities of variables in programs. In 15th Annual
+algorithms exhibit the efﬁciency of our algorithm, which is based                       ACM Symposium on Principles of Programming Languages,
+upon demand-driven analysis over a sparse representation. While                         pages 1–11, San Diego, California, January 1988.
+all of the above research focuses on imperative programs, work by           [BCF+ 99] M.G. Burke, J.-D. Choi, S. Fink, D. Grove, M. Hind, V. Sarkar,
+Xi and Pfenning considers functional programs [XP98].                                 M.J. Serrano, V.C. Sreedhar, H. Srinivasan, and J. Whaley. The
+    Midkiff et al. [MMS98] have recently focused on elimination                       Jalapeño Dynamic Optimizing Compiler for Java. In ACM
+of bounds checks from scientiﬁc code written in Java. Their work                      Java Grande Conference, June 1999.
+is complementary to ours since our focus is on non-scientiﬁc code           [Ber73]     Claude Berge. Graphs and Hypergraphs (transl: E. Minieka).
+with complex control ﬂow.                                                               North-Holland, Amsterdam, 1973.
+    Techniques for eliminating partially redundant conditional              [BGS97]     Rastislav Bodik, Rajiv Gupta, and Mary Lou Soffa. Inter-
+branches [BGS97, MW95] determine through compile-time anal-                             procedural conditional branch elimination. In Proceedings of
+ysis the outcomes of branch conditionals, which are similar in na-                      the ACM SIGPLAN ’97 Conf. on Prog. Language Design and
+ture to bounds check conditions. However, these algorithms are                          Impl., pages 146–158, June 1997.
+limited in their power as, unlike our algorithm, they do not in-            [BGS98]     Rastislav Bodik, Rajiv Gupta, and Mary Lou Soffa. Complete
+terpret increments of variables, which is critical for bounds check                     removal of redundant expressions. In Proceedings of the ACM
+elimination because index expressions in loops nearly always refer                      SIGPLAN ’98 Conference on Programming Language Design
+to loop-induction variables. While the algorithm by Bodik et al.                        and Implementation, pages 1–14, June 1998.
+[BGS97] uses demand-driven analysis, it is still quite expensive for
+
+
+                                                                       12
+
+=== [Page 13] ===
+[BGS99]    Rastislav Bodik, Rajiv Gupta, and Mary Lou Soffa. Load-reuse          [MCM82]   V. Markstein, J. Cocke, and P. Markstein. Optimization of
+           analysis: Design and evaluation. In Proceedings of the ACM                      range checking. In Proceedings of a Symposium on Compiler
+           SIGPLAN ’99 Conference on Programming Language Design                           Optimization, pages 114–119, June 1982.
+           and Implementation, May 1999.                                         [MMS98]   S. P. Midkiff, J. E. Moreira, and M. Snir. Optimizing bounds
+[CCK+ 97] F. Chow, S. Chan, R. Kennedy, S.-M. Liu, R. Lo, and P. Tu.                       checking in Java programs. IBM Systems Journal, 37(3):409–
+          A new algorithm for partial redundancy elimination based on                      453, August 1998.
+          SSA form. In Proceedings of the ACM SIGPLAN ’97 Conf. on               [MR79]    E. Morel and C. Renviose. Global optimization by supression
+          Prog. Language Design and Impl., pages 273–286, June 1997.                       of partial redundancies. CACM, 22(2):96–103, 1979.
+[CFR+ 91] Ron Cytron, Jeanne Ferrante, Barry K. Rosen, Mark N. Weg-              [MW95]    Frank Mueller and David B. Whalley. Avoiding conditional
+          man, and F. Kenneth Zadeck. Efﬁciently computing static                          branches by code replication. In ACM SIGPLAN Conference
+          single assignment form and the control dependence graph.                         on Programming Language Design and Implementation, vol-
+          ACM Transactions on Programming Languages and Systems,                           ume 30 of ACM SIGPLAN Notices, pages 56–66. ACM SIG-
+          13(4):451–490, October 1991.
+                                                                                           PLAN, ACM Press, June 1995.
+[CLR92]    T. H. Cormen, C. E. Leiserson, and R. L. Rivest. Introduction
+                                                                                 [Nec98]   George C. Necula. Compiling with Proofs. PhD thesis,
+           to algorithms (Chapter 25.5, pages 539-543). MIT Press and                      Carnegie Mellon University, October 1998. Available as Tech-
+           McGraw-Hill Book Company, 1992.                                                 nical Report CMU-CS-98-154.
+[DGS97]    Evelyn Duesterwald, Rajiv Gupta, and Mary Lou Soffa. A                [NL98]    G. C. Necula and P. Lee. The design and implementation of
+           practical framework for demand-driven interprocedural data
+                                                                                           a certifying compiler. In Proceedings of the 1998 ACM SIG-
+           ﬂow analysis. ACM Transactions on Programming Languages                         PLAN Conference on Prgramming Language Design and Im-
+           and Systems, 19(6):992–1030, November 1997.                                     plementation (PLDI), pages 333–344, 1998.
+[GLPN93] G Gallo, G Longo, S Pallottino, and Sang Nguyen. Directed               [Pat95]   Jason R.C. Patterson. Accurate static branch prediction by
+         hypergraphs and applications. Discrete Applied Mathematics,                       value range propagation. pages 67–78, June 1995. Proceed-
+         42:177–201, 1993.                                                                 ings of the 1995 ACM SIGPLAN Conference on Programming
+[Gup90]    Rajiv Gupta. A fresh look at optimizing array bound checking.                   Language Design and Implementation (PLDI).
+           In Mark Scott Johnson, editor, Proceedings of the ACM SIG-            [Pra77]   V.R. Pratt. Two easy theories whose combinantion is hard.
+           PLAN ’90 Conference on Programming Language Design and                          Technical report, Massachusetts Institute of Technology, 1977.
+           Implementation (SIGPLAN ’90), pages 272–282, White Plains,
+           NY, USA, June 1990. ACM Press.                                        [Ram96]   G. Ramalingam. Bounded incremental computation, volume
+                                                                                           1089 of Lecture Notes in Computer Science. Springer-Verlag
+[Gup94]    R. Gupta. Optimizing array bound checks using ﬂow analysis.                     Inc., New York, NY, USA, 1996.
+           ACM Letters on Programming Languages and Systems, 1(‘-
+           4):135–150, March-December 1994.                                      [RR96]    G. Ramalingam and Thomas Reps. An incremental algorithm
+                                                                                           for a generalization of the shortest-path problem. Journal of
+[GW75]     Susan L. Graham and Mark Wegman. A fast and usually lin-
+                                                                                           Algorithms, 21(2):267–305, September 1996.
+           ear algorithm for global ﬂow analysis. Communications of the
+           ACM, 18(12):716–716, December 1975.                                   [RR99]    Radu Rugina and Martin Rinard. Automatic parallelization of
+                                                                                           divide and conquer algorithms. In Proceedings of the ACM
+[Har77]    W.H. Harrison. Compiler analysis for the value ranges of                        SIGPLAN 1999 Symposium on Principles and Practice of Par-
+           variables. IEEE Transactions on Software Engineering, SE-
+                                                                                           allel Programming, Atlanta, GA, May 1999. ACM SIGPLAN.
+           3(3):243–250, May 1977.
+                                                                                 [Sho81]   Robert Shostak. Deciding Linear Inequalities by Computing
+[HH98]     Rebecca Hasti and Susan Horwitz. Using static single assign-                    Loop Residues. Journal of the Association for Computing Ma-
+           ment form to improve ﬂow-insensitive pointer analysis. In Pro-                  chinery, 28(4), 1981.
+           ceedings of the ACM SIGPLAN’98 Conference on Program-
+           ming Language Design and Implementation (PLDI), pages 97–             [SI77]    Norihisa Suzuki and Kiyoshi Ishihata. Implementation of an
+           105, Montreal, Canada, 17–19 June 1998.                                         array bound checker. In Conference Record of the Fourth ACM
+                                                                                           Symposium on Principles of Programming Languages, pages
+[HRS95]    Susan Horwitz, Thomas Reps, and Mooly Sagiv. Demand In-                         132–143, Los Angeles, California, January 17–19, 1977. ACM
+           terprocedural Dataﬂow Analysis. In Proceedings of the Third                     SIGACT-SIGPLAN.
+           ACM SIGSOFT Symposium on the Foundations of Software
+           Engineering, pages 104–115, October 1995.                             [SK98]    V. Sarkar and K. Knobe. Enabling sparse constant propaga-
+                                                                                           tion of array elements via array SSA form. Lecture Notes in
+[JP93]     Richard Johnson and Keshav Pingali. Dependence-based pro-                       Computer Science, 1503:33–40, 1998.
+           gram analysis. Proceedings of the ACM SIGPLAN ’93 Con-
+           ference on Programming Language Design and Implementa-                [SRH96]   Mooly Sagiv, Thomas Reps, and Susan Horwitz. Precise in-
+           tion, pages 78–89, June 1993.                                                   terprocedural dataﬂow analysis with applications to constant
+                                                                                           propagation. Theoretical Computer Science, 167(1–2):131–
+[KRS92]    Jens Knoop, Oliver Rüthing, and Bernhard Steffen. Lazy code                    170, 1996.
+           motion. SIGPLAN Notices, 27(7):224–234, July 1992. Pro-
+           ceedings of the ACM SIGPLAN ’92 Conference on Program-                [Sym]     Just-In-Time Compilation.          http://www.symantec.com/
+           ming Language Design and Implementation.                                        cafe/analysis1.html#jitcomp.
+[KS98]     Kathleen Knobe and Vivek Sarkar. Array SSA form and its               [XMR00]   Zhichen Xu, Barton Miller, and Thomas Reps. Safety checking
+           use in parallelization. In Conference Record of POPL ’98:                       of machine code. In Proceedings of the ACM SIGPLAN ’00
+           The 25th ACM SIGPLAN-SIGACT Symposium on Principles                             Conf. on Progr. Language Design and Implementation, page
+           of Programming Languages, pages 107–120, San Diego, Cali-                       to appear, jun 2000.
+           fornia, 19–21 January 1998.                                           [XP98]    Hongwei Xi and Frank Pfenning. Eliminating array bound
+[KW95]     Priyadarshan Kolte and Michael Wolfe. Elimination of redun-                     checking through dependent types. ACM SIGPLAN Notices,
+           dant array subscript range checks. ACM SIGPLAN Notices,                         33(5):249–257, May 1998. Proceedings of the 1998 ACM
+           30(6):270–278, June 1995. Proceedings of the 1995 ACM                           SIGPLAN Conference on Programming Language Design and
+           SIGPLAN Conference on Programming Language Design and                           Implementation (PLDI).
+           Implementation (PLDI).
+
+
+
+
+                                                                            13

@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"><style>
+#p { position: absolute; left: 0; top: 0; width: 1490px; background: #fff; border: 4px solid #C9D2E3; border-radius: 26px;
+     padding: 30px 46px 36px 46px; display: flex; flex-direction: column; gap: 20px }
+.hd { display: flex; align-items: center; gap: 22px }
+.num { width: 70px; height: 70px; border-radius: 35px; background: #0033A0; color: #fff; font-weight: 700; font-size: 41px; display: flex; align-items: center; justify-content: center; flex: none }
+h2 { font-size: 54px; line-height: 1.1; color: #0033A0; font-weight: 700 }
+.legend { font-size: 32px; line-height: 1.3; color: #5E6673 }
+#chart { position: relative; width: 1390px }
+.l1 { position: absolute; left: 0; font-size: 31px; font-weight: 700; line-height: 1.3 }
+.l2 { position: absolute; left: 0; font-size: 27px; line-height: 1.3 }
+.o { position: absolute; left: 380px; height: 56px; border: 4px solid #9AA5B8; border-radius: 8px; background: #fff }
+.f { position: absolute; left: 380px; height: 56px; border-radius: 8px }
+.v { position: absolute; font-size: 30px; line-height: 1.3; white-space: nowrap }
+.v span { color: #5E6673; font-weight: 400 }
+.take { font-size: 33px; line-height: 1.3 }
+.note { font-size: 28px; line-height: 1.3; color: #5E6673 }
+</style></head><body>
+<div id="p">
+ <div class="hd"><div class="num">4</div><h2>Check cost, and what elision wins back</h2></div>
+ <div class="legend"><b>Outline</b>: slowdown from all bounds checks (checks on vs. off).&nbsp; <b>Fill</b>: the part elision removes.</div>
+ <div id="chart"></div>
+ <div class="take"><b>Where checks are expensive and provable, elision wins back all of their cost, on both GPUs.</b> On NVIDIA, vello’s checks are nearly free, so there is little to win. Blur’s checks cost 7% on Intel but are mostly not provable: the coverage limit in panel 5.</div>
+ <div class="note">Exploratory (raw medians, not pre-registered). Synthetic: every kernel with a measurable check cost recovers 95–100% (5 on NVIDIA, 3 on Intel). Why checks cost more on Intel is not yet known.</div>
+</div>
+<script>
+const rows = [["vello, 32 scenes", "Intel iGPU", 6.79, 6.82, "#B5461F", "100%"], ["vello, 34 scenes", "NVIDIA", 1.3, 0.8, "#2457C5", "62%"], ["synthetic scan", "NVIDIA", 15.79, 15.79, "#2457C5", "100%"], ["synthetic scan", "Intel iGPU", 11.62, 11.61, "#B5461F", "100%"], ["image blur", "Intel iGPU", 6.95, 0.34, "#B5461F", "5%"], ["image blur", "NVIDIA", 0.27, 0.13, "#2457C5", ""]];
+const LX = 380, BW = 760, sx = v => v / 19.5 * BW, RH = 92, c = document.getElementById('chart');
+rows.forEach(([a, b, cost, rec, col, share], i) => { const y = i * RH + (i >= 2 ? 26 : 0) + (i >= 4 ? 26 : 0);
+  c.insertAdjacentHTML('beforeend', `<div class="l1" style="top:${y + 6}px">${a}</div><div class="l2" style="top:${y + 44}px;color:${col}">${b}</div>
+   <div class="o" style="top:${y + 14}px;width:${Math.max(sx(cost), 2)}px"></div><div class="f" style="top:${y + 14}px;width:${Math.max(sx(Math.min(rec, cost)), 2)}px;background:${col}"></div>
+   <div class="v" style="top:${y + 24}px;left:${LX + Math.max(sx(cost), 6) + 18}px;color:${col};font-weight:700">${rec.toFixed(1)}% of ${cost.toFixed(1)}%${share ? `<span>&nbsp; (${share})</span>` : ''}</div>`); });
+c.style.height = (rows.length * RH + 52) + 'px';
+document.fonts.ready.then(() => { document.title = 'H=' + document.getElementById('p').offsetHeight; });
+</script></body></html>
