@@ -1,0 +1,17 @@
+[workspace]
+
+[package]
+name = "gpu-dispatch-verify"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "gpu_dispatch_verify"
+path = "src/main.rs"
+
+[dependencies]
+wgpu     = { path = "../../wgpu/wgpu", features = ["spirv"] }
+naga     = { path = "../../wgpu/naga", features = ["wgsl-in", "spv-out", "msl-out"] }
+pollster = "0.3"
+bytemuck = { version = "1", features = ["derive"] }

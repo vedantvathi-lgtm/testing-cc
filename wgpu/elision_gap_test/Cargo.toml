@@ -1,0 +1,14 @@
+[package]
+name = "elision_gap_test"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[[bin]]
+name = "elision_gap_test"
+path = "elision_gap_test.rs"
+
+[dependencies]
+naga = { path = "../naga", features = ["wgsl-in", "msl-out", "spv-out"] }
+rspirv = "0.13"
