@@ -1,0 +1,71 @@
+[project]
+name = "claude-smart"
+version = "0.2.48"
+description = "Self-improving Claude Code, Codex, and OpenCode plugin that turns corrections into Preferences, Project-specific skills, and Shared skills"
+keywords = [
+    "claude",
+    "claude-code",
+    "claude-code-plugin",
+    "codex",
+    "codex-plugin",
+    "opencode",
+    "opencode-plugin",
+    "memory",
+    "agent-memory",
+    "plugin",
+    "reflexio",
+    "self-improvement",
+    "self-improving-agents",
+    "skills",
+    "learning",
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Core Reflexio client/backend package. This is the PyPI baseline used by
+    # normal installs; vendor releases may override it after uv sync by
+    # installing plugin/vendor/reflexio. Keep in sync via
+    # scripts/sync-reflexio-dep.py.
+    "reflexio-ai>=0.2.27",
+    # Needed when Reflexio runs the local embedding provider (ONNXMiniLM_L6_V2).
+    # Pulls in onnxruntime + tokenizers; the ~80 MB ONNX model itself is
+    # downloaded on first use, not at install time.
+    "chromadb>=0.5",
+    "einops>=0.8.0",
+    # Native SQLite vector KNN for local storage. Reflexio can fall back to
+    # Python ranking without this, but installed claude-smart should include
+    # the accelerator by default.
+    "sqlite-vec>=0.1.6",
+]
+
+# claude-smart is distributed via npm only (see bin/claude-smart.js); it is not
+# published to PyPI, so there is no `claude-smart` console script / uvx entry
+# point. These two scripts are resolved by the runtime from the plugin venv
+# (session_start.py locates claude-smart-optimizer-assistant; the hook is invoked
+# via `python -m claude_smart.hook`), so they stay.
+[project.scripts]
+claude-smart-hook = "claude_smart.hook:main"
+claude-smart-optimizer-assistant = "claude_smart.optimizer_assistant:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_smart"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/claude_smart",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["../tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

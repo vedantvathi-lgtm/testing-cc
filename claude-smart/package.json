@@ -1,0 +1,73 @@
+{
+  "name": "claude-smart",
+  "version": "0.2.48",
+  "description": "Self-improving Claude Code, Codex, and OpenCode plugin that turns corrections into Preferences, Project-specific skills, and Shared skills",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "claude-code-plugin",
+    "codex",
+    "codex-plugin",
+    "opencode",
+    "opencode-plugin",
+    "memory",
+    "agent-memory",
+    "plugin",
+    "reflexio",
+    "self-improvement",
+    "self-improving-agents",
+    "skills",
+    "learning"
+  ],
+  "homepage": "https://github.com/ReflexioAI/claude-smart#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ReflexioAI/claude-smart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ReflexioAI/claude-smart/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Yi Lu",
+  "type": "commonjs",
+  "oc-plugin": [
+    "server"
+  ],
+  "exports": {
+    "./server": {
+      "import": "./plugin/opencode/dist/server.mjs"
+    }
+  },
+  "scripts": {
+    "build:opencode": "tsc -p plugin/opencode/tsconfig.json",
+    "prepack": "npm run build:opencode"
+  },
+  "bin": {
+    "claude-smart": "bin/claude-smart.js"
+  },
+  "files": [
+    "bin",
+    "scripts/setup-claude-smart.sh",
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    "plugin",
+    "!plugin/**/__pycache__",
+    "!plugin/**/*.py[cod]",
+    "!plugin/**/.pytest_cache",
+    "!plugin/**/.ruff_cache",
+    "!plugin/**/.mypy_cache",
+    "!plugin/**/.venv",
+    "!plugin/**/node_modules",
+    "!plugin/**/.next/cache",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.9.0",
+    "opencode": ">=1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.8.3"
+  }
+}

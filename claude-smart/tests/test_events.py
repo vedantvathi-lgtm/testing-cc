@@ -1,0 +1,2042 @@
+"""Tests for the per-event hook handlers."""
+
+from __future__ import annotations
+
+import io
+import json
+import sys
+from typing import Any
+
+import pytest
+from claude_smart import state
+from claude_smart.events import post_tool, session_start, stop, user_prompt
+
+# -----------------------------------------------------------------------------
+# post_tool
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "tool_response, expected",
+    [
+        ({"is_error": True}, "error"),
+        ({"error": "boom"}, "error"),
+        ({"ok": True}, "success"),
+        ("plain string output", "success"),
+        (None, "success"),
+    ],
+)
+def test_post_tool_status_derivation(session_dir, tool_response, expected) -> None:
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Bash",
+            "tool_response": tool_response,
+        }
+    )
+    records = state.read_all("s1")
+    assert records[0]["status"] == expected
+
+
+def test_post_tool_drops_payload_without_session_or_tool(session_dir) -> None:
+    post_tool.handle({"tool_name": "Bash"})
+    post_tool.handle({"session_id": "s1"})
+    assert state.read_all("s1") == []
+
+
+def test_post_tool_records_tool_input(session_dir) -> None:
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls -la"},
+            "tool_response": {"ok": True},
+        }
+    )
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Read",
+            "tool_response": "plain",
+        }
+    )
+    records = state.read_all("s1")
+    assert records[0]["tool_input"] == {"command": "ls -la"}
+    assert records[1]["tool_input"] == {}
+
+
+def test_post_tool_redacts_secret_assignments(session_dir) -> None:
+    """High-entropy KEY=VALUE secrets are masked; benign assignments survive."""
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Bash",
+            "tool_input": {
+                "command": (
+                    'AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI0abcdEXAMPLEkey123" '
+                    "LOG_LEVEL=INFO curl -sf https://example.com"
+                ),
+            },
+        }
+    )
+    records = state.read_all("s1")
+    command = records[0]["tool_input"]["command"]
+    assert "wJalrXUtnFEMI0abcdEXAMPLEkey123" not in command
+    assert "<redacted:" in command
+    # Benign lowercase-or-short assignments should pass through unchanged.
+    assert "LOG_LEVEL=INFO" in command
+
+
+def test_post_tool_exit_plan_mode_records_only_assistant_tool(session_dir) -> None:
+    """ExitPlanMode PostToolUse fires *before* the user approves/rejects, so
+    its ``tool_response`` carries the plan payload itself (no decision). The
+    hook therefore writes a plain ``Assistant_tool`` record and nothing else —
+    plan-decision synthesis happens later in the Stop hook from the transcript.
+    """
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "ExitPlanMode",
+            "tool_input": {},
+            "tool_response": {
+                "plan": "# Plan\n\nbody",
+                "isAgent": False,
+                "filePath": "/tmp/plan.md",
+                "hasTaskTool": True,
+            },
+        }
+    )
+    records = state.read_all("s1")
+    assert [r["role"] for r in records] == ["Assistant_tool"]
+    assert records[0]["tool_name"] == "ExitPlanMode"
+
+
+@pytest.mark.parametrize(
+    "tool_response, expected",
+    [
+        ({"stdout": "out\n", "stderr": "err\n"}, "out\n\nerr\n"),
+        ({"stderr": "permission denied"}, "permission denied"),
+        ({"error": "boom"}, "boom"),
+        ({"content": "text body"}, "text body"),
+        ("plain", "plain"),
+        (None, ""),
+        ({"unrelated": 1}, ""),
+    ],
+)
+def test_post_tool_flattens_tool_response_text(tool_response, expected) -> None:
+    assert post_tool._flatten_tool_response_text(tool_response) == expected
+
+
+def test_post_tool_records_tool_output(session_dir) -> None:
+    """Bash stdout/stderr is captured under ``tool_output`` so reflexio sees
+    failure text, not just a status flag.
+    """
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls /nope"},
+            "tool_response": {
+                "stdout": "",
+                "stderr": "ls: /nope: No such file or directory",
+                "is_error": True,
+            },
+        }
+    )
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "/tmp/x"},
+            "tool_response": None,
+        }
+    )
+    records = state.read_all("s1")
+    assert records[0]["tool_output"] == "ls: /nope: No such file or directory"
+    assert records[0]["status"] == "error"
+    # Missing/None responses leave the field empty rather than absent.
+    assert records[1]["tool_output"] == ""
+
+
+def test_post_tool_redacts_secrets_in_tool_output(session_dir) -> None:
+    """Secret-shaped ``KEY=value`` assignments leaking through stderr must be
+    masked the same way as ``tool_input`` strings — ``tool_output`` flows
+    through the same redaction step.
+    """
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Bash",
+            "tool_input": {"command": "deploy"},
+            "tool_response": {
+                "stdout": "",
+                "stderr": "AWS_SECRET_ACCESS_KEY=AbCdEf1234567890XyZQrStUv",
+                "is_error": True,
+            },
+        }
+    )
+    records = state.read_all("s1")
+    assert "AbCdEf1234567890XyZQrStUv" not in records[0]["tool_output"]
+    assert "<redacted:" in records[0]["tool_output"]
+
+
+def test_post_tool_truncates_oversized_string(session_dir) -> None:
+    blob = "x" * 5000
+    post_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/tmp/huge", "content": blob},
+        }
+    )
+    stored = state.read_all("s1")[0]["tool_input"]["content"]
+    assert stored.endswith("…(truncated)")
+    assert len(stored) < len(blob)
+    # file_path is short and must not be affected.
+    assert state.read_all("s1")[0]["tool_input"]["file_path"] == "/tmp/huge"
+
+
+# -----------------------------------------------------------------------------
+# stop — always appends an Assistant record (Option A)
+# -----------------------------------------------------------------------------
+
+
+def _write_transcript(tmp_path, entries):
+    path = tmp_path / "transcript.jsonl"
+    path.write_text("\n".join(json.dumps(e) for e in entries) + "\n")
+    return path
+
+
+def test_stop_appends_assistant_text_from_transcript(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {"type": "thinking", "text": "hmm"},
+                        {"type": "text", "text": "hello there"},
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["role"] == "Assistant"
+    assert records[-1]["content"] == "hello there"
+
+
+def test_stop_recovers_user_turn_when_prompt_hook_did_not_fire(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "remember I prefer km"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Noted."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert [record["role"] for record in records] == ["User", "Assistant"]
+    assert records[0]["content"] == "remember I prefer km"
+    assert records[1]["content"] == "Noted."
+
+
+def test_stop_does_not_duplicate_existing_unpublished_user_turn(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    state.append(
+        "s1",
+        {
+            "role": "User",
+            "content": "already buffered",
+            "user_id": "project",
+        },
+    )
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "already buffered"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Done."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert [record["role"] for record in records] == ["User", "Assistant"]
+
+
+def test_stop_concatenates_text_across_multi_entry_assistant_turn(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """A turn spans many transcript entries; all text blocks must be captured.
+
+    Claude Code's JSONL writes each thinking/tool_use/text block as its own
+    ``type: assistant`` entry. Tool results arrive as ``type: user`` entries
+    holding ``tool_result`` blocks — they must not be treated as a turn
+    boundary. Only the leading real user message bounds the collection.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "do the thing"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "thinking", "text": "hmm"}]},
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Let me check."}]},
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Read"}]},
+            },
+            {
+                "type": "user",
+                "message": {"content": [{"type": "tool_result", "content": "..."}]},
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Found it."}]},
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Edit"}]},
+            },
+            {
+                "type": "user",
+                "message": {"content": [{"type": "tool_result", "content": "ok"}]},
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Done."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["role"] == "Assistant"
+    assert records[-1]["content"] == "Let me check.\n\nFound it.\n\nDone."
+
+
+def test_stop_captures_exit_plan_mode_plan_as_assistant_text(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """ExitPlanMode.input.plan must land in the Assistant content.
+
+    The plan is emitted as a tool_use argument, not a ``type: text`` block,
+    so without the explicit branch the whole plan would be silently dropped
+    from the published interaction.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "plan it"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Thinking…"}]},
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "# Plan\n\nStep 1. do X\nStep 2. do Y"},
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    content = records[-1]["content"]
+    assert "Thinking…" in content
+    assert "Plan:\n# Plan\n\nStep 1. do X\nStep 2. do Y" in content
+
+
+def test_stop_synthesizes_user_record_on_plan_approval(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Plan approval arrives as a ``tool_result`` in the transcript — Stop
+    must mint a User turn for it so reflexio sees the decision signal.
+
+    PostToolUse fires before the user decides (tool_response carries only the
+    plan payload), so the approval text never reaches the hook payload. The
+    transcript is the only place it exists.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "plan it"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "# Plan"},
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": (
+                                "Your plan has been saved.\n"
+                                "User has approved your plan. You can now start coding."
+                            ),
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Done."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle(
+        {
+            "session_id": "s1",
+            "transcript_path": str(transcript),
+            "cwd": "/some/repo",
+        }
+    )
+    records = state.read_all("s1")
+    roles = [r["role"] for r in records]
+    assert roles == ["User", "Assistant"]
+    assert records[0]["content"] == "Approved the plan."
+
+
+def test_stop_synthesizes_user_record_on_plan_rejection_with_comment(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Rejection-with-feedback: the user's comment is the correction signal,
+    hoisted from after ``the user said:`` into the User record content.
+    """
+    rejection_text = (
+        "The user doesn't want to proceed with this tool use. "
+        "The tool use was rejected. To tell you how to proceed, the user said:\n"
+        "avoid making the prompt too long, use v4.0.1"
+    )
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "plan it"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "# Plan"},
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "user",
+                "message": {
+                    "content": [{"type": "tool_result", "content": rejection_text}]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[0]["role"] == "User"
+    assert records[0]["content"] == (
+        "Rejected the plan. Instead: avoid making the prompt too long, use v4.0.1"
+    )
+
+
+def test_stop_synthesizes_user_record_on_silent_plan_rejection(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Rejection without a follow-up comment still emits a User record."""
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "plan it"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "# Plan"},
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": (
+                                "The user doesn't want to proceed with this tool use. "
+                                "The tool use was rejected."
+                            ),
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[0]["role"] == "User"
+    assert records[0]["content"] == "Rejected the plan."
+
+
+def test_stop_plan_decision_handles_list_content_shape(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """tool_result content can be a list of ``{type: text, text: …}`` blocks —
+    the scanner must match markers across that shape too.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "plan it"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "# Plan"},
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": [
+                                {"type": "text", "text": "Your plan has been saved."},
+                                {
+                                    "type": "text",
+                                    "text": "User has approved your plan.",
+                                },
+                            ],
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[0]["role"] == "User"
+    assert records[0]["content"] == "Approved the plan."
+
+
+def test_stop_plan_decision_ignores_prior_turn(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Plan decisions in *previous* turns were already published — only the
+    current turn's decisions (if any) should be synthesized now.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "first plan"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "# old"},
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": "User has approved your plan.",
+                        }
+                    ]
+                },
+            },
+            {"type": "user", "message": {"content": "follow-up, no plan"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Ok."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert [r["role"] for r in records] == ["User", "Assistant"]
+    assert records[0]["content"] == "follow-up, no plan"
+
+
+def test_stop_plan_decision_ignores_non_exitplanmode_tool_result_with_marker_text(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """A non-plan tool whose output happens to contain the marker text must
+    NOT be synthesized as a plan decision. The scanner only treats a
+    ``tool_result`` as a decision when the immediately-preceding assistant
+    ``tool_use`` was ``ExitPlanMode``.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "do thing"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Bash",
+                            "input": {"command": "echo 'User has approved your plan.'"},
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": "User has approved your plan.\n",
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Done."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    # No plan-decision record should be appended; only the recovered prompt.
+    assert [r["role"] for r in records] == ["User", "Assistant"]
+    assert records[0]["content"] == "do thing"
+
+
+def test_stop_exit_plan_mode_plan_interleaves_with_text_blocks_in_order(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Text and ExitPlanMode blocks in the same assistant entry must be
+    joined in emission order so the plan reads coherently relative to
+    surrounding narration.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "plan it"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {"type": "text", "text": "Here's the plan:"},
+                        {
+                            "type": "tool_use",
+                            "name": "ExitPlanMode",
+                            "input": {"plan": "step 1\nstep 2"},
+                        },
+                        {"type": "text", "text": "Approve if you're happy."},
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["content"] == (
+        "Here's the plan:\n\nPlan:\nstep 1\nstep 2\n\nApprove if you're happy."
+    )
+
+
+def test_stop_does_not_cross_prior_turn_boundary(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Backward walk must stop at the user message that opened THIS turn.
+
+    Regression guard: earlier assistant text must NOT leak into the
+    current Assistant record, or prior-turn content would get republished
+    to reflexio every time the Stop hook fires.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "first question"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "First answer."}]},
+            },
+            {"type": "user", "message": {"content": "follow-up"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "Second answer."}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["content"] == "Second answer."
+
+
+def test_stop_appends_empty_assistant_record_when_turn_was_tools_only(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Option A: tool-only assistant turn still gets a placeholder record."""
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Bash"}]},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert any(r.get("role") == "Assistant" and r.get("content") == "" for r in records)
+
+
+def test_stop_read_only_marks_buffer_without_publishing(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "read only reply"}]},
+            },
+        ],
+    )
+    monkeypatch.setenv("CLAUDE_SMART_READ_ONLY", "1")
+
+    def fail_publish(**_kwargs):
+        raise AssertionError("read-only Stop must not publish")
+
+    monkeypatch.setattr("claude_smart.publish.publish_unpublished", fail_publish)
+
+    result = stop.handle(
+        {"session_id": "s_read_only", "transcript_path": str(transcript)}
+    )
+
+    assert result == ("nothing", 0)
+    records = state.read_all("s_read_only")
+    assert records[-1]["published_up_to"] == len(records) - 1
+    _, unpublished = state.unpublished_slice(records)
+    assert unpublished == []
+
+
+def test_stop_retries_read_when_transcript_not_yet_flushed(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Race: Stop fires before Claude Code's final text write is readable.
+
+    Regression guard for the documented race in ``_read_last_assistant_text``
+    — first scan sees a tool-only tail because the final ``type: text`` entry
+    hasn't hit the page cache yet. The retry must pick up the text instead
+    of persisting an empty Assistant record.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Bash"}]},
+            },
+            {
+                "type": "user",
+                "message": {"content": [{"type": "tool_result", "content": "ok"}]},
+            },
+        ],
+    )
+
+    sleep_calls: list[float] = []
+
+    def fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+        if len(sleep_calls) == 1:
+            with transcript.open("a") as fh:
+                fh.write(
+                    json.dumps(
+                        {
+                            "type": "assistant",
+                            "message": {
+                                "content": [{"type": "text", "text": "late answer"}]
+                            },
+                        }
+                    )
+                    + "\n"
+                )
+
+    monkeypatch.setattr("claude_smart.events.stop.time.sleep", fake_sleep)
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["content"] == "late answer"
+    assert len(sleep_calls) == 1
+
+
+def test_stop_retry_exhausts_budget_and_returns_empty(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """All retries miss the flush — Assistant record persists with empty content.
+
+    Confirms the retry loop is bounded and falls through to the empty-record
+    path (Option A) instead of spinning or raising.
+    """
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Bash"}]},
+            },
+        ],
+    )
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        "claude_smart.events.stop.time.sleep",
+        lambda d: sleep_calls.append(d),
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["role"] == "Assistant"
+    assert records[-1]["content"] == ""
+    # All configured delays were consumed — no early exit on non-empty.
+    assert len(sleep_calls) == len(stop._TRANSCRIPT_RETRY_DELAYS_S)
+
+
+def test_stop_stamps_user_id_from_payload_cwd(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Assistant record carries user_id resolved from the hook payload's cwd."""
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "ok"}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.events.stop.ids.resolve_user_id",
+        lambda cwd=None: f"proj::{cwd}",
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **_: ("nothing", 0),
+    )
+    stop.handle(
+        {
+            "session_id": "s1",
+            "transcript_path": str(transcript),
+            "cwd": "/some/repo",
+        }
+    )
+    records = state.read_all("s1")
+    assert records[-1]["user_id"] == "proj::/some/repo"
+
+
+def _stub_user_prompt_adapter(
+    monkeypatch,
+    *,
+    playbooks=None,
+    agent_playbooks=None,
+    profiles=None,
+    calls=None,
+):
+    class Stub:
+        def search_all(self, **kwargs):
+            if calls is not None:
+                calls.append(kwargs)
+            return (
+                list(playbooks or []),
+                list(agent_playbooks or []),
+                list(profiles or []),
+            )
+
+    monkeypatch.setattr("claude_smart.context_inject.Adapter", lambda *a, **kw: Stub())
+    monkeypatch.setattr(
+        "claude_smart.events.user_prompt.ids.resolve_user_id",
+        lambda *_a, **_kw: "demo",
+    )
+
+
+def test_user_prompt_stamps_user_id_from_payload_cwd(session_dir, monkeypatch) -> None:
+    """User record carries user_id resolved from the hook payload's cwd."""
+    _stub_user_prompt_adapter(monkeypatch)
+    monkeypatch.setattr(
+        "claude_smart.events.user_prompt.ids.resolve_user_id",
+        lambda cwd=None: f"proj::{cwd}",
+    )
+    user_prompt.handle({"session_id": "s1", "prompt": "hello", "cwd": "/some/repo"})
+    records = state.read_all("s1")
+    assert records[-1]["role"] == "User"
+    assert records[-1]["content"] == "hello"
+    assert records[-1]["user_id"] == "proj::/some/repo"
+
+
+def test_user_prompt_injects_context_when_hits_present(
+    session_dir, monkeypatch
+) -> None:
+    """A prompt with matching preferences/skills injects additionalContext."""
+    calls: list[dict[str, Any]] = []
+    _stub_user_prompt_adapter(
+        monkeypatch,
+        playbooks=[{"content": "run uv sync after edits", "trigger": "pyproject.toml"}],
+        profiles=[{"content": "prefers anyio over asyncio"}],
+        calls=calls,
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    user_prompt.handle(
+        {"session_id": "s1", "prompt": "edit pyproject.toml", "cwd": "/r"}
+    )
+    payload = json.loads(buf.getvalue().strip())
+    assert payload["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
+    markdown = payload["hookSpecificOutput"]["additionalContext"]
+    assert "run uv sync after edits" in markdown
+    assert "prefers anyio over asyncio" in markdown
+    # Prompt text is passed verbatim as the search query.
+    assert calls[0]["project_id"] == "demo"
+    assert calls[0]["query"] == "edit pyproject.toml"
+    # The prompt is still buffered for downstream extraction.
+    records = state.read_all("s1")
+    assert records[-1]["role"] == "User"
+    assert records[-1]["content"] == "edit pyproject.toml"
+    # The citation registry is populated so Stop can resolve text citation ids.
+    registry = state.read_injected("s1")
+    assert registry, "expected injected registry to hold at least one entry"
+    kinds = {entry["kind"] for entry in registry.values()}
+    assert kinds == {"playbook", "profile"}
+    for cite_id, entry in registry.items():
+        assert cite_id[0] in {"s", "p"}
+        assert entry["content"]
+        assert entry["title"]
+
+
+def test_user_prompt_injects_compact_context_for_codex(
+    session_dir, monkeypatch
+) -> None:
+    """Codex receives a one-line context because the TUI displays it."""
+    monkeypatch.setenv("CLAUDE_SMART_HOST", "codex")
+    monkeypatch.delenv("CLAUDE_SMART_CITATION_LINK_STYLE", raising=False)
+    _stub_user_prompt_adapter(
+        monkeypatch,
+        playbooks=[
+            {
+                "content": (
+                    "Run uv sync after pyproject edits. "
+                    "Then run an import smoke test before committing."
+                ),
+                "trigger": "pyproject.toml",
+            }
+        ],
+        profiles=[{"content": "prefers anyio over asyncio"}],
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    user_prompt.handle(
+        {"session_id": "s1", "prompt": "edit pyproject.toml", "cwd": "/r"}
+    )
+
+    payload = json.loads(buf.getvalue().strip())
+    markdown = payload["hookSpecificOutput"]["additionalContext"]
+    assert payload["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
+    assert markdown.endswith("\n")
+    assert "\n" not in markdown.rstrip("\n")
+    assert "claude-smart: using relevant memory. Skill:" in markdown
+    assert "Preference:" in markdown
+    assert "### Relevant project preferences" not in markdown
+    assert "[cs:" not in markdown
+    assert "Run uv sync after pyproject edits" in markdown
+    assert "Then run an import smoke test before committing" in markdown
+    assert "Run uv sync after pyproject edits: Run uv sync" not in markdown
+    assert "prefers anyio over asyncio" in markdown
+    assert "✨ claude-smart rule applied:" in markdown
+    assert "copy this final marker exactly with markdown links" in markdown
+    assert (
+        "✨ claude-smart rule applied: "
+        "[Run uv sync after pyproject edits](http://localhost:3001/rules/s1) | "
+        "[prefers anyio over asyncio](http://localhost:3001/rules/p1)"
+    ) in markdown
+    assert "\x1b]8;;" not in markdown
+
+
+def test_user_prompt_writes_nothing_when_search_empty(session_dir, monkeypatch) -> None:
+    """No hits → no stdout output, but the prompt is still buffered."""
+    _stub_user_prompt_adapter(monkeypatch, playbooks=[], profiles=[])
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    user_prompt.handle({"session_id": "s1", "prompt": "anything", "cwd": "/r"})
+    assert buf.getvalue() == ""
+    assert state.read_all("s1")[-1]["content"] == "anything"
+
+
+def test_user_prompt_buffers_even_when_search_raises(session_dir, monkeypatch) -> None:
+    """A failing search must not prevent the prompt from being buffered."""
+
+    class Boom:
+        def search_all(self, **_kw):
+            raise RuntimeError("reflexio down")
+
+    monkeypatch.setattr("claude_smart.context_inject.Adapter", lambda *a, **kw: Boom())
+    monkeypatch.setattr(
+        "claude_smart.events.user_prompt.ids.resolve_user_id",
+        lambda *_a, **_kw: "demo",
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    user_prompt.handle({"session_id": "s1", "prompt": "hello", "cwd": "/r"})
+    assert buf.getvalue() == ""
+    assert state.read_all("s1")[-1]["content"] == "hello"
+
+
+def test_user_prompt_noop_on_empty_prompt(session_dir, monkeypatch) -> None:
+    """Empty prompt → nothing buffered, nothing emitted, no search attempted."""
+    calls: list[dict[str, Any]] = []
+    _stub_user_prompt_adapter(monkeypatch, calls=calls)
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    user_prompt.handle({"session_id": "s1", "prompt": "", "cwd": "/r"})
+    assert state.read_all("s1") == []
+    assert buf.getvalue() == ""
+    assert calls == []
+
+
+def test_stop_without_session_is_noop(session_dir) -> None:
+    stop.handle({})
+    assert state.read_all("s1") == []
+
+
+# -----------------------------------------------------------------------------
+# stop — text citation extraction
+# -----------------------------------------------------------------------------
+
+
+def _prime_injected_registry(session_id: str) -> None:
+    state.append_injected(
+        session_id,
+        [
+            {
+                "id": "s1-42",
+                "kind": "playbook",
+                "title": "use pathlib",
+                "content": "use pathlib",
+                "real_id": "42",
+                "ts": 0,
+            },
+            {
+                "id": "p1-uuid",
+                "kind": "profile",
+                "title": "prefers anyio",
+                "content": "prefers anyio",
+                "real_id": "uuid-anyio",
+                "ts": 0,
+            },
+        ],
+    )
+
+
+def test_stop_records_text_marker_ids_as_cited_items(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """The current citation path resolves ids from the final assistant marker."""
+    _prime_injected_registry("s1")
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "do the thing"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Done.\n\n"
+                                "✨ 2 claude-smart learnings applied [cs:s1-42,p1-uuid]"
+                            ),
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1]["content"] == (
+        "Done.\n\n✨ 2 claude-smart learnings applied [cs:s1-42,p1-uuid]"
+    )
+    assert records[-1].get("cited_items") == [
+        {"id": "s1-42", "kind": "playbook", "title": "use pathlib", "real_id": "42"},
+        {
+            "id": "p1-uuid",
+            "kind": "profile",
+            "title": "prefers anyio",
+            "real_id": "uuid-anyio",
+        },
+    ]
+
+
+def test_stop_preserves_cited_item_source_kind(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Stop carries source_kind so shared skill citations can route correctly."""
+    state.append_injected(
+        "s1",
+        [
+            {
+                "id": "s1-42",
+                "kind": "playbook",
+                "title": "global rule",
+                "content": "global rule",
+                "real_id": "42",
+                "source_kind": "agent_playbook",
+                "ts": 0,
+            }
+        ],
+    )
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "do the thing"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Done.\n\n✨ 1 claude-smart learning applied [cs:s1-42]"
+                            ),
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1].get("cited_items") == [
+        {
+            "id": "s1-42",
+            "kind": "playbook",
+            "title": "global rule",
+            "real_id": "42",
+            "source_kind": "agent_playbook",
+        }
+    ]
+
+
+def test_stop_records_human_dashboard_marker_as_cited_items(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Human-readable marker links resolve back to injected registry entries."""
+    state.append_injected(
+        "s1",
+        [
+            {
+                "id": "s1-42",
+                "kind": "playbook",
+                "title": "use pathlib",
+                "content": "use pathlib",
+                "real_id": "42",
+                "source_kind": "user_playbook",
+                "ts": 0,
+            },
+            {
+                "id": "p1-uuid",
+                "kind": "profile",
+                "title": "prefers anyio",
+                "content": "prefers anyio",
+                "real_id": "uuid-anyio",
+                "ts": 0,
+            },
+        ],
+    )
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "do the thing"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Done.\n\n"
+                                "✨ Applied: "
+                                "[pathlib rule]"
+                                "(http://localhost:3001/skills/project/42), "
+                                "[anyio preference]"
+                                "(http://localhost:3001/preferences/project/uuid-anyio)"
+                            ),
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert records[-1].get("cited_items") == [
+        {
+            "id": "s1-42",
+            "kind": "playbook",
+            "title": "use pathlib",
+            "real_id": "42",
+            "source_kind": "user_playbook",
+        },
+        {
+            "id": "p1-uuid",
+            "kind": "profile",
+            "title": "prefers anyio",
+            "real_id": "uuid-anyio",
+        },
+    ]
+
+
+def test_stop_omits_cited_items_when_no_citation_marker(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Non-citing turns leave no cited_items key on the Assistant record."""
+    _prime_injected_registry("s1")
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "ok"}]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert "cited_items" not in records[-1]
+
+
+def test_stop_drops_unknown_text_citation_ids(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Ids not present in the session registry are silently dropped."""
+    _prime_injected_registry("s1")
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "hi"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Done.\n\n"
+                                "✨ 2 claude-smart learnings applied [cs:s1-42,s9-ffff]"
+                            ),
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    cited = records[-1].get("cited_items")
+    assert cited == [
+        {"id": "s1-42", "kind": "playbook", "title": "use pathlib", "real_id": "42"},
+    ]
+
+
+def test_stop_handles_missing_transcript_file(session_dir, monkeypatch) -> None:
+    """``transcript_path`` points at a nonexistent file → no crash, empty record."""
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": "/does/not/exist.jsonl"})
+    records = state.read_all("s1")
+    assert records[-1]["role"] == "Assistant"
+    assert records[-1]["content"] == ""
+    assert "cited_items" not in records[-1]
+
+
+def test_stop_citation_without_prior_registry_drops_all_ids(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """Citation with no ``.injected.jsonl`` (e.g. resumed session) → all ids drop."""
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "do the thing"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Done.\n\n✨ 1 claude-smart learning applied [cs:s1-42]"
+                            ),
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("nothing", 0)
+    )
+    stop.handle({"session_id": "s1", "transcript_path": str(transcript)})
+    records = state.read_all("s1")
+    assert "cited_items" not in records[-1]
+
+
+# -----------------------------------------------------------------------------
+# session_start - apply defaults, but do not retrieve memory
+# -----------------------------------------------------------------------------
+
+
+def test_session_start_emits_continue_without_session_id(
+    session_dir, monkeypatch
+) -> None:
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    session_start.handle({})
+    assert json.loads(buf.getvalue().strip()) == {
+        "continue": True,
+        "suppressOutput": True,
+    }
+
+
+def test_session_start_emits_continue_without_memory_lookup(
+    session_dir, monkeypatch
+) -> None:
+    class StubAdapter:
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **_kw):
+            return True
+
+        def fetch_all(self, **_kw):
+            raise AssertionError("SessionStart must not fetch memory")
+
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: StubAdapter()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    session_start.handle({"session_id": "s1", "source": "startup"})
+    assert json.loads(buf.getvalue().strip()) == {
+        "continue": True,
+        "suppressOutput": True,
+    }
+
+
+def test_session_start_ignores_available_memory_and_continues(
+    session_dir, monkeypatch
+) -> None:
+    class Stub:
+        url = "http://localhost:8071/"
+
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **_kw):
+            return True
+
+        def fetch_all(self, **_kw):
+            raise AssertionError("SessionStart must not fetch memory")
+
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    session_start.handle({"session_id": "s1", "source": "startup"})
+    assert json.loads(buf.getvalue().strip()) == {
+        "continue": True,
+        "suppressOutput": True,
+    }
+
+
+def test_session_start_applies_claude_smart_extraction_defaults(
+    session_dir, monkeypatch
+) -> None:
+    """SessionStart must push claude-smart's 5/3 extraction defaults to reflexio."""
+    applied: list[dict[str, Any]] = []
+
+    class Stub:
+        def apply_extraction_defaults(self, **kwargs):
+            applied.append(kwargs)
+            return True
+
+        def apply_optimizer_defaults(self, **_kw):
+            return True
+
+        def fetch_all(self, **_kw):
+            return ([], [], [])
+
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    session_start.handle({"session_id": "s1", "source": "startup"})
+    assert applied == [{"window_size": 5, "stride_size": 3}]
+
+
+def test_session_start_honours_extraction_env_overrides(
+    session_dir, monkeypatch
+) -> None:
+    """CLAUDE_SMART_WINDOW_SIZE / STRIDE_SIZE env vars override the defaults."""
+    # The module-level constants are read at import time, so reload after
+    # monkeypatching the env to make the overrides take effect.
+    import importlib
+
+    monkeypatch.setenv("CLAUDE_SMART_WINDOW_SIZE", "2")
+    monkeypatch.setenv("CLAUDE_SMART_STRIDE_SIZE", "1")
+    import claude_smart.events.session_start as ss
+
+    importlib.reload(ss)
+
+    applied: list[dict[str, Any]] = []
+
+    class Stub:
+        def apply_extraction_defaults(self, **kwargs):
+            applied.append(kwargs)
+            return True
+
+        def apply_optimizer_defaults(self, **_kw):
+            return True
+
+        def fetch_all(self, **_kw):
+            return ([], [], [])
+
+    monkeypatch.setattr(ss, "Adapter", lambda *a, **kw: Stub())
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    try:
+        ss.handle({"session_id": "s1", "source": "startup"})
+        assert applied == [{"window_size": 2, "stride_size": 1}]
+    finally:
+        # Reload again with env unset so other tests see the real defaults.
+        monkeypatch.delenv("CLAUDE_SMART_WINDOW_SIZE", raising=False)
+        monkeypatch.delenv("CLAUDE_SMART_STRIDE_SIZE", raising=False)
+        importlib.reload(ss)
+
+
+def test_session_start_falls_back_to_defaults_on_garbage_env_values(
+    session_dir, monkeypatch
+) -> None:
+    """A non-integer env value must fall back to the default rather than
+    raising at import time. Addresses CodeRabbit review on PR #30:
+    SessionStart is the hook that wires every other hook, so an
+    import-time crash here silently disables the whole plugin.
+    """
+    import importlib
+
+    monkeypatch.setenv("CLAUDE_SMART_WINDOW_SIZE", "not-an-int")
+    monkeypatch.setenv("CLAUDE_SMART_STRIDE_SIZE", "")
+    import claude_smart.events.session_start as ss
+
+    # Must not raise on reload.
+    importlib.reload(ss)
+    try:
+        assert ss._CLAUDE_SMART_WINDOW_SIZE == 5  # default
+        assert ss._CLAUDE_SMART_STRIDE_SIZE == 3  # default
+    finally:
+        monkeypatch.delenv("CLAUDE_SMART_WINDOW_SIZE", raising=False)
+        monkeypatch.delenv("CLAUDE_SMART_STRIDE_SIZE", raising=False)
+        importlib.reload(ss)
+
+
+def test_session_start_skips_optimizer_defaults_when_opted_out(
+    session_dir, monkeypatch
+) -> None:
+    optimizer_calls: list[dict[str, Any]] = []
+
+    class Stub:
+        url = "http://localhost:8071/"
+
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **kwargs):
+            optimizer_calls.append(kwargs)
+            return True
+
+        def fetch_all(self, **_kw):
+            return ([], [], [])
+
+    monkeypatch.setenv("CLAUDE_SMART_ENABLE_OPTIMIZER", "0")
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+
+    session_start.handle({"session_id": "s1", "source": "startup"})
+
+    assert optimizer_calls == []
+
+
+def test_session_start_applies_optimizer_defaults_by_default(
+    session_dir, monkeypatch
+) -> None:
+    optimizer_calls: list[dict[str, Any]] = []
+
+    class Stub:
+        url = "http://localhost:8071/"
+
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **kwargs):
+            optimizer_calls.append(kwargs)
+            return True
+
+        def fetch_all(self, **_kw):
+            return ([], [], [])
+
+    monkeypatch.setattr(session_start.sys, "executable", "/tmp/venv/bin/python")
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+
+    session_start.handle({"session_id": "s1", "source": "startup"})
+
+    assert optimizer_calls == [
+        {
+            "script_path": "/tmp/venv/bin/claude-smart-optimizer-assistant",
+            "timeout_seconds": 300,
+        }
+    ]
+
+
+def test_session_start_skips_optimizer_defaults_for_hosted_reflexio_by_default(
+    session_dir, monkeypatch
+) -> None:
+    optimizer_calls: list[dict[str, Any]] = []
+
+    class Stub:
+        url = "https://www.reflexio.ai/"
+
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **kwargs):
+            optimizer_calls.append(kwargs)
+            return True
+
+        def fetch_all(self, **_kw):
+            return ([], [], [])
+
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+
+    session_start.handle({"session_id": "s1", "source": "startup"})
+
+    assert optimizer_calls == []
+
+
+def test_session_start_can_force_optimizer_defaults_for_hosted_reflexio(
+    session_dir, monkeypatch
+) -> None:
+    optimizer_calls: list[dict[str, Any]] = []
+
+    class Stub:
+        url = "https://www.reflexio.ai/"
+
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **kwargs):
+            optimizer_calls.append(kwargs)
+            return True
+
+        def fetch_all(self, **_kw):
+            return ([], [], [])
+
+    monkeypatch.setenv("CLAUDE_SMART_ENABLE_OPTIMIZER", "1")
+    monkeypatch.setattr(session_start.sys, "executable", "/tmp/venv/bin/python")
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+
+    session_start.handle({"session_id": "s1", "source": "startup"})
+
+    assert optimizer_calls == [
+        {
+            "script_path": "/tmp/venv/bin/claude-smart-optimizer-assistant",
+            "timeout_seconds": 300,
+        }
+    ]
+
+
+def test_session_start_never_fetches_memory_for_any_source(
+    session_dir, monkeypatch
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class Stub:
+        def apply_extraction_defaults(self, **_kw):
+            return True
+
+        def apply_optimizer_defaults(self, **_kw):
+            return True
+
+        def fetch_all(self, **kwargs):
+            calls.append(kwargs)
+            raise AssertionError("SessionStart must not fetch memory")
+
+    monkeypatch.setattr(
+        "claude_smart.events.session_start.Adapter", lambda *a, **kw: Stub()
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    for source in ("startup", "resume", "clear", "compact"):
+        session_start.handle({"session_id": "s1", "source": source})
+        assert json.loads(buf.getvalue().strip().splitlines()[-1]) == {
+            "continue": True,
+            "suppressOutput": True,
+        }
+    assert calls == []
+
+
+# -----------------------------------------------------------------------------
+# pre_tool
+# -----------------------------------------------------------------------------
+
+
+def _stub_pretool_adapter(
+    monkeypatch,
+    *,
+    playbooks=None,
+    agent_playbooks=None,
+    profiles=None,
+    calls=None,
+):
+    class Stub:
+        def search_all(self, **kwargs):
+            if calls is not None:
+                calls.append(kwargs)
+            return (
+                list(playbooks or []),
+                list(agent_playbooks or []),
+                list(profiles or []),
+            )
+
+    monkeypatch.setattr("claude_smart.context_inject.Adapter", lambda *a, **kw: Stub())
+    monkeypatch.setattr(
+        "claude_smart.events.pre_tool.ids.resolve_user_id",
+        lambda *_a, **_kw: "demo",
+    )
+
+
+def test_pre_tool_emits_continue_without_session_id(session_dir, monkeypatch) -> None:
+    from claude_smart.events import pre_tool
+
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    pre_tool.handle({"tool_name": "Edit", "tool_input": {"file_path": "a.py"}})
+    assert json.loads(buf.getvalue().strip()) == {
+        "continue": True,
+        "suppressOutput": True,
+    }
+
+
+def test_pre_tool_emits_continue_for_unknown_tool(session_dir, monkeypatch) -> None:
+    from claude_smart.events import pre_tool
+
+    _stub_pretool_adapter(monkeypatch)
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    pre_tool.handle(
+        {"session_id": "s1", "tool_name": "Read", "tool_input": {"file_path": "a.py"}}
+    )
+    assert json.loads(buf.getvalue().strip()) == {
+        "continue": True,
+        "suppressOutput": True,
+    }
+
+
+def test_pre_tool_injects_context_when_hits_present(session_dir, monkeypatch) -> None:
+    from claude_smart.events import pre_tool
+
+    calls: list[dict[str, Any]] = []
+    _stub_pretool_adapter(
+        monkeypatch,
+        playbooks=[{"content": "run uv sync after edits", "trigger": "pyproject.toml"}],
+        profiles=[{"content": "prefers anyio over asyncio"}],
+        calls=calls,
+    )
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    pre_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "src/x/pyproject.toml", "new_string": "dep"},
+        }
+    )
+    payload = json.loads(buf.getvalue().strip())
+    assert payload["hookSpecificOutput"]["hookEventName"] == "PreToolUse"
+    markdown = payload["hookSpecificOutput"]["additionalContext"]
+    assert "run uv sync after edits" in markdown
+    assert "prefers anyio over asyncio" in markdown
+    # Composed query must reach the adapter scoped to the project.
+    assert calls[0]["project_id"] == "demo"
+    assert "pyproject.toml" in calls[0]["query"]
+
+
+def test_pre_tool_emits_continue_when_search_empty(session_dir, monkeypatch) -> None:
+    from claude_smart.events import pre_tool
+
+    _stub_pretool_adapter(monkeypatch, playbooks=[], profiles=[])
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    pre_tool.handle(
+        {
+            "session_id": "s1",
+            "tool_name": "Bash",
+            "tool_input": {"command": "uv run pytest"},
+        }
+    )
+    assert json.loads(buf.getvalue().strip()) == {
+        "continue": True,
+        "suppressOutput": True,
+    }
+
+
+# -----------------------------------------------------------------------------
+# session_end — synthesises Assistant anchor for orphan tool records
+# -----------------------------------------------------------------------------
+
+
+def test_session_end_synthesises_anchor_when_buffer_ends_with_orphan_tools(
+    session_dir, tmp_path, monkeypatch
+) -> None:
+    """When Stop never fires, the buffer ends with orphan Assistant_tool
+    records. SessionEnd must append a synthetic Assistant record so the
+    tool stream survives the publish."""
+    from claude_smart import state
+    from claude_smart.events import session_end
+
+    state.append("s_orphan", {"role": "User", "content": "go", "user_id": "p1"})
+    state.append(
+        "s_orphan",
+        {
+            "role": "Assistant_tool",
+            "tool_name": "Bash",
+            "tool_input": {"command": "pytest"},
+            "tool_output": "passed",
+            "status": "success",
+        },
+    )
+    state.append(
+        "s_orphan",
+        {
+            "role": "Assistant_tool",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "foo.py"},
+            "tool_output": "...",
+            "status": "success",
+        },
+    )
+
+    transcript = _write_transcript(
+        tmp_path,
+        [
+            {"type": "user", "message": {"content": "go"}},
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [{"type": "text", "text": "final assistant text"}]
+                },
+            },
+        ],
+    )
+
+    published_kwargs: dict[str, Any] = {}
+
+    def fake_publish(**kwargs):
+        published_kwargs.update(kwargs)
+        return ("ok", 1)
+
+    monkeypatch.setattr("claude_smart.publish.publish_unpublished", fake_publish)
+
+    result = session_end.handle(
+        {"session_id": "s_orphan", "cwd": "/tmp/p1", "transcript_path": str(transcript)}
+    )
+    assert result == ("ok", 1)
+
+    records = state.read_all("s_orphan")
+    synth = [r for r in records if r.get("synthesised_by") == "session_end_anchor"]
+    assert len(synth) == 1
+    assert synth[0]["role"] == "Assistant"
+    assert synth[0]["content"] == "final assistant text"
+    assert published_kwargs["session_id"] == "s_orphan"
+    # SessionEnd publishes synchronously so the snapshot read after the
+    # hook returns sees any just-extracted rows.
+    assert published_kwargs["force_extraction"] is True
+    assert published_kwargs.get("override_learning_stall") is None
+
+
+def test_session_end_uses_force_extraction_for_final_flush(
+    session_dir, monkeypatch
+) -> None:
+    """Every SessionEnd publish must set force_extraction=True so the
+    extractor finishes before snapshot_playbooks() reads."""
+    from claude_smart import state
+    from claude_smart.events import session_end
+
+    state.append("s_force", {"role": "User", "content": "ping", "user_id": "p"})
+
+    published_kwargs: dict[str, Any] = {}
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished",
+        lambda **kwargs: published_kwargs.update(kwargs) or ("ok", 1),
+    )
+    session_end.handle({"session_id": "s_force", "cwd": "/tmp/p"})
+    assert published_kwargs["force_extraction"] is True
+    assert published_kwargs.get("override_learning_stall") is None
+    # And skip_aggregation stays False — the rollup still happens.
+    assert published_kwargs["skip_aggregation"] is False
+
+
+def test_session_end_read_only_marks_buffer_without_publishing(
+    session_dir, monkeypatch
+) -> None:
+    from claude_smart.events import session_end
+
+    state.append("s_read_only_end", {"role": "User", "content": "ping", "user_id": "p"})
+    monkeypatch.setenv("CLAUDE_SMART_READ_ONLY", "true")
+
+    def fail_publish(**_kwargs):
+        raise AssertionError("read-only SessionEnd must not publish")
+
+    monkeypatch.setattr("claude_smart.publish.publish_unpublished", fail_publish)
+
+    result = session_end.handle({"session_id": "s_read_only_end", "cwd": "/tmp/p"})
+
+    assert result == ("nothing", 0)
+    records = state.read_all("s_read_only_end")
+    assert records[-1]["published_up_to"] == len(records) - 1
+    _, unpublished = state.unpublished_slice(records)
+    assert unpublished == []
+
+
+def test_session_end_uses_placeholder_when_transcript_missing(
+    session_dir, monkeypatch
+) -> None:
+    """No transcript_path → synthetic Assistant uses the placeholder string."""
+    from claude_smart import state
+    from claude_smart.events import session_end
+
+    state.append("s_nopath", {"role": "User", "content": "do it", "user_id": "p"})
+    state.append(
+        "s_nopath",
+        {
+            "role": "Assistant_tool",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "tool_output": "",
+            "status": "success",
+        },
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("ok", 1)
+    )
+    session_end.handle({"session_id": "s_nopath", "cwd": "/tmp/p"})
+    records = state.read_all("s_nopath")
+    synth = [r for r in records if r.get("synthesised_by") == "session_end_anchor"]
+    assert len(synth) == 1
+    assert "session ended without final assistant response" in synth[0]["content"]
+
+
+def test_session_end_skips_anchor_when_assistant_already_present(
+    session_dir, monkeypatch
+) -> None:
+    """If the buffer tail already has an Assistant record (Stop fired
+    correctly), SessionEnd must not append a duplicate."""
+    from claude_smart import state
+    from claude_smart.events import session_end
+
+    state.append("s_clean", {"role": "User", "content": "do it", "user_id": "p"})
+    state.append(
+        "s_clean",
+        {
+            "role": "Assistant_tool",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "tool_output": "",
+            "status": "success",
+        },
+    )
+    state.append(
+        "s_clean",
+        {"role": "Assistant", "content": "done", "user_id": "p"},
+    )
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("ok", 1)
+    )
+    session_end.handle({"session_id": "s_clean", "cwd": "/tmp/p"})
+    records = state.read_all("s_clean")
+    synth = [r for r in records if r.get("synthesised_by") == "session_end_anchor"]
+    assert synth == []
+
+
+def test_session_end_skips_anchor_when_no_tools(session_dir, monkeypatch) -> None:
+    """Empty buffer (no orphan tools) → no synthetic record appended."""
+    from claude_smart import state
+    from claude_smart.events import session_end
+
+    state.append("s_empty", {"role": "User", "content": "go", "user_id": "p"})
+    monkeypatch.setattr(
+        "claude_smart.publish.publish_unpublished", lambda **_: ("ok", 0)
+    )
+    session_end.handle({"session_id": "s_empty", "cwd": "/tmp/p"})
+    records = state.read_all("s_empty")
+    synth = [r for r in records if r.get("synthesised_by") == "session_end_anchor"]
+    assert synth == []
+
+
+def test_session_end_without_session_id_returns_none(session_dir) -> None:
+    """No session_id in the payload → short-circuit, no publish, no state."""
+    from claude_smart.events import session_end
+
+    result = session_end.handle({})
+    assert result is None
